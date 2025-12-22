@@ -1,0 +1,9 @@
+<div class="confirmation-modal">
+  <img src="./assets/lock-red.png" class="burn-img" alt="">
+  <h2>{{'warningCap' | translate}} </h2>
+  <p>{{'resetPasswordConfirmMsg' | translate}}</p>
+  <div class="buttons">
+    <p class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</p>
+    <p class="blue-btn" (click)="dismiss(true)">{{'reset' | translate}}</p>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+# Make WebStorm, VS Code, etc. use the same rules
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Default: 2 spaces
+indent_style = space
+indent_size = 2
+
+# Web / Angular / Ionic
+[*.{ts,tsx,js,jsx,html,css,scss,json,md,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Keep trailing spaces in Markdown (for hard line breaks)
+[*.md]
+trim_trailing_whitespace = false
+
+# PHP (Laravel) — PSR-12
+[*.php]
+indent_style = space
+indent_size = 4
+
+# Shell and config
+[*.{sh,bash}]
+indent_size = 2

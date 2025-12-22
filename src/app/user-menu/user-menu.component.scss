@@ -1,0 +1,68 @@
+.user-popover {
+    min-width: 270px;
+
+    .user-info {
+        padding: 20px 20px 10px;
+
+        .label {
+            font-size: 12px;
+            color: #62626A;
+        }
+
+        .name {
+            font-size: 14px;
+            color: #0B0C19;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .login-label {
+            font-size: 16px;
+            color: #0B0C19;
+            font-weight: 600;
+        }
+
+        .login-sub-label {
+            font-size: 12px;
+            color: #62626A;
+            margin-top: 4px;
+        }
+
+        .login-btn {
+            width: calc(100% - 3px);
+            height: 36px;
+            background: #2761FC!important;
+            --background: #2761FC!important;
+            color: #FFFFFF;
+            font-size: 14px;
+            border-radius: 40px;
+            --border-radius: 40px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+            text-transform: none;
+        }
+    }
+
+    .menu-item-container {
+
+        .menu-item {
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+
+            img {
+                width: 24px;
+                height: 24px;
+            }
+
+            span {
+                margin-left: 5px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #62626A;
+            }
+        }
+    }
+}

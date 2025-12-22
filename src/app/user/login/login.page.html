@@ -1,0 +1,31 @@
+<ion-header [translucent]="true">
+    <ion-toolbar>
+      <ion-buttons slot="start">
+          <ion-back-button defaultHref="/"
+          class="custom-back-button"  text="">
+          <ion-icon slot="icon-only" style="display: none;"></ion-icon>
+        </ion-back-button>
+      </ion-buttons>
+    </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+ <h4>Sign in with your Stellar ID.</h4>
+  <ion-item>
+    <ion-label stacked>Username</ion-label>
+    <ion-input></ion-input>
+  </ion-item>
+
+    <ion-item>
+           <ion-label stacked>Password</ion-label>
+         <ion-input type="password"></ion-input>
+        </ion-item>
+        <div text-center margin-top>
+          Create Stellar ID >
+
+            <hr>
+          <button>
+            SIGN IN
+          </button>
+        </div>
+</ion-content>

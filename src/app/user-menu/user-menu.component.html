@@ -1,0 +1,35 @@
+<div class="user-popover">
+  <div class="user-info">
+    <ng-container *ngIf="isUserIsLoggedIn">
+      <div class="label">Account Name</div>
+      <div class="name">{{user?.email}}</div>
+    </ng-container>
+    <ng-container *ngIf="!isUserIsLoggedIn">
+      <div class="login-label">Log In to your Profile</div>
+      <div class="login-sub-label">Please enter your email and password</div>
+
+      <ion-button class="login-btn" (click)="goToLogin()">Log In</ion-button>
+
+
+      <div class="ion-margin-top">
+        <a routerLink="/profile/create-account"  (click)="popoverController.dismiss()"
+        style="font-weight: bold; font-size: 12px; text-decoration: none;">Create Stellar ID</a>
+      </div>
+
+    </ng-container>
+  </div>
+
+  <div class="menu-item-container">
+    <div class="menu-item" (click)="openSettingsModal()">
+      <!-- <ion-icon name="settings-outline"></ion-icon> -->
+      <img src="assets/setting-horizontal.svg" />
+      <span>Settings</span>
+    </div>
+
+    <div *ngIf="isUserIsLoggedIn" class="menu-item" (click)="confirmLogout()" style="border-top: 1px solid #EAEAF0;">
+      <!-- <ion-icon name="log-out-outline"></ion-icon> -->
+      <img src="assets/tabler-icon-logout.svg" />
+      <span>Logout</span>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,77 @@
+<ion-content class="ion-padding user-account-section-container" scroll-y="false">
+  <div class="user-account-section">
+    <!-- Top Blue Section with Logo -->
+    <div class="top-section">
+      <div class="logo-container">
+        <img class="login-app-logo-img" src="./assets/note-logo-white-bg.png" alt="">
+        <div class="app-name">Stellar Private Notes</div>
+      </div>
+    </div>
+
+    <!-- White Card Login Form -->
+    <div class="form-card">
+      <ion-button fill="clear" size="small" class="back-button" (click)="backToApp()">
+        <ion-icon name="chevron-back-outline"></ion-icon>
+      </ion-button>
+      <div class="form-card-content">
+        <div class="title">{{'stellarIDLogin' | translate}}</div>
+        <p class="subtitle">{{'pleaseEnterYourEmailAndPassword' | translate}}</p>
+
+        <form [formGroup]="loginForm">
+          <!-- Email -->
+          <ion-item class="input-field" lines="none" style="margin-bottom: 0;">
+            <ion-input
+              placeholder="Email"
+              type="email"
+              formControlName="email"
+              [ngClass]="{'border-danger': loginForm.get('email')?.invalid && loginForm.get('email')?.touched}">
+            </ion-input>
+          </ion-item>
+          <ion-text color="danger" *ngIf="loginForm.get('email')?.hasError('required') && loginForm.get('email')?.touched">
+            <small>{{'emailIsRequired' | translate}}</small>
+          </ion-text>
+          <ion-text color="danger" *ngIf="loginForm.get('email')?.hasError('email') && loginForm.get('email')?.touched">
+            <small>{{'invalidEmailFormat' | translate}}</small>
+          </ion-text>
+        
+          <!-- Password -->
+          <ion-item 
+            class="input-field" 
+            lines="none" 
+            style="margin-top: 16px"
+            [ngClass]="{
+              'mb-0': loginForm.get('password')?.invalid && loginForm.get('password')?.touched
+            }"
+          >
+            <ion-input
+              [type]="showPassword ? 'text' : 'password'"
+              placeholder="Password"
+              formControlName="password"
+              [ngClass]="{
+                'border-danger': loginForm.get('password')?.invalid && loginForm.get('password')?.touched
+              }"
+            ></ion-input>
+          
+            <ion-icon
+              name="{{ showPassword ? 'eye-off-outline' : 'eye-outline' }}"
+              slot="end"
+              class="password-toggle"
+              (click)="togglePasswordVisibility()"
+            ></ion-icon>
+          </ion-item>
+    
+          <div class="forgot-password" (click)="forgotPassword()">{{'forgotPassword' | translate}}</div>
+    
+          <ion-button class="login-button" (click)="login()" [disabled]="isSaving">
+            {{!isSaving ? ('login' | translate): ('loggingInto' | translate)}}
+          </ion-button>
+        </form>
+
+        <div class="footer">
+          <span class="label-beforee-link">{{'dontHaveAnStellarID' | translate}} </span>
+          <a (click)="navigateToRegister()">{{'createStellarID' | translate}}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</ion-content>

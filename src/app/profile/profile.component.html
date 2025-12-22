@@ -1,0 +1,49 @@
+<ion-header [translucent]="true">
+  <ion-buttons slot="start">
+    <ion-back-button  class="custom-back-button"  text="">
+      <ion-icon slot="icon-only" style="display: none;"></ion-icon>
+    </ion-back-button>
+  </ion-buttons>
+  <ion-toolbar>
+    <ion-title>Profile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div  class="account-menu-content">
+
+
+      <!-- Account Name Card -->
+      {{isLoggedIn}}
+      <div *ngIf="isLoggedIn; else loginBlock">
+        <div class="account-name-card">
+            <div class="label-title">Account Name</div>
+            <div class="account-name">{{user?.email}}</div>
+        </div>
+      </div>
+
+      <ng-template #loginBlock>
+        <div class="login-profile-box">
+          <div class="login-title">Log In to your Profile</div>
+          <div class="login-sub-title">Please enter your email and password</div>
+
+          <ion-button expand="block" class="login-button">Log In</ion-button>
+        </div>
+
+        <!-- Settings -->
+        <div (click)="goToSettings()" class="action-item">
+          <ion-icon name="options-outline" slot="start"></ion-icon>
+          <ion-label>Settings</ion-label>
+        </div>
+      </ng-template>
+
+
+      <!-- Logout -->
+      <div (click)="confirmLogout()" class="action-item-logout">
+        <ion-icon name="log-out-outline" slot="start"></ion-icon>
+        <ion-label>Logout</ion-label>
+      </div>
+
+
+  </div>
+</ion-content>

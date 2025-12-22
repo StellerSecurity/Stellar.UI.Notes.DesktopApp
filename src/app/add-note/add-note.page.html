@@ -1,0 +1,104 @@
+<ion-header [translucent]="true" class="header-border-bottom-0 no-border ion-padding-start ion-padding-end"
+  style="background: #F6F6FD; --background: #F6F6FD">
+  <ion-toolbar>
+    <div *ngIf="!note_locked">
+      <ng-container *ngIf="!isEditingTitle; else editing">
+        <ion-title class="editable-title" (click)="enableEditingTitle()">
+          {{ note_title || 'Untitled Note' }}
+        </ion-title>
+      </ng-container>
+
+      <ng-template #editing>
+        <ion-title class="editable-title-input-wrapper">
+          <ion-input #titleInput [(ngModel)]="note_title" (ionInput)="noteTitleChange($event)"
+            (blur)="isEditingTitle = false" (keyup.enter)="isEditingTitle = false" placeholder="Enter title"
+            class="editable-title-input"></ion-input>
+        </ion-title>
+      </ng-template>
+    </div>
+
+    <ion-buttons slot="end" *ngIf="!note_locked">
+      <ion-button (click)="openLockModal()">
+        <img *ngIf="!note_locked" src="./assets/lock-open.png" width="24" height="24">
+        <img *ngIf="note_locked" src="./assets/lock-close.png" width="24" height="24">
+      </ion-button>
+
+      <ion-button (click)="shareStellarSecret()">
+        <img src="./assets/note-share-icon.png" width="18" height="18">
+      </ion-button>
+
+      <ion-button (click)="deleteNote()"><ion-icon name="trash-outline"></ion-icon></ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" scroll-y="false" style="height: 100vh; --height: 100vh">
+  <!-- app lock modal -->
+  <ion-modal #modal trigger="open-modal" class="lock-note-modal">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-title style="font-size: 20px;color: #0B0C19; font-weight: 700;">{{'lockNote' | translate}}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="dismissModal()"> <ion-icon name="close"
+                style="color: #62626A; font-size: 18px;"></ion-icon> </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <h2 style="font-size: 16px; color: #0B0C19; font-family: 'Poppins'; font-weight: 600; margin-top: -10px;">
+          {{'lockNoteWithPassword' | translate}}</h2>
+        <p *ngIf="note_locked">
+          {{'pleaseEnterYourPasswordToConfirm' | translate}}
+          <br><br>
+          <span style="color: red">* {{'passwordWarningMsg' | translate}}</span>
+        </p>
+        <div *ngIf="!getProtected()" class="ion-margin-top">
+          <div class="input-group" style="position: relative;">
+            <ion-input type="{{ showPassword ? 'text' : 'password' }}" lines="none" shape="round"
+              (ionInput)="notesPasswordChange()" placeholder="{{'inputPassword' | translate}}"
+              [(ngModel)]="notes_password_input" (keyup.enter)="lockNote()"></ion-input>
+            <ion-icon slot="end" [name]="showPassword ? 'eye-off' : 'eye'"
+              (click)="togglePasswordVisibility()"></ion-icon>
+          </div>
+          <div class="input-group">
+            <ion-input type="{{ confirmShowPassword ? 'text' : 'password' }}" lines="none" shape="round"
+              placeholder="{{'confirmPassword' | translate}}" [(ngModel)]="notes_password_confirm"
+              (keyup.enter)="lockNote()"></ion-input>
+            <ion-icon slot="end" [name]="confirmShowPassword ? 'eye-off' : 'eye'"
+              (click)="toggleConfirmPasswordVisibility()"></ion-icon>
+          </div>
+        </div>
+        <div *ngIf="!note_locked && !getProtected()" class="pass-info-box">
+          <p *ngif="!strongPass" class="pass-note">{{'passwordCharacters' | translate}}</p>
+          <span style="font-size: 12px; font-weight: 600; color: #0B0C19;">{{passwordStrengthHelperText}}</span>
+          <password-strength-meter [password]="notes_password_input"></password-strength-meter>
+          <h4 style="color: #0B0C19; font-size: 12px; font-weight: 400; font-family: 'Poppins';">{{'itsBetterToHave' |
+            translate}}</h4>
+          <ul class="pass-list">
+            <li [ngClass]="{'active': upperLower}"><ion-icon name="checkmark-outline"></ion-icon>
+              {{'upperAndLowerCaseLetters' | translate}}</li>
+            <li [ngClass]="{'active': specialChar}"><ion-icon name="checkmark-outline"></ion-icon> {{'aSymbol' |
+              translate}} (#&$)</li>
+            <li [ngClass]="{'active': passwordStrength >= 3}">
+              <ion-icon name="checkmark-outline"></ion-icon> {{'longerPassword' | translate}}
+            </li>
+          </ul>
+        </div>
+        <ion-button style="text-transform: none;" expand="block" class="p" *ngIf="!getProtected()"
+          (click)="lockNote()">{{'lockNote' |
+          translate}}</ion-button>
+
+        <p *ngIf="getProtected()">{{'changeTheNotePasswordMsg' | translate}}</p>
+        <ion-button expand="block" class="p" color="danger" (click)="removeLock()"
+          *ngIf="getProtected()">{{'removeLockPassword' | translate}}</ion-button>
+
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <div *ngIf="!note_locked">
+    <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text"
+      (noteChange)="onSave($event, 'note_text')"></app-rich-text-editor>
+  </div>
+</ion-content>

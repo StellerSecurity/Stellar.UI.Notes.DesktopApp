@@ -1,0 +1,28 @@
+<ion-header [translucent]="true">
+  <ion-buttons slot="start">
+    <ion-back-button  class="custom-back-button"  text="">
+      <ion-icon slot="icon-only" style="display: none;"></ion-icon>
+    </ion-back-button>
+  </ion-buttons>
+  <ion-toolbar>
+    <ion-title>{{'noteSettings' | translate}}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-item>
+    <ion-toggle checked="true"> {{'protectWithPassword' | translate}} </ion-toggle>
+  </ion-item>
+
+  <ion-item>
+    <ion-toggle checked="true"> {{'deleteNoteOn20WronglyPasswordsEntered' | translate}} </ion-toggle>
+  </ion-item>
+
+  <ion-item>
+    <ion-toggle checked="true"> {{'bruteforceProtection' | translate}} </ion-toggle>
+  </ion-item>
+
+
+  <p class="ion-padding">* {{'bruteforceProtectionSetsTimeLimitsWhenThePasswordWrittenWronglyManyTimes' | translate}}</p>
+
+</ion-content>

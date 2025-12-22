@@ -1,0 +1,34 @@
+Categories:
+  - Office
+License: GPL-3.0
+SourceCode: https://github.com/StellerSecurity/Steller.Phone.NotesApp
+IssueTracker: https://github.com/StellerSecurity/Steller.Phone.NotesApp/issues
+Changelog: https://github.com/StellerSecurity/Steller.Phone.NotesApp/releases
+Name: Notes
+Summary: 🔒 Stellar Private Notes – Secure, Encrypted Note-Taking
+Description: |-
+  Notes is a lightweight and privacy-focused note-taking app for Android.
+  It allows you to quickly jot down notes, organize them, and access them offline.
+  Built with security in mind, it avoids trackers, ads, and unnecessary permissions.
+
+  Features:
+  - Simple and elegant UI
+  - No internet permission required
+  - Offline-first and lightweight
+  - 100% open-source
+
+RepoType: git
+Repo: https://github.com/StellerSecurity/Steller.Phone.NotesApp
+
+Builds:
+  - versionName: 2.55
+    versionCode: 255
+    commit: v2.55
+    subdir: .
+    gradle:
+      - assembleRelease
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 2.55
+CurrentVersionCode: 255

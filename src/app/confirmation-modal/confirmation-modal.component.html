@@ -1,0 +1,15 @@
+<div class="confirmation-modal">
+  <img src="./assets/lock-red.png" class="burn-img" alt="">
+  <h2>{{'toDisableAppPasswordPleaseEnterCurrentPassword' | translate}} </h2>
+  <p>*{{'passwordWarningMsg' | translate}}</p>
+  <div class="input-group" style="position: relative;">
+    <ion-input #passwordInput type="{{ showPassword ? 'text' : 'password' }}" shape="round" placeholder="{{'password' | translate}}"
+    (keyup.enter)="dismiss(true)"></ion-input>
+    <ion-icon slot="end" [name]="showPassword ? 'eye-off' : 'eye'"
+              (click)="togglePasswordVisibility()"></ion-icon>
+  </div>
+  <div class="buttons">
+    <p class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</p>
+    <p class="blue-btn" (click)="dismiss(true)">{{'disable' | translate}}</p>
+  </div>
+</div>

@@ -1,0 +1,147 @@
+ion-textarea {
+  resize: none;
+  width: 100vw;
+  height: 100vh;
+  background-color: #fff;
+  padding: 12px;
+  font-family: Poppins;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 150%;
+  /* 24px */
+}
+
+
+
+ion-title {
+  font-size: 18px;
+  font-family: 'Poppins';
+  font-weight: 400;
+  color: #0B0C19;
+}
+
+.header-md {
+  /* Removes the toolbar shadow. */
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+}
+
+ion-content,
+ion-header,
+ion-footer,
+ion-toolbar {
+  --ion-background-color: rgba(246, 246, 253, 1);
+}
+
+ion-button {
+  --border-radius: 250px;
+  border-radius: 250px;
+  height: 48px;
+}
+
+ion-button.p {
+  --background: #4364fa;
+  ;
+}
+
+ion-input {
+  --background: #EAEAF0;
+  --color: #62626A;
+  --padding-bottom: 16px;
+  --padding-end: 24px;
+  --padding-start: 24px;
+  --padding-top: 16px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  align-self: stretch;
+  margin-bottom: 20px;
+
+}
+
+ion-icon.lock-icon {
+  color: #425ef9;
+}
+
+.input-group {
+  position: relative;
+
+  ion-icon {
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    z-index: 9;
+    transform: translateY(-50%);
+    font-size: 20px;
+    color: #62626A;
+  }
+}
+.pass-list {
+  padding: 0;
+  list-style: none;
+  margin: 0;
+  li {
+    color: #62626A;
+    font-family: 'Poppins';
+    font-size: 12px;
+    font-weight: 400;
+    &.active {
+      text-decoration: line-through;
+      ion-icon{
+        color: #31b154;
+      }
+    }
+  }
+}
+.pass-note {
+  font-size: 12px; font-family: 'Poppins'; font-weight: 600; color: #0B0C19;
+}
+.pass-info-box {
+  background-color: #FFFFFF;
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 30px;
+}
+
+.angular-editor-textarea {
+  height: 100vh !important
+}
+
+.angular-editor-textarea {
+  border: none !important;
+}
+
+.editable-title {
+  font-weight: 500;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.editable-title:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.editable-title-input-wrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  background-color: transparent;
+}
+
+.editable-title-input {
+  font-weight: 500;
+  width: 100%;
+  border: none;
+  background: transparent;
+  --padding-start: 0px;
+  --padding-end: 0px;
+  --background: transparent;
+  --placeholder-color: #888;
+  --highlight-color-focused: #007bff;
+  --color: #333;
+  margin-bottom: 0;
+}

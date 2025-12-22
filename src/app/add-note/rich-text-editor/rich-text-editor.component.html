@@ -1,0 +1,9 @@
+<div class="editor-container" #editorWrapper>
+  <angular-editor #editorRef 
+    [config]="editorConfig" 
+    [(ngModel)]="note_text" 
+    (ngModelChange)="onContentChange($event)"
+    (click)="onClickEditor()"
+    (keydown)="onClickEditor()">
+  </angular-editor>
+</div>

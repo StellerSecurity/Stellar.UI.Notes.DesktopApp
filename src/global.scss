@@ -1,0 +1,742 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import '@ionic/angular/css/display.css';
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+:root {
+  --ion-font-family: 'Poppins';
+  font-family: 'Poppins', sans-serif;
+}
+
+.ion-valid.sc-ion-input-md-h {
+  --highlight-color: none;
+}
+
+.confirmation-popup {
+  --height: auto;
+  --border-radius: 24px;
+  --width: 350px;
+  --backdrop-opacity: 0.6 !important;
+}
+
+.fa {
+  font-family: none !important;
+}
+
+.fa.fa-undo::before {
+  // Replace the url to the icon that you want
+
+  background-image: url('./assets/editor-icon/undo-icon.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:"" !important;
+}
+
+
+.fa.fa-repeat::before {
+  background-image: url('./assets/editor-icon/undo-icon.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+  transform: scaleX(-1);
+}
+
+
+.fa.fa-link::before {
+  background-image: url('./assets/editor-icon/tabler-icon-link.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+}
+
+.angular-editor-toolbar {
+  position: fixed !important;
+  z-indeX: 98 !important;
+}
+
+.angular-editor .angular-editor-wrapper {
+  top: 80px !important;
+  margin: 0 15px;
+  border-radius: 24px;
+  overflow: hidden;
+
+  max-width: 100%;
+  display: block;
+  word-wrap: break-word; /* for older compatibility */
+  overflow-wrap: break-word; /* modern standard */
+  white-space: normal; /* allows line breaks */
+}
+
+
+.fa.fa-font::before {
+
+  background-image: url('./assets/icon/link-slash-solid.svg');
+  background-size : 16px 16px;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  content:""  !important;
+}
+
+
+.fa.fa-chain-broken::before {
+
+  background-image: url('./assets/icon/link-slash-solid.svg');
+  background-size : 16px 16px;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  content:""  !important;
+}
+
+.fa.fa-image::before {
+  background-image: url('./assets/icon/image-regular.svg');
+  background-size : 16px 16px;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  content:""  !important;
+}
+
+
+// Strikethrough
+.fa.fa-strikethrough::before {
+  background-image: url('./assets/editor-icon/photo-plus.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+}
+
+
+// Strikethrough
+.fa.fa-list-ul::before {
+  background-image: url('./assets/editor-icon/tabler-list-icon.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+}
+
+// Strikethrough
+.fa.fa-list-ol::before {
+  background-image: url('./assets/editor-icon/numbers-icon.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+}
+
+// Strikethrough
+.fa.fa-strikethrough::before {
+  background-image: url('./assets/editor-icon/strikethrough-icon.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+}
+
+// Bold
+.fa.fa-bold::before {
+  background-image: url('./assets/editor-icon/bold-icon.png');
+  background-size : 24px 24px;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  content:""  !important;
+}
+
+.select-heading .ae-font.ae-picker {
+  height: 40px;
+  font-size: 16px;
+}
+
+.angular-editor-toolbar {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  white-space: nowrap;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     
+  padding: 15px;
+  width: calc(100% - 50px);
+  height: 60px;
+  align-items: center;
+  border: 0!important;
+  border-radius: 24px;
+  margin: 0 20px;
+
+  :-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+}
+
+.angular-editor-toolbar-set {
+  display: flex!important;
+  flex-direction: row!important;
+
+  button {
+    box-shadow: none!important;
+    border: 0!important;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    background-color: white;
+    margin-right: 10px;
+
+    &:active{
+      background-color: #F6F6FD!important;
+    }
+
+    &:facus {
+      background-color: white;
+    }
+
+    &:not(.active):hover {
+      background: white!important;
+      background-color: white!important;
+    }
+  }
+}
+
+.angular-editor-button.active {
+  background-color: #F6F6FD!important;
+  border: 1px solid #EAEAF0!important;
+}
+
+/* Ensure the dropdown wrapper is properly positioned */
+.ae-picker {
+  position: relative; /* Ensure dropdown positions relative to this */
+}
+
+/* Fix dropdown positioning and width */
+.ae-picker-options {
+  z-index: 9999;
+  right: auto;
+  width: max-content;
+  min-width: 100%; /* Ensures it's not narrower than the toggle */
+  background: #fff;
+  box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+  border: 1px solid #ddd;
+  overflow: auto;
+  max-height: 300px;
+}
+
+/* Optional: Style dropdown items */
+.ae-picker-item {
+  white-space: nowrap;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ae-picker-label {
+  border-radius: 0!important;
+}
+
+.ae-picker-item:hover,
+.ae-picker-item.selected {
+  background-color: #f5f5f5!important;
+  border-radius: 0!important;
+}
+
+.select-heading {
+  border: 1px solid #EAEAF0;
+  border-radius: 40px;
+  overflow: hidden;
+  background: white;
+}
+
+.angular-editor-toolbar-set:nth-child(5) {
+  border: 1px solid #EAEAF0;
+  border-radius: 40px;
+
+  .angular-editor-button:nth-child(2) {
+    margin-right: 0;
+  }
+}
+
+.ae-picker-options {
+  background: #F6F6FD!important;
+  min-width: 120px!important;
+  overflow-x: hidden!important;
+}
+
+.ae-font .ae-picker-options .ae-picker-item {
+  padding-left: 15px!important;
+}
+
+.ae-font .ae-picker-options .ae-picker-item.selected {
+  color: black!important;
+  background-color: #fff4c2;
+  font-weight: bold!important;
+}
+
+ion-header.header-border-bottom-0 , ion-toolbar {
+  --border-width: 0px !important;
+  --box-shadow: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.angular-editor-textarea {
+  border: 1px solid #F6F6FD!important;
+}
+
+ion-button,
+ion-fab-button,
+ion-item {
+  --box-shadow: none!important;
+  box-shadow: none !important;
+  border: 0 !important; 
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  margin-top: 5px;
+}
+
+.app-ask-password-logo-container {
+  justify-content: center!important;
+  margin-top: 40px!important;
+}
+
+.logo-img {
+  height: 32px;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.logo-text {
+  color: #0b0c19;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: Poppins, sans-serif;
+  margin-left: 10px;
+}
+
+
+ion-input {
+  --padding-bottom: 15px!important;
+  --padding-end: 15px!important;
+  --padding-start: 20px!important;
+  --padding-top: 15px!important;
+  flex-direction: column!important;
+  justify-content: center!important;
+  align-items: flex-start!important;
+  align-self: stretch!important;
+  --border-radius: 250px!important;
+}
+
+.secretshare-copy-modal {
+  --height: 516px!important;
+}
+
+.secret-modal {
+  --border-radius: 24px;
+  --width: 392px;
+  --height: 395px;
+  
+  &::part(content) {
+    border-radius: var(--border-radius);
+  }
+  
+  .modal-box {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background: white;
+  }
+}
+
+.custom-back-button::part(native) {
+  background-image: url('./assets/chevron-left.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-size: 40px 40px;
+  
+  /* Hide default icon */
+  ion-icon {
+    display: none;
+  }
+  
+  /* Adjust padding if needed */
+  padding-inline-start: 40px;
+}
+
+.custom-back-button::part(icon) {
+  display: none;
+}
+
+.custom-close-button::part(native) {
+  background-image: url('./assets/x.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  background-size: 20px 20px;
+  width: 25px!important;
+  height: 25px!important;
+  min-width: 25px!important;
+  min-height: 25px!important;
+}
+
+.user-account-section-container {
+  --background: #2761FC;
+}
+
+// user login/register/etc pages 
+.user-account-section {
+  --background: #2761FC;
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+
+  .top-section {
+    background: url('./assets/login-pages-bg.png') no-repeat center;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 25%;
+    min-width: 300px;
+    height: calc(100% - 30px);
+    border-radius: 24px;
+    margin-right: 25px;
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      
+      
+      .login-app-logo-img {
+        width: 40px;
+        height: 40px;
+      }
+      
+      .app-name {
+        color: white;
+        font-weight: 600;
+        font-size: 17.50px;
+        margin-left: 20px;
+      }
+    }
+  }
+
+  .form-card {
+    // border-top-left-radius: 32px;
+    // border-top-right-radius: 32px;
+    background: white;
+    padding: 24px 24px 24px;
+    border-radius: 24px;
+    width: 75%;
+    height: calc(100% - 30px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    
+    .form-card-content {
+      width: 480px;
+    }
+
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 15px;
+      --color: #000;
+      cursor: pointer;
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #000;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #62626A;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .input-field {
+      --background: #f1f1f7;
+      --border-radius: 32px;
+      margin-bottom: 16px;
+      // padding-left: 16px;
+
+      ion-input {
+        font-size: 15px;
+      }
+
+      .password-toggle {
+        font-size: 20px;
+        padding: 8px;
+        color: #888;
+      }
+    }
+
+    .forgot-password {
+      text-align: right;
+      font-size: 12px;
+      font-weight: 600;
+      color: #2761FC;
+      margin-bottom: 24px;
+      cursor: pointer;
+    }
+
+    .login-button,
+    .create-button,
+    .send-button,
+    .confirm-button {
+      --background: #2761FC!important;
+      --border-radius: 40px!important;
+      font-weight: 600!important;
+      font-size: 16px!important;
+      margin-top: 8px!important;
+      margin-bottom: 16px!important;
+      width: 100%!important;
+      text-transform: capitalize!important;
+      height: 52px!important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer {
+      border-top: 1px solid #EAEAF0;
+      text-align: center;
+      font-size: 14px;
+      padding-top: 12px;
+
+      .label-beforee-link {
+        font-weight: 400;
+        font-size: 12px;
+        color: #0B0C19;
+      }
+
+      a {
+        color: #2761FC;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        margin-left: 4px;
+        text-decoration: none;
+      }
+    }
+  }
+
+  .verify-icon {
+    text-align: center;
+    margin-top: 12px;
+    margin-bottom: 8px;
+  
+    .mail-icon {
+      font-size: 28px;
+      color: #00aa44;
+      padding: 8px;
+      border-radius: 12px;
+      border: 2px solid #00aa44;
+    }
+  }
+  
+  .code-input-wrapper {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 40px 0;
+  
+    input {
+      width: 114px;
+      height: 54px;
+      font-size: 24px;
+      text-align: center;
+      border-radius: 54px;
+      border: none!important;
+      background: #f1f1f7;
+      outline: none!important;
+      box-shadow: 0 0 0 1.5px #ccc;
+  
+      &:focus {
+        box-shadow: 0 0 0 2px #2761FC;
+        background: #fff;
+      }
+    }
+  }
+  
+  .resend-section {
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 16px;
+    color: #0B0C19;
+  
+    a {
+      color: #2761FC;
+      font-weight: 600;
+      margin-left: 4px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+  }
+
+
+  .change-email {
+    text-align: center;
+    font-size: 14px;
+  
+    a {
+      color: #2761FC;
+      font-weight: 600;
+      margin-left: 4px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+  }  
+}
+
+@media (max-width: 800px) {
+  .top-section {
+    display: none!important;
+  }
+
+  .form-card {
+    width: 100%!important;
+  }
+}
+
+ion-popover.user-menu-popover::part(content) {
+  border-radius: 16px !important;
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  margin-top: 20px;
+  width: 270px;
+  min-width: 270px;
+}
+
+
+ion-modal.centered-modal {
+  --height:75vh;
+  --width: 392px;
+  --max-width: 90%;
+  --max-height: 90%;
+  --border-radius: 24px;
+  --background: #F6F6FD;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+}
+
+ion-modal.centered-modal::part(content) {
+  border-radius: 24px;
+  padding: 10px 0;
+}
+
+ion-modal.app-ask-password-modal {
+  --width: 100%;
+  --min-width: 0;
+  --max-width: 480px;
+  --max-height: 497px;
+  --border-radius: 24px;
+  box-shadow: none;
+  --box-shadow: none;
+  // background: #F6F6FD;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+ion-modal.app-ask-password-modal .modal-wrapper {
+  background: transparent;
+  box-shadow: none;
+}
+
+ion-modal.lock-note-modal {
+  --width: 100%;
+  --min-width: 0;
+  --max-width: 392px;
+  --min-height: 516px;
+  --max-height: 516px;
+  --border-radius: 24px;
+  box-shadow: none;
+  --box-shadow: none;
+  // display: flex;
+  // align-items: center;
+  // justify-content: center;
+  padding: 10px;
+}
+
+/* WebKit (Chrome, Safari, Edge) */
+.home-note-list::-webkit-scrollbar {
+  width: 6px; /* very slim */
+}
+
+.home-note-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.home-note-list::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+  border: 1px solid transparent; /* gives some padding effect */
+  background-clip: content-box;
+}
+
+.home-note-list::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+
+.note-active-on-sidebar {
+  border: 1px solid #2761FC!important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.m-0 {
+  margin: 0!important;
+}
+
+ion-button::part(native) {
+  cursor: pointer !important;
+}

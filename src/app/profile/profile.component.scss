@@ -1,0 +1,121 @@
+
+ion-content,
+ion-header,
+ion-footer,
+ion-toolbar {
+  --ion-background-color: #F6F6FD;
+}
+
+.account-menu-content {
+    .account-name-card {
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: #fff!important;
+      --ion-background-color: #fff;
+  
+      .label-title {
+        font-size: 12px;
+        color: #62626A;
+        margin-bottom: 2px;
+      }
+  
+      .account-name {
+        margin-top: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0B0C19;
+      }
+    }
+
+    .login-profile-box {
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 16px;
+        background: #fff!important;
+        --ion-background-color: #fff;
+
+        .login-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0B0C19;
+        }
+
+        .login-sub-title {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #62626A;
+        }
+
+        .login-button {
+            --border-radius: 32px;
+            border-radius: 32px;
+            display: flex;
+            height: 48px;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            --background: #2761FC;
+            margin-top: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: none!important;
+        }
+    }
+  
+    .action-item {
+      border-radius: 16px;
+      background: #fff;
+      padding: 16px;
+      margin-bottom: 16px;
+      --ion-background-color: #fff;
+      display: flex;
+      align-items: center;
+     
+      ion-icon {
+        color: #666;
+        width: 24px;
+        height: 24px;
+      }
+  
+      ion-label {
+        color: #62626A;
+        font-size: 14px;
+        margin-left: 16px;
+        font-weight: 600;
+      }
+    }
+
+    .action-item-logout {
+        border-top: 1px solid #EAEAF0!important ;
+        background: #F6F6FD;
+        padding: 16px;
+        margin-bottom: 16px;
+        --ion-background-color: #F6F6FD;
+        display: flex;
+        align-items: center;
+    
+        ion-icon {
+          color: #666;
+          width: 24px;
+          height: 24px;
+        }
+    
+        ion-label {
+            color: #62626A;
+            font-size: 14px;
+            margin-left: 16px;
+            font-weight: 600;
+        }
+      }
+
+      .login-profile-box {
+        border-radius: 16px;
+        background: #fff;
+        padding: 12px;
+        margin-bottom: 16px;
+        --ion-background-color: #fff;
+      }
+  }
+  

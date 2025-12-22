@@ -1,0 +1,17 @@
+<div class="confirmation-modal">
+  <img src="./assets/delete.png" class="burn-img" alt="">
+  <ng-container *ngIf="isSingleDelete">
+    <h2>{{'deleteNote' | translate}}?</h2>
+    <p>{{'confirmSingleNoteDeleteMsg' | translate}}</p>
+  </ng-container>
+
+  <ng-container *ngIf="!isSingleDelete">
+    <h2>{{'deleteNotes' | translate}}?</h2>
+    <p>{{'confirmDeleteMsg' | translate}}</p>
+  </ng-container>
+
+  <div class="buttons">
+    <p class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</p>
+    <p class="blue-btn" (click)="dismiss(true)">{{'delete' | translate}}</p>
+  </div>
+</div>

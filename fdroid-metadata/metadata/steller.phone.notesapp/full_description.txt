@@ -1,0 +1,30 @@
+Protect your privacy with Stellar Private Notes, a lightweight and secure notes app designed to keep your personal thoughts, ideas, and sensitive information safe from prying eyes.
+
+Whether you're jotting down passwords, journaling, or storing private info, Stellar gives you peace of mind with powerful security features:
+
+🔐 Key Features:
+🛡️ App Lock
+Secure the entire app with a master password to prevent unauthorized access.
+
+🔐 Lock Individual Notes
+Set unique passwords for specific notes to add an extra layer of security.
+
+🚫 Brute-Force Protection
+After 20 incorrect password attempts, all data is automatically deleted to protect your privacy.
+
+🧠 Password Strength Helper
+Need help creating a strong password? Our built-in assistant guides you in crafting secure credentials.
+
+❌ No Data Recovery Without Password
+Forgot your password? For your safety, notes are irrecoverable—your data stays private, always.
+
+⚙️ Why Choose Stellar?
+Privacy-first design
+
+No cloud storage or tracking
+
+Fast, simple, and lightweight (under 10MB)
+
+Built for security-focused users
+
+📥 Download Stellar Private Notes today and take control of your privacy with smart, simple, and secure note-taking.

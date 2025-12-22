@@ -1,0 +1,9 @@
+{
+  "commandLine": [
+    "/Users/muhammadfarooq/.pyenv/versions/CNN-Cifar10/bin/fdroid build",
+    "-v",
+    "com.steller.notesapp"
+  ],
+  "startTimestamp": 1749661916000,
+  "subcommand": "build"
+}
