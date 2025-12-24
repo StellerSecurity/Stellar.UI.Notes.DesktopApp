@@ -1,24 +1,44 @@
-# Stellar Privacy Notes
+# Stellar Private Notes – Client App for Desktop
 
-A hybrid ionic application that allows users to store notes on their phone using localStorage.
+This is the **official client** for Stellar Private Notes – a zero-knowledge, end‑to‑end encrypted notes application by **Stellar Security (Switzerland)**.
 
-It is possible to add a password for the app which encrypts all data stored on the phone with AES256.
+The client is built with **Angular** (and Ionic/Capacitor for mobile builds) and talks to the Stellar Notes API over HTTPS.  
+All encryption and decryption happen **only on the client**. The server never sees your plaintext notes or encryption keys.
 
-All data is stored with localStorage and if any password is set, data will be encrypted with AES256.
+---
 
-Key-features:
+## 🔐 Zero‑Knowledge by Design
 
-* Data only stored on the phone. Not on any server.
-* If the app contains a password and it has been unlocked, the app will require the notes app password again after 2 minutes inactivity.
-* Possible to delete all notes in one tap.
-* If the user loses their notes-password it is possible to reset the password, but it requires to delete all data created, meaning the app will be empty. Data cannot be recovered without the passwords.
-* Brute-force protection.
-* All data will be wiped/deleted from the phone, if there is 20+ incorrect passwords attempts in a row.
-* Password helper, when adding password for the app or notes our password helper will ensure you create a strong password.
+The client implements the full cryptographic flow:
 
-Up-coming features:
-- Possible to export notes and upload them to a new device. [Requires the decryption keys, if there is any set].
-- If a note has a lock, and it has been unlocked - but the user is inactive x time, the app should automaticly unlock the note. If the user has notes app password, it already does for the whole app.
+- User provides a password.
+- The client derives a **Password Key (PK)** using **PBKDF2‑SHA256** with a high iteration count and a random salt.
+- The PK is used to unwrap a 32‑byte **Master Key (MK)** from the encrypted key blob (**EAK**).
+- The MK is kept **only in memory** and is used to encrypt/decrypt all note content with **AES‑GCM (256‑bit)**.
+- Only encrypted notes and encrypted key material are sent to the server.
+
+> Not even Stellar can decrypt user notes. Only the user’s devices hold the keys in plaintext.
+
+---
+
+## 🌟 Stellar ID Is Optional
+
+The client supports two flows:
+
+1. **Create a new Stellar ID inside the app**
+- During registration, the app creates a fresh E2EE vault and uploads the EAK bundle to the API.
+
+2. **Log in with an existing Stellar ID created elsewhere**
+- Some users may have created a Stellar ID on `stellarsecurity.com` or another Stellar product before using Private Notes.
+- In that case, the account may **not yet have an EAK** attached.
+- On first login, if the API returns a user *without* `eak_b64` / `kdf_salt_b64`, the client:
+  - Creates a new vault locally.
+  - Generates a new EAK bundle.
+  - Calls the API’s `updateEak` endpoint to attach the EAK to the existing account.
+  - From that point on, the account is fully E2EE‑enabled.
+
+Stellar ID is therefore **optional** for using notes:  
+you can come from the broader Stellar ecosystem or start directly in this app.
 
 ## Clean Install & Build (macOS)
 
