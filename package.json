@@ -18,7 +18,7 @@
   "publish": [
     {
       "provider": "github",
-      "owner": "tellar-security-os",
+      "owner": "stellar-security-os",
       "repo": "Steller.Phone.NotesApp"
     }
   ],
