@@ -43,4 +43,7 @@ npm install rollup --ignore-scripts
 npm rebuild
 
 # Build Electron app for macOS
-npm run electron:macBuild
+npm run electron:macBuild -- --publish always
+
+# Build Electron app for Window
+npm run electron:winBuild -- --publish always
