@@ -1,5 +1,5 @@
 {
-  "name": "Steller.Phone.NotesApp",
+  "name": "Stellar.UI.Notes.DesktopApp",
   "productName": "Stellar Private Notes",
   "version": "0.0.1",
   "author": "Ionic Framework",
@@ -19,7 +19,7 @@
     {
       "provider": "github",
       "owner": "stellar-security-os",
-      "repo": "Steller.Phone.NotesApp"
+      "repo": "Stellar.UI.Notes.DesktopApp"
     }
   ],
   "private": true,
