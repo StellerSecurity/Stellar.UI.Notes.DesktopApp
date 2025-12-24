@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const url = require('url');
 
@@ -26,13 +27,46 @@ function createWindow() {
   // dev tools
   // mainWindow.webContents.openDevTools();
 
-  // catch target="_blank"
+  // ✅ SAFE: only after window exists
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
 
+  // ✅ SAFE: wait until window is ready
+  mainWindow.on('ready-to-show', () => {
+    autoUpdater.checkForUpdatesAndNotify();
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
+
+/* ================= OTA EVENTS ================= */
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for updates...');
+});
+
+autoUpdater.on('update-available', () => {
+  console.log('Update available');
+});
+
+autoUpdater.on('update-not-available', () => {
+  console.log('No update available');
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('AutoUpdater error:', err);
+});
+
+autoUpdater.on('update-downloaded', () => {
+  console.log('Update downloaded, restarting...');
+  autoUpdater.quitAndInstall();
+});
+
+/* ============================================= */
 
 ipcMain.on('open-external', (event, urlToOpen) => {
   if (urlToOpen) {
@@ -42,7 +76,18 @@ ipcMain.on('open-external', (event, urlToOpen) => {
   }
 });
 
+app.whenReady().then(createWindow);
 
+// macOS: recreate window on dock click
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
 
-
-app.on('ready', createWindow);
+// Quit on all windows closed (except macOS)
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

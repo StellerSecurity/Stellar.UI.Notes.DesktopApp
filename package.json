@@ -15,6 +15,13 @@
     "electron:macBuild": "npm run build && electron-builder --mac",
     "electron:winBuild": "npm run build && electron-builder --win"
   },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "ketanakbari",
+      "repo": "Steller.Phone.NotesApp"
+    }
+  ],
   "private": true,
   "dependencies": {
     "@angular/animations": "^16.0.0",
@@ -48,6 +55,7 @@
     "capacitor-secure-storage-plugin": "^0.9.0",
     "crypto-browserify": "^3.12.1",
     "crypto-js": "^4.1.1",
+    "electron-updater": "^6.6.2",
     "ionicons": "^7.0.0",
     "js-sha512": "^0.9.0",
     "libsodium-wrappers": "^0.7.15",
