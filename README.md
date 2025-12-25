@@ -91,3 +91,28 @@ npm rebuild
 
 # Build Electron app for Windows
 npm run electron:winBuild -- --publish always
+```
+
+Follow these steps to perform a clean setup and build for the Linux OS(bash / zsh):
+
+```bash
+# Remove existing dependencies and build artifacts
+rm -rf node_modules
+rm -f package-lock.json
+rm -rf dist
+
+# Verify and clean npm cache
+npm cache verify
+
+# Install dependencies
+npm install
+
+# Install rollup without running post-install scripts
+npm install rollup --ignore-scripts
+
+# Rebuild native modules
+npm rebuild
+
+# Build Electron app for Linux
+npm run electron:linuxBuild -- --publish always
+```

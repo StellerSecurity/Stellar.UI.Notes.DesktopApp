@@ -13,7 +13,8 @@
     "lint": "ng lint",
     "electron": "electron .",
     "electron:macBuild": "npm run build && electron-builder --mac",
-    "electron:winBuild": "npm run build && electron-builder --win"
+    "electron:winBuild": "npm run build && electron-builder --win",
+    "electron:linuxBuild": "npm run build && electron-builder --linux"
   },
   "publish": [
     {
