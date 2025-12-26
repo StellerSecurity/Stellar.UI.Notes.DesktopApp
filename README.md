@@ -42,7 +42,7 @@ you can come from the broader Stellar ecosystem or start directly in this app.
 
 ## Clean Install & Build (macOS)
 
-Follow these steps to perform a clean setup and build the Electron app:
+Follow these steps to perform a clean setup and build for the MAC OS:
 
 ```bash
 # Remove existing dependencies and build artifacts
@@ -63,7 +63,56 @@ npm install rollup --ignore-scripts
 npm rebuild
 
 # Build Electron app for macOS
-npm run electron:macBuild -- --publish always
+npm run electron:macBuild
 
 # Build Electron app for Window
-npm run electron:winBuild -- --publish always
+npm run electron:winBuild
+```
+
+Follow these steps to perform a clean setup and build for the Window OS(Command Prompt):
+
+```bash
+# Remove existing dependencies and build artifacts
+rmdir /s /q node_modules
+del /f /q package-lock.json
+rmdir /s /q dist
+
+# Verify and clean npm cache
+npm cache verify
+
+# Install dependencies
+npm install
+
+# Install rollup without running post-install scripts
+npm install rollup --ignore-scripts
+
+# Rebuild native modules
+npm rebuild
+
+# Build Electron app for Windows
+npm run electron:winBuild
+```
+
+Follow these steps to perform a clean setup and build for the Linux OS(bash / zsh):
+
+```bash
+# Remove existing dependencies and build artifacts
+rm -rf node_modules
+rm -f package-lock.json
+rm -rf dist
+
+# Verify and clean npm cache
+npm cache verify
+
+# Install dependencies
+npm install
+
+# Install rollup without running post-install scripts
+npm install rollup --ignore-scripts
+
+# Rebuild native modules
+npm rebuild
+
+# Build Electron app for Linux
+npm run electron:linuxBuild
+```
