@@ -63,10 +63,10 @@ npm install rollup --ignore-scripts
 npm rebuild
 
 # Build Electron app for macOS
-npm run electron:macBuild -- --publish always
+npm run electron:macBuild
 
 # Build Electron app for Window
-npm run electron:winBuild -- --publish always
+npm run electron:winBuild
 ```
 
 Follow these steps to perform a clean setup and build for the Window OS(Command Prompt):
@@ -90,7 +90,7 @@ npm install rollup --ignore-scripts
 npm rebuild
 
 # Build Electron app for Windows
-npm run electron:winBuild -- --publish always
+npm run electron:winBuild
 ```
 
 Follow these steps to perform a clean setup and build for the Linux OS(bash / zsh):
@@ -114,5 +114,5 @@ npm install rollup --ignore-scripts
 npm rebuild
 
 # Build Electron app for Linux
-npm run electron:linuxBuild -- --publish always
+npm run electron:linuxBuild
 ```
