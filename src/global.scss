@@ -79,7 +79,7 @@
 
 .angular-editor-toolbar {
   position: fixed !important;
-  z-indeX: 98 !important;
+  z-index: 98 !important;
 }
 
 .angular-editor .angular-editor-wrapper {
@@ -189,7 +189,7 @@
   overflow-x: auto;
   white-space: nowrap;
   -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;     
+  scrollbar-width: none;
   padding: 15px;
   width: calc(100% - 50px);
   height: 60px;
@@ -321,7 +321,7 @@ ion-fab-button,
 ion-item {
   --box-shadow: none!important;
   box-shadow: none !important;
-  border: 0 !important; 
+  border: 0 !important;
 }
 
 .logo-container {
@@ -372,11 +372,11 @@ ion-input {
   --border-radius: 24px;
   --width: 392px;
   --height: 395px;
-  
+
   &::part(content) {
     border-radius: var(--border-radius);
   }
-  
+
   .modal-box {
     border-radius: var(--border-radius);
     overflow: hidden;
@@ -390,12 +390,12 @@ ion-input {
   background-position: center;
   background-size: contain;
   background-size: 40px 40px;
-  
+
   /* Hide default icon */
   ion-icon {
     display: none;
   }
-  
+
   /* Adjust padding if needed */
   padding-inline-start: 40px;
 }
@@ -420,7 +420,7 @@ ion-input {
   --background: #2761FC;
 }
 
-// user login/register/etc pages 
+// user login/register/etc pages
 .user-account-section {
   --background: #2761FC;
   display: flex;
@@ -442,13 +442,13 @@ ion-input {
     .logo-container {
       display: flex;
       align-items: center;
-      
-      
+
+
       .login-app-logo-img {
         width: 40px;
         height: 40px;
       }
-      
+
       .app-name {
         color: white;
         font-weight: 600;
@@ -470,7 +470,7 @@ ion-input {
     justify-content: center;
     align-items: center;
     position: relative;
-    
+
     .form-card-content {
       width: 480px;
     }
@@ -569,7 +569,7 @@ ion-input {
     text-align: center;
     margin-top: 12px;
     margin-bottom: 8px;
-  
+
     .mail-icon {
       font-size: 28px;
       color: #00aa44;
@@ -578,13 +578,13 @@ ion-input {
       border: 2px solid #00aa44;
     }
   }
-  
+
   .code-input-wrapper {
     display: flex;
     justify-content: center;
     gap: 12px;
     margin: 40px 0;
-  
+
     input {
       width: 114px;
       height: 54px;
@@ -595,20 +595,20 @@ ion-input {
       background: #f1f1f7;
       outline: none!important;
       box-shadow: 0 0 0 1.5px #ccc;
-  
+
       &:focus {
         box-shadow: 0 0 0 2px #2761FC;
         background: #fff;
       }
     }
   }
-  
+
   .resend-section {
     text-align: center;
     font-size: 14px;
     margin-bottom: 16px;
     color: #0B0C19;
-  
+
     a {
       color: #2761FC;
       font-weight: 600;
@@ -622,7 +622,7 @@ ion-input {
   .change-email {
     text-align: center;
     font-size: 14px;
-  
+
     a {
       color: #2761FC;
       font-weight: 600;
@@ -630,7 +630,7 @@ ion-input {
       cursor: pointer;
       text-decoration: none;
     }
-  }  
+  }
 }
 
 @media (max-width: 800px) {
