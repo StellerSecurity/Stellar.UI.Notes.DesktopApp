@@ -15,7 +15,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
 import * as sodium from 'libsodium-wrappers';
 import { IonicStorageModule, Storage as IonicStorage } from '@ionic/storage-angular';
-import { Drivers } from '@ionic/storage'; // <-- driver enums
+import { Drivers } from '@ionic/storage';
 import { UserMenuComponent } from './user-menu/user-menu.component';
 
 export function HttpLoaderFactory(http: HttpClient) {
@@ -24,8 +24,7 @@ export function HttpLoaderFactory(http: HttpClient) {
 
 export function initSodium() {
   return async () => {
-    // On mobile, ensure path is correct for your WebView base href:
-    await sodium.ready;
+    await (sodium as any).ready;
   };
 }
 
@@ -37,10 +36,7 @@ export function initSodium() {
     BrowserAnimationsModule,
     IonicStorageModule.forRoot({
       name: '__stellar_notes',
-      driverOrder: [
-        Drivers.IndexedDB,
-        Drivers.LocalStorage, // fallback for Safari Private Mode / restrictive envs
-      ],
+      driverOrder: [Drivers.IndexedDB, Drivers.LocalStorage],
     }),
     ToastrModule.forRoot({
       timeOut: 3000,
