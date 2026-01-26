@@ -13,7 +13,7 @@ import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { ShareSecretModalComponent } from './share-secret-modal/share-secret-modal.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
-import * as sodium from 'libsodium-wrappers';
+import sodium from 'libsodium-wrappers-sumo';
 import { IonicStorageModule, Storage as IonicStorage } from '@ionic/storage-angular';
 import { Drivers } from '@ionic/storage';
 import { UserMenuComponent } from './user-menu/user-menu.component';
