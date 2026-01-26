@@ -59,7 +59,7 @@
     "electron-updater": "^6.6.2",
     "ionicons": "^7.0.0",
     "js-sha512": "^0.9.0",
-    "libsodium-wrappers": "^0.7.11",
+    "libsodium-wrappers-sumo": "^0.8.2",
     "ng-otp-input": "^2.0.8",
     "ngx-toastr": "^19.1.0",
     "rxjs": "~7.8.0",
