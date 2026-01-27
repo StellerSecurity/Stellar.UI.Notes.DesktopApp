@@ -110,7 +110,7 @@ export class NotesApiV1Service {
 
     return firstValueFrom(
       this.http.post<{ notes: NoteV1[]; has_more?: boolean; watermark?: number }>(
-        `${this.base}/download`,
+        `${this.base}download`,
         { since: sinceMs || 0, limit },
         { headers }
       )

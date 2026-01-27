@@ -1,7 +1,7 @@
-<div class="editor-container" #editorWrapper>
-  <angular-editor #editorRef 
-    [config]="editorConfig" 
-    [(ngModel)]="note_text" 
+<div class="editor-container" #editorWrapper style="overflow-y: hidden;">
+  <angular-editor #editorRef
+    [config]="editorConfig"
+    [(ngModel)]="note_text"
     (ngModelChange)="onContentChange($event)"
     (click)="onClickEditor()"
     (keydown)="onClickEditor()">

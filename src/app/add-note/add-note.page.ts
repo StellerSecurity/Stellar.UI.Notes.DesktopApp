@@ -428,6 +428,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
     this.currentNote = note;
     this.storeNoteInStorage(true).then(() => {});
+    this.notesService.setNoteIsUpdatedSubject(true)
   }
 
   async storeNoteInStorage(serverSync = true, forceDownloadOnHome = false) {
