@@ -4,7 +4,7 @@
     <div class="top-section">
       <div class="logo-container">
         <img class="login-app-logo-img" src="./assets/note-logo-white-bg.png" alt="">
-        <div class="app-name">Stellar Private Notes</div>
+        <div class="app-name">Stellar Notes</div>
       </div>
     </div>
 
@@ -33,11 +33,11 @@
           <ion-text color="danger" *ngIf="loginForm.get('email')?.hasError('email') && loginForm.get('email')?.touched">
             <small>{{'invalidEmailFormat' | translate}}</small>
           </ion-text>
-        
+
           <!-- Password -->
-          <ion-item 
-            class="input-field" 
-            lines="none" 
+          <ion-item
+            class="input-field"
+            lines="none"
             style="margin-top: 16px"
             [ngClass]="{
               'mb-0': loginForm.get('password')?.invalid && loginForm.get('password')?.touched
@@ -51,7 +51,7 @@
                 'border-danger': loginForm.get('password')?.invalid && loginForm.get('password')?.touched
               }"
             ></ion-input>
-          
+
             <ion-icon
               name="{{ showPassword ? 'eye-off-outline' : 'eye-outline' }}"
               slot="end"
@@ -59,9 +59,9 @@
               (click)="togglePasswordVisibility()"
             ></ion-icon>
           </ion-item>
-    
+
           <div class="forgot-password" (click)="forgotPassword()">{{'forgotPassword' | translate}}</div>
-    
+
           <ion-button class="login-button" (click)="login()" [disabled]="isSaving">
             {{!isSaving ? ('login' | translate): ('loggingInto' | translate)}}
           </ion-button>

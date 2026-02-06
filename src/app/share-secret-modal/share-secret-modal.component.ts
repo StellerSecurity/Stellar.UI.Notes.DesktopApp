@@ -125,7 +125,7 @@ export class ShareSecretModalComponent {
         title: 'Stellar Secret',
         text: 'Here is your secret link',
         url: this.secretUrl,
-        dialogTitle: 'Stellar Private Note',
+        dialogTitle: 'Stellar Note',
       });
     } else if ((window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(this.secretUrl);
