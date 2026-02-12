@@ -127,7 +127,10 @@
       }
     ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility",
       "maintainer": "Stellar Security <support@stellarsecurity.com>",
       "executableName": "stellar-notes",
