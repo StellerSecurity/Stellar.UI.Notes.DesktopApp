@@ -42,7 +42,7 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
         })
       );
     }
-  
+
     initPasswordForm(): void {
       this.passwordForm = this.fb.group(
         {
@@ -52,11 +52,11 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
         { validator: this.passwordMatchValidator }
       );
     }
-  
+
     passwordMatchValidator(form: FormGroup) {
       const password = form.get("password")?.value;
       const confirmPassword = form.get("confirmPassword")?.value;
-  
+
       if (password !== confirmPassword) {
         form.get("confirmPassword")?.setErrors({ mismatch: true });
       } else {
@@ -73,6 +73,7 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
   }
 
   confirm() {
+    if (this.isSaving) return;
     if (this.passwordForm.valid) {
       this.isSaving = true;
       this.authService

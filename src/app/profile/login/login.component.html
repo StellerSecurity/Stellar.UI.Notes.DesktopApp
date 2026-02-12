@@ -62,8 +62,20 @@
 
           <div class="forgot-password" (click)="forgotPassword()">{{'forgotPassword' | translate}}</div>
 
-          <ion-button class="login-button" (click)="login()" [disabled]="isSaving">
-            {{!isSaving ? ('login' | translate): ('loggingInto' | translate)}}
+          <ion-button
+            class="login-button"
+            (click)="login()"
+            >
+
+            <ng-container *ngIf="!isSaving; else loadingTpl">
+              {{ 'login' | translate }}
+            </ng-container>
+
+            <ng-template #loadingTpl>
+              <ion-spinner name="crescent" slot="start" class="ion-margin-end"></ion-spinner>
+              {{ 'loggingInto' | translate }}
+            </ng-template>
+
           </ion-button>
         </form>
 
