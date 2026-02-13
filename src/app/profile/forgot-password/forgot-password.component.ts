@@ -14,7 +14,7 @@ export class ForgotPasswordComponent implements OnInit {
   showVerification = false;
   otpValue = "";
   otpConfig = {
-    length: 4,
+    length: 6,
     inputClass: "bottom-border-otp", // must match your CSS class
     allowNumbersOnly: false,
     isPasswordInput: false,

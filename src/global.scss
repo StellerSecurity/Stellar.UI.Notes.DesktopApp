@@ -608,6 +608,24 @@ ion-input {
     }
   }
 
+  @media (max-width: 1200px) {
+    .code-input-wrapper {
+      input {
+        width: 74px;
+        height: 54px;
+        }
+    }
+  }
+
+  @media (max-width: 950px) {
+    .code-input-wrapper {
+      input {
+        width: 60px;
+        height: 54px;
+        }
+    }
+  }
+
   .resend-section {
     text-align: center;
     font-size: 14px;
