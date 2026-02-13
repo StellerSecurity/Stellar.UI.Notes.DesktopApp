@@ -13,7 +13,7 @@
             <!-- <img src="assets/Logo.svg" style="margin-top: 20px" *ngIf="!checkboxOpened"> -->
             <div class="logo-container" *ngIf="!checkboxOpened" (click)="navigateToHome()" style="cursor: pointer;">
               <img class="logo-img" src="./assets/note-logo.png" alt="">
-              <div class="logo-text">Stellar Private Notes</div>
+              <div class="logo-text">Stellar Notes</div>
             </div>
           </ion-title>
 
@@ -69,7 +69,7 @@
               <div align="center">
                 <div class="logo-container app-ask-password-logo-container" style="margin-top: 10px!important;">
                   <img class="logo-img" src="./assets/note-logo.png" alt="">
-                  <div class="logo-text">Stellar Private Notes</div>
+                  <div class="logo-text">Stellar Notes</div>
                 </div>
               </div><br><br>
 
@@ -175,13 +175,6 @@
           {{'delete' | translate}} ({{listOfCheckedCheckboxes.length}}) </ion-button><br>
       </div>
 
-      <ion-col size-md="12">
-        <div align="center">
-          <img src="./assets/stellar-logo-icon.svg">
-          <span style="font-size: 12px;font-weight: 400;position: relative; top: -9px; left: 15px; color: #62626A">
-            {{'allDataIsStoredOnYourPhoneOnly' | translate}}</span>
-        </div>
-      </ion-col>
     </ion-content>
   </ion-menu>
 

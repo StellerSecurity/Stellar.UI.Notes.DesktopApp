@@ -726,6 +726,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
           await this.storeNoteInStorage(true, this.newlyCreatedNote);
           this.currentNote = null;
+          this.notesService.setNoteIsUpdatedSubject(true);
           await this.navController.navigateForward('/?hide_ids=' + this.notes_id);
         }
       }

@@ -86,6 +86,8 @@ export class LoginComponent {
   async login() {
     if (!this.loginForm.valid) return;
 
+    if (this.isSaving) return;
+
     this.isSaving = true;
 
     const loginObj: loginDto = {

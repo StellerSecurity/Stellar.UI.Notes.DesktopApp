@@ -36,9 +36,11 @@ export class ForgotPasswordComponent implements OnInit {
       email: ["", [Validators.required, Validators.email]],
     });
   }
-  
+
   sendCode() {
     // Optionally call API to send code to this.email
+    if (this.isProcessing) return;
+
     if (this.forgotPasswordForm.valid) {
       this.email = this.forgotPasswordForm.get('email')?.value;
       this.isProcessing = true;
@@ -46,7 +48,7 @@ export class ForgotPasswordComponent implements OnInit {
         next: (response) => {
           this.isProcessing = false;
           if (response.response_code == 200) {
-            this.showVerification = true;        
+            this.showVerification = true;
           } else {
             this.toastMessageService.showError(response.response_message);
           }

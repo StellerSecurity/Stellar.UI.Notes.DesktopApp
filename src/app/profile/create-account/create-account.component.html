@@ -34,12 +34,12 @@
           <ion-text color="danger" *ngIf="createUserForm.get('email')?.hasError('email') && createUserForm.get('email')?.touched">
             <small>{{'invalidEmailFormat' | translate}}</small>
           </ion-text>
-        
-        
+
+
           <!-- Password -->
-          <ion-item 
-            class="input-field" 
-            lines="none" 
+          <ion-item
+            class="input-field"
+            lines="none"
             style="margin-top: 16px"
             [ngClass]="{
               'mb-0': createUserForm.get('password')?.invalid && createUserForm.get('password')?.touched
@@ -53,7 +53,7 @@
                 'border-danger': createUserForm.get('password')?.invalid && createUserForm.get('password')?.touched
               }"
             ></ion-input>
-          
+
             <ion-icon
               name="{{ showPassword ? 'eye-off-outline' : 'eye-outline' }}"
               slot="end"
@@ -61,17 +61,28 @@
               (click)="togglePasswordVisibility()"
             ></ion-icon>
           </ion-item>
-        
+
           <ion-text color="danger" *ngIf="createUserForm.get('password')?.hasError('required') && createUserForm.get('password')?.touched">
             <small>{{'passwordIsRequired' | translate}}</small>
           </ion-text>
           <ion-text color="danger" *ngIf="createUserForm.get('password')?.hasError('minlength') && createUserForm.get('password')?.touched">
             <small>{{'passwordAtLeastLength' | translate}}</small>
           </ion-text>
-        
+
           <!-- Submit -->
-          <ion-button class="create-button" expand="block" type="submit" [disabled]="isSaving">
-            {{!isSaving ? ('createAccount' | translate) : ('creatingAccount' | translate)}}
+          <ion-button
+            class="create-button"
+            expand="block"
+            type="submit"
+          >
+            <ng-container *ngIf="!isSaving; else createUserTpl">
+              {{ 'createAccount' | translate }}
+            </ng-container>
+
+            <ng-template #createUserTpl>
+              <ion-spinner name="crescent" slot="start" class="ion-margin-end"></ion-spinner>
+              {{ 'creatingAccount' | translate }}
+            </ng-template>
           </ion-button>
         </form>
 

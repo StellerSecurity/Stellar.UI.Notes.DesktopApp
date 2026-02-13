@@ -1,9 +1,15 @@
 {
-  "name": "Stellar.UI.Notes.DesktopApp",
-  "productName": "Stellar Private Notes",
+  "name": "stellar-notes",
+  "productName": "Stellar Notes",
   "version": "0.0.1",
-  "author": "Ionic Framework",
-  "homepage": "https://ionicframework.com/",
+  "author": {
+    "name": "Stellar Security",
+    "email": "support@stellarsecurity.com"
+  },
+  "homepage": "https://stellarsecurity.com/",
+  "private": true,
+  "description": "Stellar Private Notes",
+  "main": "electron-start.js",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -16,14 +22,6 @@
     "electron:winBuild": "npm run build && electron-builder --win",
     "electron:linuxBuild": "npm run build && electron-builder --linux"
   },
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "stellar-security-os",
-      "repo": "Stellar.UI.Notes.DesktopApp"
-    }
-  ],
-  "private": true,
   "dependencies": {
     "@angular/animations": "^16.0.0",
     "@angular/common": "^16.0.0",
@@ -59,6 +57,7 @@
     "electron-updater": "^6.6.2",
     "ionicons": "^7.0.0",
     "js-sha512": "^0.9.0",
+    "js-yaml": "^4.1.1",
     "libsodium-wrappers-sumo": "^0.8.2",
     "ng-otp-input": "^2.0.8",
     "ngx-toastr": "^19.1.0",
@@ -105,15 +104,13 @@
     "karma-coverage-istanbul-reporter": "~3.0.2",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.0.0",
-    "rollup": "^4.57.0",
+    "rollup": "^4.57.1",
     "ts-node": "^8.3.0",
     "typescript": "~5.0.2"
   },
-  "main": "electron-start.js",
-  "description": "An Ionic project",
   "build": {
-    "appId": "com.steller.phone.notesapp",
-    "productName": "Stellar Private Notes",
+    "appId": "stellar.notes.app",
+    "productName": "Stellar Notes",
     "files": [
       "dist/StellerPhoneNotesApp/**/*",
       "electron-start.js",
@@ -122,6 +119,33 @@
     ],
     "directories": {
       "buildResources": "icons"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/"
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "maintainer": "Stellar Security <support@stellarsecurity.com>",
+      "executableName": "stellar-notes",
+      "synopsis": "Private, end-to-end encrypted notes.",
+      "icon": "icons/linux",
+      "artifactName": "${productName}-${version}.${ext}",
+      "desktop": {
+        "entry": {
+          "Name": "Stellar Notes",
+          "Comment": "Stellar Private Notes",
+          "Categories": "Utility;Security;",
+          "Keywords": "notes;privacy;security;encryption;",
+          "StartupWMClass": "stellar-notes"
+        }
+      }
     },
     "mac": {
       "icon": "icons/icon.png"

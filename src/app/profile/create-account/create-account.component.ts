@@ -107,6 +107,8 @@ export class CreateAccountComponent implements OnInit {
   async createAccount() {
     if (!this.createUserForm.valid) return;
 
+    if (this.isSaving) return;
+
     this.isSaving = true;
 
     try {
@@ -127,7 +129,7 @@ export class CreateAccountComponent implements OnInit {
       const response = await firstValueFrom(this.authService.createAccount(payload));
 
       if (response.response_code == 200) {
-        this.showVerificationSection = true;
+        // this.showVerificationSection = true;
         await this.secureStorageService.setItem('ssToken', response.token);
         await this.secureStorageService.setItem('ssUser', JSON.stringify(response.user));
 

@@ -15,27 +15,28 @@ export class TranslatorService {
   allTranslations: any;
 
   constructor(private http: HttpClient, private translate: TranslateService) {
-    this.language = this.translate.getBrowserLang() || "en";
+    this.language = "en";
     this.loadTranslationsFromJsonFile();
   }
 
   loadTranslationsFromJsonFile(): void {
-    this.translate.addLangs(["en", "de", "da", "se"]);
+    this.translate.addLangs(["en"]);
 
-    if (this.hostName.includes(".dk")) {
+    /*if (this.hostName.includes(".dk")) {
       this.allTranslations = DaLangTranslations;
     } else if (this.hostName.includes(".de")) {
       this.allTranslations = DeLangTranslations;
     } else {
       this.allTranslations = EnLangTranslations;
-    }
+    }*/
+    this.allTranslations = EnLangTranslations;
     this.translate.setTranslation(this.language, this.allTranslations);
     this.translate.setDefaultLang(this.language);
     this.translate.use(this.language);
   }
 
   loadTranslations(data: any) {
-    this.translate.addLangs(["en", "de", "da", "se"]);
+    this.translate.addLangs(["en"]);
 
     this.translate.setDefaultLang(this.language);
     this.translate.use(this.language);
