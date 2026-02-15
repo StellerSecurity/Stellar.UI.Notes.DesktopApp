@@ -17,6 +17,7 @@ import { NotesApiV1Service } from 'src/app/services/notes-api-v1.service';
 import { DataService } from 'src/app/services/data.service';
 import { CryptoService } from 'src/app/services/crypto.service';
 import { CryptoKeyService } from 'src/app/services/crypto-key.service';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-login',
@@ -38,7 +39,8 @@ export class LoginComponent {
     private notesApiV1Service: NotesApiV1Service,
     private dataService: DataService,
     private cryptoService: CryptoService,
-    private cryptoKeyService: CryptoKeyService
+    private cryptoKeyService: CryptoKeyService,
+    private location: Location
   ) {}
 
   ngOnInit(): void {
@@ -191,5 +193,9 @@ export class LoginComponent {
 
   backToApp() {
     this.router.navigate(['/']);
+  }
+
+  goBack() {
+    this.location.back();
   }
 }

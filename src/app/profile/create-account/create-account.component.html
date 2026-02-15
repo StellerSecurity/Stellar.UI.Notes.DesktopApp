@@ -10,7 +10,7 @@
 
     <!-- FORM SECTION -->
     <div class="form-card" *ngIf="!showVerificationSection">
-      <ion-button fill="clear" size="small" class="back-button" routerLink="/profile/login">
+      <ion-button fill="clear" size="small" class="back-button" (click)="goBack()">
         <ion-icon name="chevron-back-outline"></ion-icon>
       </ion-button>
 
