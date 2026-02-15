@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 import { AuthService } from "src/app/services/auth.service";
 import { ToastMessageService } from "src/app/services/toast-message.service";
+import { Location } from '@angular/common';
 
 @Component({
   selector: "app-forgot-password",
@@ -14,7 +15,7 @@ export class ForgotPasswordComponent implements OnInit {
   showVerification = false;
   otpValue = "";
   otpConfig = {
-    length: 4,
+    length: 6,
     inputClass: "bottom-border-otp", // must match your CSS class
     allowNumbersOnly: false,
     isPasswordInput: false,
@@ -25,7 +26,7 @@ export class ForgotPasswordComponent implements OnInit {
   isProcessing = false;
 
   constructor(private router: Router, private fb: FormBuilder, private authService: AuthService,
-    private toastMessageService: ToastMessageService) {}
+    private toastMessageService: ToastMessageService, private location: Location) {}
 
   ngOnInit(): void {
     this.initForgotPasswordForm();
@@ -75,7 +76,8 @@ export class ForgotPasswordComponent implements OnInit {
 
   goToBack(): void {
     if (!this.showVerification) {
-      this.router.navigate(["/profile/login"]);
+      // this.router.navigate(["/profile/login"]);
+      this.location.back();
     } else {
       this.showVerification = false;
     }

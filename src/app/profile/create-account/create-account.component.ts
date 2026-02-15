@@ -19,6 +19,7 @@ import {
   VaultHeaderV1,
 } from '@stellarsecurity/stellar-crypto';
 import {firstValueFrom} from "rxjs";
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-create-account',
@@ -54,6 +55,7 @@ export class CreateAccountComponent implements OnInit {
     private notesApiV1Service: NotesApiV1Service,
     private cryptoKeyService: CryptoKeyService,
     private secureStorageService: SecureStorageService,
+    private location: Location
   ) {}
 
   ngOnInit(): void {
@@ -197,5 +199,9 @@ export class CreateAccountComponent implements OnInit {
 
   onOtpChange(value: string) {
     this.otpValue = value;
+  }
+
+  goBack() {
+    this.location.back();
   }
 }

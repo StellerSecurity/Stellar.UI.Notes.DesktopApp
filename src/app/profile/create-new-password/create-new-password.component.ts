@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { ToastMessageService } from 'src/app/services/toast-message.service';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-create-new-password',
@@ -23,7 +24,7 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
 
   constructor(private router: Router, private fb: FormBuilder,
     private authService: AuthService, private activatedRoute: ActivatedRoute,
-    private toastMessageService: ToastMessageService) {}
+    private toastMessageService: ToastMessageService, private location: Location) {}
 
     ngOnInit(): void {
       this.initPasswordForm();
@@ -101,6 +102,10 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
 
   backToLogin() {
     this.router.navigate(['/profile/login']);
+  }
+
+  goBack() {
+    this.location.back();
   }
 
   ngOnDestroy(): void {
