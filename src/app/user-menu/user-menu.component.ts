@@ -55,7 +55,6 @@ export class UserMenuComponent implements OnInit {
         {
           text: 'Logout',
           handler: () => {
-            console.log('Logout');
             this.logout();
           },
         },
@@ -68,7 +67,24 @@ export class UserMenuComponent implements OnInit {
   private async logout() {
     this.popoverController.dismiss();
     await this.dataService.clearAppData();
-    // window.location.href = '/';
+    this.showMessageAfterLogout();
+  }
+
+  async showMessageAfterLogout() {
+    const alert = await this.alertController.create({
+    header:  `You're logged out.`,
+      message: `You're logged out. Your notes is still available on this device.`,
+      buttons: [
+        {
+          text: 'OK',
+          handler: () => {
+
+          },
+        },
+      ],
+    });
+
+    await alert.present();
   }
 
   logoutOld() {
