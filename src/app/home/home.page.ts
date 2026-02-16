@@ -45,6 +45,7 @@ import {
 import { LongPressConfig, initializePressGestures } from "../utils/home-gesture.util";
 import { normalize } from "../utils/home-normalize.util";
 import { setDecryptedNotesAndParse } from "../utils/home-notes.util";
+import { NoteContextMenuComponent } from "./note-context-menu/note-context-menu.component";
 
 @Component({
   selector: "app-home",
@@ -972,6 +973,65 @@ export class HomePage implements AfterViewInit {
       this.isClicked = false;
       this.cdr.detectChanges();
     });
+  }
+
+  async openContextMenu(event: MouseEvent, note: any) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if(note.protected) {
+      return
+    }
+
+    const popover = await this.popoverController.create({
+      component: NoteContextMenuComponent,
+      componentProps: { note },
+      event: event,
+      side: 'end',
+      alignment: 'start',
+      showBackdrop: true,
+      translucent: false,
+      cssClass: 'note-context-popover',
+    });
+
+    await popover.present();
+
+    const { data } = await popover.onDidDismiss();
+
+    if (!data) return;
+
+    switch (data.action) {
+      case 'select':
+        this.openOrCheckbox(note.id);
+        break;
+
+      case 'lock':
+        this.lockNote(note);
+        break;
+
+      case 'share':
+        this.shareNote(note);
+        break;
+
+      case 'delete':
+        this.deleteNote(note.id);
+        break;
+    }
+  }
+
+  lockNote(note: any) {
+    console.log('Lock note', note);
+    // Your lock logic
+  }
+
+  shareNote(note: any) {
+    console.log('Share note', note);
+    // Your share logic
+  }
+
+  deleteNote(id: string) {
+    console.log('Delete note', id);
+    // Your delete logic
   }
 
   /**
