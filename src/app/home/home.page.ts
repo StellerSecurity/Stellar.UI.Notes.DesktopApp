@@ -46,6 +46,13 @@ import { LongPressConfig, initializePressGestures } from "../utils/home-gesture.
 import { normalize } from "../utils/home-normalize.util";
 import { setDecryptedNotesAndParse } from "../utils/home-notes.util";
 import { NoteContextMenuComponent } from "./note-context-menu/note-context-menu.component";
+import { Secret } from "../models/Secret";
+import { sha512 } from 'js-sha512';
+import { ShareSecretModalComponent } from "../share-secret-modal/share-secret-modal.component";
+
+declare var require: any;
+const { v4: uuidv4 } = require('uuid');
+const CryptoJS = require('crypto-js');
 
 @Component({
   selector: "app-home",
@@ -1005,9 +1012,9 @@ export class HomePage implements AfterViewInit {
         this.openOrCheckbox(note.id);
         break;
 
-      case 'lock':
-        this.lockNote(note);
-        break;
+      // case 'lock':
+      //   this.lockNote(note);
+      //   break;
 
       case 'share':
         this.shareNote(note);
@@ -1024,9 +1031,26 @@ export class HomePage implements AfterViewInit {
     // Your lock logic
   }
 
-  shareNote(note: any) {
-    console.log('Share note', note);
-    // Your share logic
+  async shareNote(note: any) {
+    const addSecretModal = new Secret();
+    const secret_id = uuidv4();
+
+    addSecretModal.expires_at = '0';
+    addSecretModal.id = sha512(secret_id);
+
+    let secretMessage = note?.text.replace(/<br ?\/?>/g, '\n');
+    const doc = new DOMParser().parseFromString(secretMessage, 'text/html');
+    secretMessage = doc.body?.textContent?.trim() || '';
+
+    addSecretModal.message = CryptoJS.AES.encrypt(secretMessage, secret_id).toString();
+
+    const modal = await this.modalCtrl.create({
+      component: ShareSecretModalComponent,
+      componentProps: { addSecretModal, secret_id },
+      cssClass: 'secret-modal',
+    });
+
+    await modal.present();
   }
 
   deleteNote(id: string) {
