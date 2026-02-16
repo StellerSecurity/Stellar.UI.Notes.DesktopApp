@@ -79,7 +79,7 @@ export class ShareSecretModalComponent {
       error: async () => {
         await loading.dismiss();
         this.isLoading = false;
-        alert('Failed to share secret. Please check your internet connection or try again.');
+        alert(this.allTranslations?.failedToShareSecretMsg);
       },
       complete: async () => {
         await loading.dismiss();
@@ -111,14 +111,14 @@ export class ShareSecretModalComponent {
   async copyLink() {
     await navigator.clipboard.writeText(this.secretUrl);
     const toast = await this.toastController.create({
-      message: 'Link copied.',
+      message: this.allTranslations?.linkCopied,
       duration: 3000,
       position: 'bottom',
     });
     await toast.present();
   }
 
-  async shareLink() {
+  async shareLinkOld() {
     if (Capacitor.getPlatform() === 'android' || Capacitor.getPlatform() === 'ios') {
       // ✅ Native share on mobile
       await Share.share({
@@ -138,6 +138,20 @@ export class ShareSecretModalComponent {
     } else {
       // ✅ Web fallback
       await this.copyLink();
+    }
+  }
+
+  async shareLink() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: this.allTranslations?.hereIsYourSecretLink,
+          text: this.secretUrl
+        });
+        return;
+      } catch (e) {
+        console.log('Web share failed');
+      }
     }
   }
 
