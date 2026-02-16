@@ -1,19 +1,21 @@
-import { Component, OnInit } from "@angular/core";
+import { AfterViewInit, Component, OnInit } from "@angular/core";
 import { AlertController, ModalController, PopoverController } from "@ionic/angular";
 import { AppSettingsPage } from "../app-settings/app-settings.page";
 import { Router } from "@angular/router";
 import { SecureStorageService } from "../services/secure-storage.service";
 import { DataService } from "../services/data.service";
 import { AuthService } from "../services/auth.service";
+import { TranslatorService } from "../services/translator.service";
 
 @Component({
   selector: "app-user-menu",
   templateUrl: "./user-menu.component.html",
   styleUrls: ["./user-menu.component.scss"],
 })
-export class UserMenuComponent implements OnInit {
+export class UserMenuComponent implements OnInit, AfterViewInit {
   isUserIsLoggedIn = false;
   user: any = {};
+  allTranslations: any;
 
   constructor(
     public popoverController: PopoverController,
@@ -22,7 +24,8 @@ export class UserMenuComponent implements OnInit {
     private alertController: AlertController,
     private secureStorageService: SecureStorageService,
     private dataService: DataService,
-    public authService: AuthService
+    public authService: AuthService,
+    private translatorService: TranslatorService,
   ) {}
 
   ngOnInit() {
@@ -31,6 +34,13 @@ export class UserMenuComponent implements OnInit {
 
   ionViewWillEnter() {
     this.loadUserData();
+    this.allTranslations = this.translatorService.allTranslations;
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+      this.allTranslations = this.translatorService.allTranslations;
+    }, 300)
   }
 
   private async loadUserData() {
@@ -44,16 +54,16 @@ export class UserMenuComponent implements OnInit {
 
   async confirmLogout() {
     const alert = await this.alertController.create({
-      header: 'Confirm Logout',
-      message: 'Are you sure you want to logout?',
+      header: this.allTranslations?.confirmLogout,
+      message: this.allTranslations?.areYoSureYouWantToLogout,
       buttons: [
         {
-          text: 'Cancel',
+          text: this.allTranslations?.cancel,
           role: 'cancel',
           cssClass: 'secondary',
         },
         {
-          text: 'Logout',
+          text: this.allTranslations?.logout,
           handler: () => {
             this.logout();
           },
@@ -72,11 +82,11 @@ export class UserMenuComponent implements OnInit {
 
   async showMessageAfterLogout() {
     const alert = await this.alertController.create({
-    header:  `You're logged out.`,
-      message: `You're logged out. Your notes is still available on this device.`,
+    header:  this.allTranslations?.youAreLoggedOut,
+      message: this.allTranslations?.youAreLogoutMsg,
       buttons: [
         {
-          text: 'OK',
+          text: this.allTranslations?.ok,
           handler: () => {
 
           },
