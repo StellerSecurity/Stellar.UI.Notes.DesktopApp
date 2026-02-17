@@ -108,6 +108,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       }
 
       this.currentNote = this.notesService.findNoteById(this.notes_id, this.notes) as NoteV1 | null;
+      this.notesService.currentNote = this.currentNote;
 
       if (!this.currentNote) {
         // defensive: if note not found, treat as new
@@ -427,6 +428,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
 
     this.currentNote = note;
+    this.notesService.currentNote = this.currentNote;
     this.storeNoteInStorage(true).then(() => {});
     this.notesService.setNoteIsUpdatedSubject(true)
   }

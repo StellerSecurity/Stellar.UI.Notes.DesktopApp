@@ -879,7 +879,7 @@ export class HomePage implements AfterViewInit {
           this.listOfCheckedCheckboxes = [];
           this.checkboxOpened = false;
           this.cdr.detectChanges();
-          if(this.noteId == id) {
+          if(this.noteId == id || id == this.noteService.currentNote?.id) {
             await this.navController.navigateForward('/');
           }
           setTimeout(() => {

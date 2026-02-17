@@ -10,6 +10,7 @@ export class NotesService {
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();
   private noteIsDeletedSubject = new BehaviorSubject<boolean>(false);
   noteIsdeleted$ = this.noteIsDeletedSubject.asObservable();
+  currentNote:any;
 
   private decryptedNotes: any = null;
 
