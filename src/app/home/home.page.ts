@@ -575,7 +575,7 @@ export class HomePage implements AfterViewInit {
         if (!this.pauseSync && this.authService.isLoggedIn) {
           this.syncFromServer();
         }
-      }, 30_000);
+      }, 15_000);
     }
 
     this.isSyncing = true;
@@ -649,7 +649,7 @@ export class HomePage implements AfterViewInit {
       // reuse your local decryption pipeline
       this.setData(this.noteService.getNotesAppPassword());
 
-      console.log("Synching in 30 seconds...");
+      console.log("Synching in 15 seconds...");
     } catch (err) {
       console.error("Sync failed:", err);
     } finally {
