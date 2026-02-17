@@ -8,6 +8,8 @@ export class NotesService {
   selectedNoteId: any = "";
   private noteIsUpdatedSubject = new BehaviorSubject<boolean>(true);
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();
+  private noteIsDeletedSubject = new BehaviorSubject<boolean>(false);
+  noteIsdeleted$ = this.noteIsDeletedSubject.asObservable();
 
   private decryptedNotes: any = null;
 
@@ -158,5 +160,9 @@ export class NotesService {
 
   setNoteIsUpdatedSubject(value: boolean): void {
     this.noteIsUpdatedSubject.next(value);
+  }
+
+  setNoteIsDeletedSubjectSubject(value: boolean): void {
+    this.noteIsDeletedSubject.next(value);
   }
 }

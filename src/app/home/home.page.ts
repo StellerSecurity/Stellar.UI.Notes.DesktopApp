@@ -134,7 +134,7 @@ export class HomePage implements AfterViewInit {
     private secureStorageService: SecureStorageService,
     private dataService: DataService,
     private authService: AuthService,
-    private crypto: CryptoKeyService
+    private crypto: CryptoKeyService,
   ) {
     // for make selected note on sidebar
     const urlParts = this.router.url.split("/");
@@ -831,7 +831,7 @@ export class HomePage implements AfterViewInit {
    * Being called, when the confirmation has been done.
    * @private
    */
-  private async deleteNotesConfirm() {
+  private async deleteNotesConfirm(id:any = '') {
     const loading = await this.loadingController.create();
     await loading.present();
 
@@ -875,13 +875,16 @@ export class HomePage implements AfterViewInit {
     if (this.authService.isLoggedIn) {
       this.notesApiServiceV1
         .deleteNotes(this.listOfCheckedCheckboxes)
-        .then(() => {
+        .then(async () => {
           this.listOfCheckedCheckboxes = [];
           this.checkboxOpened = false;
           this.cdr.detectChanges();
+          if(this.noteId == id) {
+            await this.navController.navigateForward('/');
+          }
           setTimeout(() => {
             this.initializePressGesture()
-          }, 300)
+          }, 500);
         });
     }
 
@@ -1053,9 +1056,25 @@ export class HomePage implements AfterViewInit {
     await modal.present();
   }
 
-  deleteNote(id: string) {
+  async deleteNote(id: string) {
     console.log('Delete note', id);
-    // Your delete logic
+    const modal = await this.modalCtrl.create({
+      component: DeleteNoteModalComponent,
+      cssClass: 'confirmation-popup',
+      componentProps: { isSingleDelete: true },
+    });
+
+    modal.onDidDismiss().then(async (data) => {
+      if (data && data.data) {
+        const { confirm } = data.data;
+        if (confirm) {
+          this.selectNote(null, id);
+          this.deleteNotesConfirm(id);
+        }
+      }
+    });
+
+    return await modal.present();
   }
 
   /**
