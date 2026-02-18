@@ -488,11 +488,13 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         console.log('confirm', confirm)
         if (confirm) {
           this.notes_password_stored = inputValue ?? '';
+          this.notesService.notesPasswordStored = this.notes_password_stored;
 
           const ok = this.decryptNote(this.notes_password_stored, this.currentNote);
           if (!ok) {
             await this.wrongPasswordEntered();
           } else {
+            this.notesService.isNoteTemporaryDescripted = true;
             await modal.dismiss();
           }
         } else {

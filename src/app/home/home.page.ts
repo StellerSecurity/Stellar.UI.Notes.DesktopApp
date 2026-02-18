@@ -49,6 +49,7 @@ import { NoteContextMenuComponent } from "./note-context-menu/note-context-menu.
 import { Secret } from "../models/Secret";
 import { sha512 } from 'js-sha512';
 import { ShareSecretModalComponent } from "../share-secret-modal/share-secret-modal.component";
+import { NoteLockedModalComponent } from "../note-locked-modal/note-locked-modal.component";
 
 declare var require: any;
 const { v4: uuidv4 } = require('uuid');
@@ -222,6 +223,7 @@ export class HomePage implements AfterViewInit {
   // Route / selection helpers
   // --------------------------------------------------
   setSelectedNoteId(noteId: string | null = null): void {
+    this.noteService.isNoteTemporaryDescripted = false;
     this.noteId = this.noteService.selectedNoteId =
       noteId ?? this.activatedRoute.snapshot.paramMap.get("id");
   }

@@ -11,6 +11,9 @@ export class NotesService {
   private noteIsDeletedSubject = new BehaviorSubject<boolean>(false);
   noteIsdeleted$ = this.noteIsDeletedSubject.asObservable();
   currentNote:any;
+  isNoteTemporaryDescripted = false;
+  notesPasswordStored:any = null;
+  
 
   private decryptedNotes: any = null;
 
