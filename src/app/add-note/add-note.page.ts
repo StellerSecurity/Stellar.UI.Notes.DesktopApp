@@ -649,6 +649,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.notes_password_confirm = '';
     this.notes_password_input = '';
 
+    this.notesService.setNoteIsUpdatedSubject(true);
+    await this.navController.navigateForward('/');
     await this.dismissModal();
   }
 
