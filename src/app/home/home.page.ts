@@ -820,7 +820,10 @@ export class HomePage implements AfterViewInit {
 
   public openOrCheckbox(note_id: string) {
     if (!this.checkboxOpened) {
-      this.navController.navigateForward("/note/" + note_id).then((r) => {});
+      // this.navController.navigateForward("/note/" + note_id).then((r) => {});
+      this.navController.navigateForward('/dummy-route').then(() => {
+        this.navController.navigateForward("/note/" + note_id);
+      });
     }
   }
 
