@@ -1,0 +1,41 @@
+.context-menu {
+  background: transparent;
+}
+
+.menu-list {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* Menu items */
+ion-item {
+  --background: transparent;
+  --min-height: 44px;
+  --padding-start: 18px;
+  --inner-padding-end: 16px;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --border-width: 0 0 1px 0;
+
+  font-size: 15px;
+  font-weight: 500;
+  color: #1c1c1e;
+}
+
+ion-item:last-child {
+  --border-width: 0;
+}
+
+ion-item ion-icon {
+  font-size: 18px;
+  color: #6e6e73;
+}
+
+ion-item:hover {
+  --background: rgba(0, 0, 0, 0.05);
+}
+
+.action-icon {
+  width: 20px;
+  height: 20px;
+}

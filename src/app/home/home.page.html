@@ -135,31 +135,63 @@
       <div class="home-note-list"
         style="height: calc(100vh - 225px); overflow-y: auto;margin-left: -20px; margin-right: -20px;">
         <ion-list style="margin: 0 13px 0 20px;">
-          <ion-item lines="none" *ngFor="let note of getNotes()"
-            (click)="$event.stopPropagation(); openOrCheckbox(note.id); setSelectedNoteId(note.id)" [detail]="false"
+          <ion-item
+            lines="none"
+            *ngFor="let note of getNotes()"
+            (click)="$event.stopPropagation(); openOrCheckbox(note.id); setSelectedNoteId(note.id)"
+            (contextmenu)="openContextMenu($event, note)"
+            [detail]="false"
             class="long-press-target cursor-pointer"
-            [ngClass]="{ 'note-active-on-sidebar': note?.id == noteService.selectedNoteId }" #longPressElements
-            [id]="note.id">
+            [ngClass]="{ 'note-active-on-sidebar': note?.id == noteService.selectedNoteId }"
+            #longPressElements
+            [id]="note.id"
+          >
             <div class="box-item-main">
-              <ion-checkbox *ngIf="checkboxOpened" (click)="$event.stopPropagation(); selectNote($event, note.id)"
-                justify="center" style="margin-right: 7px" size="small"
+              <ion-checkbox
+                *ngIf="checkboxOpened"
+                (click)="$event.stopPropagation(); selectNote($event, note.id)"
+                justify="center"
+                style="margin-right: 7px"
+                size="small"
                 [checked]="listOfCheckedCheckboxes.includes(note.id) ? true: false"
-                id="checkbox_{{note.id}}"></ion-checkbox>
-              <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected">
-                <ion-note><span>{{ note.last_modified | date: "yyyy-MM-dd H:mm":"Europe/Copenhagen" }}</span></ion-note>
-                <span *ngIf="!note.protected">
-                  <span class="note-txt-title" *ngIf="note.title !== undefined">{{ (note.title.length > 40)? (note.title
-                    | striphtml | slice:0:40 ) +'...':(note.title | striphtml) }}<br></span>
-                  <span class="note-txt">{{ (note.text.length > 40)? (note.text | striphtml | slice:0:40 )
-                    +'...':(note.text | striphtml) }}</span>
-                </span>
-                <span class="uuid" *ngIf="note.protected">{{ note.id | slice:note.id.len:4 }}</span>
-              </ion-label>
-              <ion-label *ngIf="note.protected" class="m-0"><ion-note>
-                  <span>{{ note.last_modified | date: "yyyy-MM-dd H:mm":"UTC"}}<br>
-                    <span class="uuid" *ngIf="note.protected">{{ note.id | slice:note.id.len:6 }}</span>
+                id="checkbox_{{note.id}}">
+              </ion-checkbox>
+
+              <!-- <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected"> -->
+                <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected || (note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)">
+                <ion-note>
+                  <span>{{ note.last_modified | date: "yyyy-MM-dd H:mm":"Europe/Copenhagen" }}</span>
+                </ion-note>
+
+                <span>
+                  <span class="note-txt-title" *ngIf="note.title !== undefined">
+                    {{ (note.title.length > 40)
+                      ? (note.title | striphtml | slice:0:40 ) +'...'
+                      : (note.title | striphtml) }}
+                    <br>
                   </span>
-                  <img src="./assets/tabler-icon-lock.svg"></ion-note></ion-label>
+
+                  <span class="note-txt">
+                    {{ (note.text.length > 40)
+                      ? (note.text | striphtml | slice:0:40 ) +'...'
+                      : (note.text | striphtml) }}
+                  </span>
+                </span>
+              </ion-label>
+
+              <!-- <ion-label *ngIf="note.protected" class="m-0"> -->
+                <ion-label *ngIf="note.protected && !(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)" class="m-0">
+                <ion-note>
+                  <span>
+                    {{ note.last_modified | date: "yyyy-MM-dd H:mm":"UTC"}}<br>
+                    <span class="uuid">{{ note.id | slice:note.id.len:6 }}</span>
+                  </span>
+                  <!-- <img [hidden]="note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted" src="./assets/tabler-icon-lock.svg"> -->
+                  <img
+                    *ngIf="!(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)"
+                    src="./assets/tabler-icon-lock.svg">
+                </ion-note>
+              </ion-label>
             </div>
           </ion-item>
         </ion-list>

@@ -45,6 +45,15 @@ import {
 import { LongPressConfig, initializePressGestures } from "../utils/home-gesture.util";
 import { normalize } from "../utils/home-normalize.util";
 import { setDecryptedNotesAndParse } from "../utils/home-notes.util";
+import { NoteContextMenuComponent } from "./note-context-menu/note-context-menu.component";
+import { Secret } from "../models/Secret";
+import { sha512 } from 'js-sha512';
+import { ShareSecretModalComponent } from "../share-secret-modal/share-secret-modal.component";
+import { NoteLockedModalComponent } from "../note-locked-modal/note-locked-modal.component";
+
+declare var require: any;
+const { v4: uuidv4 } = require('uuid');
+const CryptoJS = require('crypto-js');
 
 @Component({
   selector: "app-home",
@@ -126,7 +135,7 @@ export class HomePage implements AfterViewInit {
     private secureStorageService: SecureStorageService,
     private dataService: DataService,
     private authService: AuthService,
-    private crypto: CryptoKeyService
+    private crypto: CryptoKeyService,
   ) {
     // for make selected note on sidebar
     const urlParts = this.router.url.split("/");
@@ -214,6 +223,7 @@ export class HomePage implements AfterViewInit {
   // Route / selection helpers
   // --------------------------------------------------
   setSelectedNoteId(noteId: string | null = null): void {
+    this.noteService.isNoteTemporaryDescripted = false;
     this.noteId = this.noteService.selectedNoteId =
       noteId ?? this.activatedRoute.snapshot.paramMap.get("id");
   }
@@ -567,7 +577,7 @@ export class HomePage implements AfterViewInit {
         if (!this.pauseSync && this.authService.isLoggedIn) {
           this.syncFromServer();
         }
-      }, 30_000);
+      }, 15_000);
     }
 
     this.isSyncing = true;
@@ -641,7 +651,7 @@ export class HomePage implements AfterViewInit {
       // reuse your local decryption pipeline
       this.setData(this.noteService.getNotesAppPassword());
 
-      console.log("Synching in 30 seconds...");
+      console.log("Synching in 15 seconds...");
     } catch (err) {
       console.error("Sync failed:", err);
     } finally {
@@ -758,6 +768,42 @@ export class HomePage implements AfterViewInit {
       (a: any, b: any) => b.last_modified - a.last_modified
     );
 
+    // descript current note on unlock temporary
+    if (Array.isArray(this.filteredResults) && this.filteredResults.length) {
+      this.filteredResults = this.filteredResults.map((note: any) => {
+
+        if (
+          note?.id === this.noteService.selectedNoteId &&
+          this.noteService.isNoteTemporaryDescripted &&
+          this.noteService.notesPasswordStored
+        ) {
+          try {
+            if(note?.isDescripted == true) {
+              return note
+            } else {
+            return {
+              ...note,
+              title: this.cryptoService.decrypt(
+                note.title,
+                this.noteService.notesPasswordStored
+              ),
+              text: this.cryptoService.decrypt(
+                note.text,
+                this.noteService.notesPasswordStored
+              ),
+              isDescripted: true,
+            }
+          };
+          } catch (error) {
+            console.error('Decryption failed:', error);
+            return note; // fallback safely
+          }
+        }
+
+        return note;
+      });
+    }
+
     return this.filteredResults;
   }
 
@@ -774,7 +820,10 @@ export class HomePage implements AfterViewInit {
 
   public openOrCheckbox(note_id: string) {
     if (!this.checkboxOpened) {
-      this.navController.navigateForward("/note/" + note_id).then((r) => {});
+      // this.navController.navigateForward("/note/" + note_id).then((r) => {});
+      this.navController.navigateForward('/dummy-route').then(() => {
+        this.navController.navigateForward("/note/" + note_id);
+      });
     }
   }
 
@@ -823,7 +872,7 @@ export class HomePage implements AfterViewInit {
    * Being called, when the confirmation has been done.
    * @private
    */
-  private async deleteNotesConfirm() {
+  private async deleteNotesConfirm(id:any = '') {
     const loading = await this.loadingController.create();
     await loading.present();
 
@@ -867,13 +916,16 @@ export class HomePage implements AfterViewInit {
     if (this.authService.isLoggedIn) {
       this.notesApiServiceV1
         .deleteNotes(this.listOfCheckedCheckboxes)
-        .then(() => {
+        .then(async () => {
           this.listOfCheckedCheckboxes = [];
           this.checkboxOpened = false;
           this.cdr.detectChanges();
+          if(this.noteId == id || id == this.noteService.currentNote?.id) {
+            await this.navController.navigateForward('/');
+          }
           setTimeout(() => {
             this.initializePressGesture()
-          }, 300)
+          }, 500);
         });
     }
 
@@ -972,6 +1024,98 @@ export class HomePage implements AfterViewInit {
       this.isClicked = false;
       this.cdr.detectChanges();
     });
+  }
+
+  async openContextMenu(event: MouseEvent, note: any) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if(note.protected) {
+      return
+    }
+
+    const popover = await this.popoverController.create({
+      component: NoteContextMenuComponent,
+      componentProps: { note },
+      event: event,
+      side: 'end',
+      alignment: 'start',
+      showBackdrop: true,
+      translucent: false,
+      cssClass: 'note-context-popover',
+    });
+
+    await popover.present();
+
+    const { data } = await popover.onDidDismiss();
+
+    if (!data) return;
+
+    switch (data.action) {
+      case 'select':
+        this.openOrCheckbox(note.id);
+        break;
+
+      // case 'lock':
+      //   this.lockNote(note);
+      //   break;
+
+      case 'share':
+        this.shareNote(note);
+        break;
+
+      case 'delete':
+        this.deleteNote(note.id);
+        break;
+    }
+  }
+
+  lockNote(note: any) {
+    console.log('Lock note', note);
+    // Your lock logic
+  }
+
+  async shareNote(note: any) {
+    const addSecretModal = new Secret();
+    const secret_id = uuidv4();
+
+    addSecretModal.expires_at = '0';
+    addSecretModal.id = sha512(secret_id);
+
+    let secretMessage = note?.text.replace(/<br ?\/?>/g, '\n');
+    const doc = new DOMParser().parseFromString(secretMessage, 'text/html');
+    secretMessage = doc.body?.textContent?.trim() || '';
+
+    addSecretModal.message = CryptoJS.AES.encrypt(secretMessage, secret_id).toString();
+
+    const modal = await this.modalCtrl.create({
+      component: ShareSecretModalComponent,
+      componentProps: { addSecretModal, secret_id },
+      cssClass: 'secret-modal',
+    });
+
+    await modal.present();
+  }
+
+  async deleteNote(id: string) {
+    console.log('Delete note', id);
+    const modal = await this.modalCtrl.create({
+      component: DeleteNoteModalComponent,
+      cssClass: 'confirmation-popup',
+      componentProps: { isSingleDelete: true },
+    });
+
+    modal.onDidDismiss().then(async (data) => {
+      if (data && data.data) {
+        const { confirm } = data.data;
+        if (confirm) {
+          this.selectNote(null, id);
+          this.deleteNotesConfirm(id);
+        }
+      }
+    });
+
+    return await modal.present();
   }
 
   /**

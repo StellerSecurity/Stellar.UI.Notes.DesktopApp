@@ -17,6 +17,7 @@ import { AngularEditorModule } from '@wfpena/angular-wysiwyg';
 import { NoteLockedModalModule } from '../note-locked-modal/note-locked-modal.module';
 import { RichTextEditorComponent } from '../add-note/rich-text-editor/rich-text-editor.component';
 import { InitialComponent } from '../initial/initial.component';
+import { NoteContextMenuComponent } from './note-context-menu/note-context-menu.component';
 
 @NgModule({
     imports: [
@@ -31,6 +32,6 @@ import { InitialComponent } from '../initial/initial.component';
         RestPassModalModule,
         TranslateModule
     ],
-    declarations: [HomePage, AddNotePage, RichTextEditorComponent,  StriphtmlPipe, ClickOutsideDirective, InitialComponent]
+    declarations: [HomePage, AddNotePage, RichTextEditorComponent,  StriphtmlPipe, ClickOutsideDirective, InitialComponent, NoteContextMenuComponent]
 })
 export class HomePageModule {}

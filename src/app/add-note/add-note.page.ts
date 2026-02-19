@@ -108,6 +108,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       }
 
       this.currentNote = this.notesService.findNoteById(this.notes_id, this.notes) as NoteV1 | null;
+      this.notesService.currentNote = this.currentNote;
 
       if (!this.currentNote) {
         // defensive: if note not found, treat as new
@@ -427,6 +428,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
 
     this.currentNote = note;
+    this.notesService.currentNote = this.currentNote;
     this.storeNoteInStorage(true).then(() => {});
     this.notesService.setNoteIsUpdatedSubject(true)
   }
@@ -486,11 +488,13 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         console.log('confirm', confirm)
         if (confirm) {
           this.notes_password_stored = inputValue ?? '';
+          this.notesService.notesPasswordStored = this.notes_password_stored;
 
           const ok = this.decryptNote(this.notes_password_stored, this.currentNote);
           if (!ok) {
             await this.wrongPasswordEntered();
           } else {
+            this.notesService.isNoteTemporaryDescripted = true;
             await modal.dismiss();
           }
         } else {
@@ -647,6 +651,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.notes_password_confirm = '';
     this.notes_password_input = '';
 
+    this.notesService.setNoteIsUpdatedSubject(true);
+    await this.navController.navigateForward('/');
     await this.dismissModal();
   }
 
