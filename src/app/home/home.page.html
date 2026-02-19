@@ -157,8 +157,8 @@
                 id="checkbox_{{note.id}}">
               </ion-checkbox>
 
-              <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected">
-                <!-- <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected || (note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)"> -->
+              <!-- <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected"> -->
+                <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected || (note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)">
                 <ion-note>
                   <span>{{ note.last_modified | date: "yyyy-MM-dd H:mm":"Europe/Copenhagen" }}</span>
                 </ion-note>
@@ -179,8 +179,8 @@
                 </span>
               </ion-label>
 
-              <ion-label *ngIf="note.protected" class="m-0">
-                <!-- <ion-label *ngIf="note.protected && !(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)" class="m-0"> -->
+              <!-- <ion-label *ngIf="note.protected" class="m-0"> -->
+                <ion-label *ngIf="note.protected && !(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)" class="m-0">
                 <ion-note>
                   <span>
                     {{ note.last_modified | date: "yyyy-MM-dd H:mm":"UTC"}}<br>

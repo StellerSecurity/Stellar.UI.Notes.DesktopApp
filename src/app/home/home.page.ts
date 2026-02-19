@@ -768,6 +768,42 @@ export class HomePage implements AfterViewInit {
       (a: any, b: any) => b.last_modified - a.last_modified
     );
 
+    // descript current note on unlock temporary
+    if (Array.isArray(this.filteredResults) && this.filteredResults.length) {
+      this.filteredResults = this.filteredResults.map((note: any) => {
+
+        if (
+          note?.id === this.noteService.selectedNoteId &&
+          this.noteService.isNoteTemporaryDescripted &&
+          this.noteService.notesPasswordStored
+        ) {
+          try {
+            if(note?.isDescripted == true) {
+              return note
+            } else {
+            return {
+              ...note,
+              title: this.cryptoService.decrypt(
+                note.title,
+                this.noteService.notesPasswordStored
+              ),
+              text: this.cryptoService.decrypt(
+                note.text,
+                this.noteService.notesPasswordStored
+              ),
+              isDescripted: true,
+            }
+          };
+          } catch (error) {
+            console.error('Decryption failed:', error);
+            return note; // fallback safely
+          }
+        }
+
+        return note;
+      });
+    }
+
     return this.filteredResults;
   }
 
