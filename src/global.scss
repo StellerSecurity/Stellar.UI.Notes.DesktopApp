@@ -763,3 +763,15 @@ ion-modal.lock-note-modal {
 ion-button::part(native) {
   cursor: pointer !important;
 }
+
+.note-context-popover::part(content) {
+  border-radius: 16px;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.18),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  background: #f4f4f6;
+  padding: 0;
+  width: 148px;
+  margin-left: -50px;
+}
