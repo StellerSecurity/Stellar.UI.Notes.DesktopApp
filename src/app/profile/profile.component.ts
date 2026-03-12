@@ -10,7 +10,7 @@ import { AuthService } from '../services/auth.service';
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],
 })
-export class ProfileComponent implements OnInit   {
+export class ProfileComponent implements OnInit {
   user: any = {};
   isLoggedIn = false;
 
@@ -32,13 +32,11 @@ export class ProfileComponent implements OnInit   {
 
   private async loadUserData() {
     const user = await this.secureStorageService.getItem('ssUser');
-    const user1 = await this.secureStorageService.getItem('cap_sec_ssUser');
-    console.log('user', user)
-    console.log('user1', user1)
-    debugger
+
     if (user) {
       this.user = JSON.parse(user);
     }
+
     const token = await this.secureStorageService.getItem('ssToken');
     this.isLoggedIn = !!token;
   }
@@ -60,7 +58,6 @@ export class ProfileComponent implements OnInit   {
         {
           text: 'Logout',
           handler: () => {
-            console.log('Logout');
             this.logout();
           },
         },
@@ -72,7 +69,6 @@ export class ProfileComponent implements OnInit   {
 
   private async logout() {
     await this.dataService.clearAppData();
-    window.location.href = '/';
+    await this.router.navigateByUrl('/');
   }
-
 }
