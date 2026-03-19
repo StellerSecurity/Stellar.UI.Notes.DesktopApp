@@ -251,7 +251,7 @@ async function verifyManifestOrThrow(manifestBytes, sigB64) {
   if (!ok) throw new Error("Manifest signature verification failed");
 }
 
-async function fetchSignedManifest(progressWin) {
+async function fetchSignedManifest(progressWin = null) {
   let lastErr = null;
 
   for (const name of MANIFEST_NAMES) {
@@ -271,7 +271,10 @@ async function fetchSignedManifest(progressWin) {
       return { manifestBytes, manifestUrl };
     } catch (e) {
       lastErr = e;
-      logLine("Signed manifest fetch failed", { name, error: String(e && e.message ? e.message : e) });
+      logLine("Signed manifest fetch failed", {
+        name,
+        error: String(e && e.message ? e.message : e),
+      });
     }
   }
 
@@ -283,33 +286,29 @@ async function fetchSignedManifest(progressWin) {
 async function secureLinuxUpdateFlow() {
   if (process.platform !== "linux") return;
   if (!app.isPackaged) return;
-
-  // Only run secure OTA for AppImage builds (not .deb installs)
   if (!process.env.APPIMAGE) return;
 
   let progressWin = null;
 
   try {
-    progressWin = createUpdateProgressWindow(mainWindow);
-    setMainProgress(0.05);
-    setUpdateProgress(progressWin, "Checking for updates…", null, "");
-
-    const { manifestBytes } = await fetchSignedManifest(progressWin);
+    // Silent background check: do NOT show spinner/window here
+    const { manifestBytes } = await fetchSignedManifest(null);
     const manifestText = manifestBytes.toString("utf8");
-    const { version: remoteVersion, fileUrl, sha512Base64: expectedSha512 } =
-      parseElectronBuilderYaml(manifestText);
+    const {
+      version: remoteVersion,
+      fileUrl,
+      sha512Base64: expectedSha512,
+    } = parseElectronBuilderYaml(manifestText);
 
     const localVersion = app.getVersion();
+
     if (compareVersions(remoteVersion, localVersion) <= 0) {
-      logLine("Linux update check: already up to date", { localVersion, remoteVersion });
-      setMainProgress(-1);
-      if (progressWin && !progressWin.isDestroyed()) progressWin.close();
+      logLine("Linux update check: already up to date", {
+        localVersion,
+        remoteVersion,
+      });
       return;
     }
-
-    if (progressWin && !progressWin.isDestroyed()) progressWin.close();
-    progressWin = null;
-    setMainProgress(-1);
 
     const choice = dialog.showMessageBoxSync({
       type: "info",
@@ -317,36 +316,52 @@ async function secureLinuxUpdateFlow() {
       defaultId: 0,
       cancelId: 1,
       message: `Update available: ${localVersion} → ${remoteVersion}`,
-      detail: "Update is verified (Ed25519 signed manifest + sha512 file hash) before launch."
+      detail:
+        "Update is verified (Ed25519 signed manifest + sha512 file hash) before launch.",
     });
+
     if (choice !== 0) return;
 
+    // Only show progress UI AFTER user chooses to update
     progressWin = createUpdateProgressWindow(mainWindow);
     setUpdateProgress(progressWin, "Preparing download…", null, "");
     setMainProgress(0.01);
 
     const fullFileUrl = normalizeUrl(UPDATE_BASE_URL, fileUrl);
-
     const updatesDir = path.join(app.getPath("userData"), "updates");
     fs.mkdirSync(updatesDir, { recursive: true });
 
-    const outPath = path.join(updatesDir, `StellarPrivateNotes-${remoteVersion}.AppImage`);
+    const outPath = path.join(
+      updatesDir,
+      `StellarPrivateNotes-${remoteVersion}.AppImage`
+    );
 
-    await httpsDownloadToFileWithProgress(fullFileUrl, outPath, ({ transferred, total }) => {
-      if (total && total > 0) {
-        const pct = (transferred / total) * 100;
-        setUpdateProgress(
-          progressWin,
-          "Downloading update…",
-          pct,
-          `${formatMB(transferred)} / ${formatMB(total)}`
-        );
-        setMainProgress(Math.max(0.01, Math.min(0.99, transferred / total)));
-      } else {
-        setUpdateProgress(progressWin, "Downloading update…", null, `${formatMB(transferred)}`);
-        setMainProgress(0.15);
+    await httpsDownloadToFileWithProgress(
+      fullFileUrl,
+      outPath,
+      ({ transferred, total }) => {
+        if (total && total > 0) {
+          const pct = (transferred / total) * 100;
+          setUpdateProgress(
+            progressWin,
+            "Downloading update…",
+            pct,
+            `${formatMB(transferred)} / ${formatMB(total)}`
+          );
+          setMainProgress(
+            Math.max(0.01, Math.min(0.99, transferred / total))
+          );
+        } else {
+          setUpdateProgress(
+            progressWin,
+            "Downloading update…",
+            null,
+            `${formatMB(transferred)}`
+          );
+          setMainProgress(0.15);
+        }
       }
-    });
+    );
 
     setUpdateProgress(progressWin, "Verifying download…", null, "sha512 check");
     setMainProgress(0.99);
@@ -365,7 +380,12 @@ async function secureLinuxUpdateFlow() {
     setMainProgress(-1);
 
     logLine("Launching downloaded Linux AppImage", { outPath, remoteVersion });
-    spawn(outPath, [], { detached: true, stdio: "ignore", env: process.env }).unref();
+    spawn(outPath, [], {
+      detached: true,
+      stdio: "ignore",
+      env: process.env,
+    }).unref();
+
     app.quit();
   } finally {
     setMainProgress(-1);
