@@ -1,7 +1,7 @@
 {
   "name": "stellar-notes",
   "productName": "Stellar Notes",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "author": {
     "name": "Stellar Security",
     "email": "support@stellarsecurity.com"
@@ -19,9 +19,12 @@
     "lint": "ng lint",
     "electron": "electron .",
     "generate-icons": "electron-icon-builder --input=icons/icon.png --output=icons --flatten",
-    "electron:macBuild": "npm run build && electron-builder --mac",
-    "electron:winBuild": "npm run build && electron-builder --win",
-    "electron:linuxBuild": "npm run build && electron-builder --linux"
+    "electron:macBuild": "npm run build && electron-builder --mac --publish never",
+    "electron:macRelease": "npm run build && electron-builder --mac --publish always",
+    "electron:winBuild": "npm run build && electron-builder --win --publish never",
+    "electron:winRelease": "npm run build && electron-builder --win --publish always",
+    "electron:linuxBuild": "npm run build && electron-builder --linux --publish never",
+    "electron:linuxRelease": "npm run build && electron-builder --linux --publish always"
   },
   "dependencies": {
     "@angular/animations": "^16.0.0",
@@ -122,12 +125,6 @@
     "directories": {
       "buildResources": "icons"
     },
-    "publish": [
-      {
-        "provider": "generic",
-        "url": "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/"
-      }
-    ],
     "linux": {
       "target": [
         "AppImage",
@@ -139,6 +136,12 @@
       "synopsis": "Private, end-to-end encrypted notes.",
       "icon": "icons/linux",
       "artifactName": "${productName}-${version}.${ext}",
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/"
+        }
+      ],
       "desktop": {
         "entry": {
           "Name": "Stellar Notes",
@@ -150,11 +153,32 @@
       }
     },
     "mac": {
-      "icon": "icons/mac/icon.icns"
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "icons/icons/mac/icon.icns",
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "forceCodeSigning": false,
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "https://desktopreleasesassetsprod.stellarsecurity.com/notes/mac/"
+        }
+      ]
     },
     "win": {
       "target": "nsis",
-      "icon": "icons/win/icon.ico"
+      "icon": "icons/icons/win/icon.ico",
+      "publish": [
+        {
+          "provider": "generic",
+          "url": "https://desktopreleasesassetsprod.stellarsecurity.com/notes/win/"
+        }
+      ]
     }
   }
 }
