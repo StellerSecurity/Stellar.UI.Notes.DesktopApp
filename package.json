@@ -23,8 +23,9 @@
     "electron:macRelease": "npm run build && electron-builder --mac --publish always",
     "electron:winBuild": "npm run build && electron-builder --win --publish never",
     "electron:winRelease": "npm run build && electron-builder --win --publish always",
-    "electron:linuxBuild": "npm run build && electron-builder --linux --publish never",
-    "electron:linuxRelease": "npm run build && electron-builder --linux --publish always"
+    "electron:linuxBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store",
+    "electron:linuxRelease": "npm run build && electron-builder --linux AppImage --publish always --config.compression=store",
+    "electron:linuxSignedBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store && node tools/sign-manifest.js dist && node tools/verify-manifest.js dist"
   },
   "dependencies": {
     "@angular/animations": "^16.0.0",
@@ -179,6 +180,7 @@
           "url": "https://desktopreleasesassetsprod.stellarsecurity.com/notes/win/"
         }
       ]
-    }
+    },
+    "compression": "store"
   }
 }
