@@ -1,7 +1,7 @@
 {
   "name": "stellar-notes",
   "productName": "Stellar Notes",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "author": {
     "name": "Stellar Security",
     "email": "support@stellarsecurity.com"
@@ -123,6 +123,12 @@
       "preload.js",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "icon.png",
+        "to": "icon.png"
+      }
+    ],
     "directories": {
       "buildResources": "icons"
     },
@@ -135,7 +141,7 @@
       "maintainer": "Stellar Security <support@stellarsecurity.com>",
       "executableName": "stellar-notes",
       "synopsis": "Private, end-to-end encrypted notes.",
-      "icon": "icons/linux",
+      "icon": "icons/icons",
       "artifactName": "${productName}-${version}.${ext}",
       "publish": [
         {

@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const https = require("https");
 const crypto = require("crypto");
 const yaml = require("js-yaml");
@@ -10,14 +11,19 @@ const { spawn } = require("child_process");
 
 let mainWindow;
 let startupUpdateCheckScheduled = false;
+let mainFrameReloadAttempts = 0;
 
 // Public key only (Ed25519)
 const STELLAR_RELEASE_PUBKEY_B64 = "OGCBFiL/edNJ/hzctTN7A89YBRtBygopfmCDhLi75zs=";
 
-const UPDATE_BASE_URL = "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/";
+const UPDATE_BASE_URL =
+  "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/";
 const MANIFEST_NAMES = ["latest-linux.yml", "latest.yml"];
 
-const APP_INDEX_PATH = path.join(__dirname, "dist/StellerPhoneNotesApp/index.html");
+const APP_INDEX_PATH = path.join(
+  __dirname,
+  "dist/StellerPhoneNotesApp/index.html"
+);
 
 /* ================= LOGGING ================= */
 
@@ -128,8 +134,15 @@ function setUpdateProgress(win, phase, percent, detail) {
   if (!win || win.isDestroyed()) return;
   const safePhase = JSON.stringify(String(phase || ""));
   const safeDetail = JSON.stringify(String(detail || ""));
-  const pct = percent === null || percent === undefined ? "null" : String(Number(percent));
-  win.webContents.executeJavaScript(`window.__setProgress(${safePhase}, ${pct}, ${safeDetail});`, true).catch(() => {});
+  const pct =
+    percent === null || percent === undefined ? "null" : String(Number(percent));
+
+  win.webContents
+    .executeJavaScript(
+      `window.__setProgress(${safePhase}, ${pct}, ${safeDetail});`,
+      true
+    )
+    .catch(() => {});
 }
 
 function setMainProgress(p) {
@@ -141,21 +154,246 @@ function formatMB(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+function getLinuxWindowIconPath() {
+  if (process.platform !== "linux") return null;
+
+  const packagedIcon = path.join(process.resourcesPath, "icon.png");
+  if (fs.existsSync(packagedIcon)) return packagedIcon;
+
+  const devIcon = path.join(__dirname, "icon.png");
+  if (fs.existsSync(devIcon)) return devIcon;
+
+  return null;
+}
+
+/* ================= LINUX SELF-INSTALL HELPERS ================= */
+
+function getLinuxInstallPaths() {
+  const home = os.homedir();
+  return {
+    appDir: path.join(home, "Applications"),
+    appImagePath: path.join(home, "Applications", "stellar-notes.AppImage"),
+    desktopDir: path.join(home, ".local", "share", "applications"),
+    desktopFilePath: path.join(
+      home,
+      ".local",
+      "share",
+      "applications",
+      "stellar-notes.desktop"
+    ),
+    iconDir: path.join(
+      home,
+      ".local",
+      "share",
+      "icons",
+      "hicolor",
+      "512x512",
+      "apps"
+    ),
+    iconPath: path.join(
+      home,
+      ".local",
+      "share",
+      "icons",
+      "hicolor",
+      "512x512",
+      "apps",
+      "stellar-notes.png"
+    )
+  };
+}
+
+function ensureDirSync(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function safeRealPathSync(filePath) {
+  try {
+    return fs.realpathSync(filePath);
+  } catch (_) {
+    return path.resolve(filePath);
+  }
+}
+
+function getCurrentLinuxAppImagePath() {
+  if (process.platform !== "linux") return null;
+  const current = process.env.APPIMAGE;
+  if (!current) return null;
+  if (!fs.existsSync(current)) return null;
+  return current;
+}
+
+function isRunningInstalledLinuxAppImage() {
+  if (process.platform !== "linux") return false;
+  const currentAppImage = getCurrentLinuxAppImagePath();
+  if (!currentAppImage) return false;
+
+  const installPaths = getLinuxInstallPaths();
+  return (
+    safeRealPathSync(currentAppImage) === safeRealPathSync(installPaths.appImagePath)
+  );
+}
+
+function tryRunDetachedCommand(command, args) {
+  try {
+    const child = spawn(command, args, {
+      detached: true,
+      stdio: "ignore"
+    });
+    child.unref();
+  } catch (_) {}
+}
+
+function refreshLinuxDesktopDatabases(installPaths) {
+  tryRunDetachedCommand("update-desktop-database", [installPaths.desktopDir]);
+  tryRunDetachedCommand("gtk-update-icon-cache", [
+    path.join(os.homedir(), ".local", "share", "icons", "hicolor")
+  ]);
+}
+
+function writeLinuxDesktopFile(installPaths) {
+  const desktopFile = `[Desktop Entry]
+Type=Application
+Name=Stellar Notes
+Comment=Private notes
+Exec=${installPaths.appImagePath}
+TryExec=${installPaths.appImagePath}
+Icon=stellar-notes
+Terminal=false
+Categories=Utility;Office;
+StartupNotify=true
+`;
+
+  fs.writeFileSync(installPaths.desktopFilePath, desktopFile, "utf8");
+  fs.chmodSync(installPaths.desktopFilePath, 0o755);
+}
+
+function installLinuxDesktopIntegration(installPaths) {
+  ensureDirSync(installPaths.desktopDir);
+  ensureDirSync(installPaths.iconDir);
+
+  const runtimeIcon = getLinuxWindowIconPath();
+  if (runtimeIcon && fs.existsSync(runtimeIcon)) {
+    fs.copyFileSync(runtimeIcon, installPaths.iconPath);
+  }
+
+  writeLinuxDesktopFile(installPaths);
+  refreshLinuxDesktopDatabases(installPaths);
+}
+
+function installCurrentLinuxAppImage() {
+  const currentAppImage = getCurrentLinuxAppImagePath();
+  if (!currentAppImage) {
+    throw new Error("Current AppImage path not available");
+  }
+
+  const installPaths = getLinuxInstallPaths();
+  ensureDirSync(installPaths.appDir);
+
+  const tempInstallPath = `${installPaths.appImagePath}.tmp`;
+  fs.copyFileSync(currentAppImage, tempInstallPath);
+  fs.chmodSync(tempInstallPath, 0o755);
+  fs.renameSync(tempInstallPath, installPaths.appImagePath);
+
+  installLinuxDesktopIntegration(installPaths);
+
+  logLine("Installed Linux AppImage", {
+    from: currentAppImage,
+    to: installPaths.appImagePath
+  });
+
+  return installPaths.appImagePath;
+}
+
+async function maybeOfferLinuxInstall() {
+  if (process.platform !== "linux") return;
+  if (!app.isPackaged) return;
+  if (!getCurrentLinuxAppImagePath()) return;
+  if (isRunningInstalledLinuxAppImage()) return;
+
+  const installPaths = getLinuxInstallPaths();
+  if (fs.existsSync(installPaths.appImagePath)) return;
+
+  const choice = dialog.showMessageBoxSync(mainWindow, {
+    type: "question",
+    buttons: ["Install", "Later"],
+    defaultId: 0,
+    cancelId: 1,
+    message: "Install Stellar Notes on this computer?",
+    detail:
+      "This will add Stellar Notes to Applications and your app menu so future launches and updates feel like a normal installed app."
+  });
+
+  if (choice !== 0) return;
+
+  try {
+    const installedPath = installCurrentLinuxAppImage();
+
+    dialog.showMessageBoxSync(mainWindow, {
+      type: "info",
+      buttons: ["OK"],
+      defaultId: 0,
+      message: "Stellar Notes was installed.",
+      detail: "The app will now relaunch from the installed location."
+    });
+
+    spawn(installedPath, [], {
+      detached: true,
+      stdio: "ignore",
+      env: process.env
+    }).unref();
+
+    app.quit();
+  } catch (e) {
+    dialog.showMessageBoxSync(mainWindow, {
+      type: "error",
+      buttons: ["OK"],
+      defaultId: 0,
+      message: "Install failed",
+      detail: String(e && e.message ? e.message : e)
+    });
+  }
+}
+
+function replaceInstalledLinuxAppImage(downloadedAppImagePath) {
+  const installPaths = getLinuxInstallPaths();
+  ensureDirSync(installPaths.appDir);
+
+  const tempInstallPath = `${installPaths.appImagePath}.tmp`;
+  fs.copyFileSync(downloadedAppImagePath, tempInstallPath);
+  fs.chmodSync(tempInstallPath, 0o755);
+  fs.renameSync(tempInstallPath, installPaths.appImagePath);
+
+  installLinuxDesktopIntegration(installPaths);
+
+  logLine("Updated installed Linux AppImage", {
+    downloadedAppImagePath,
+    installedPath: installPaths.appImagePath
+  });
+
+  return installPaths.appImagePath;
+}
+
 /* ================= NETWORK HELPERS ================= */
 
 function httpsGetBuffer(urlToGet) {
   return new Promise((resolve, reject) => {
     https
-      .get(urlToGet, { headers: { "User-Agent": "StellarNotesUpdater/1.0" } }, (res) => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`GET ${urlToGet} failed: ${res.statusCode}`));
-          res.resume();
-          return;
+      .get(
+        urlToGet,
+        { headers: { "User-Agent": "StellarNotesUpdater/1.0" } },
+        (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`GET ${urlToGet} failed: ${res.statusCode}`));
+            res.resume();
+            return;
+          }
+
+          const chunks = [];
+          res.on("data", (d) => chunks.push(d));
+          res.on("end", () => resolve(Buffer.concat(chunks)));
         }
-        const chunks = [];
-        res.on("data", (d) => chunks.push(d));
-        res.on("end", () => resolve(Buffer.concat(chunks)));
-      })
+      )
       .on("error", reject);
   });
 }
@@ -165,25 +403,29 @@ function httpsDownloadToFileWithProgress(urlToGet, outPath, onProgress) {
     const file = fs.createWriteStream(outPath, { mode: 0o600 });
 
     https
-      .get(urlToGet, { headers: { "User-Agent": "StellarNotesUpdater/1.0" } }, (res) => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`GET ${urlToGet} failed: ${res.statusCode}`));
-          res.resume();
-          return;
+      .get(
+        urlToGet,
+        { headers: { "User-Agent": "StellarNotesUpdater/1.0" } },
+        (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`GET ${urlToGet} failed: ${res.statusCode}`));
+            res.resume();
+            return;
+          }
+
+          const total = parseInt(res.headers["content-length"] || "0", 10);
+          let transferred = 0;
+
+          res.on("data", (chunk) => {
+            transferred += chunk.length;
+            if (onProgress) onProgress({ transferred, total });
+          });
+
+          res.pipe(file);
+          file.on("finish", () => file.close(resolve));
+          res.on("error", reject);
         }
-
-        const total = parseInt(res.headers["content-length"] || "0", 10);
-        let transferred = 0;
-
-        res.on("data", (chunk) => {
-          transferred += chunk.length;
-          if (onProgress) onProgress({ transferred, total });
-        });
-
-        res.pipe(file);
-        file.on("finish", () => file.close(resolve));
-        res.on("error", reject);
-      })
+      )
       .on("error", (err) => {
         try {
           fs.unlinkSync(outPath);
@@ -195,7 +437,12 @@ function httpsDownloadToFileWithProgress(urlToGet, outPath, onProgress) {
 
 function normalizeUrl(base, maybeRelative) {
   if (!maybeRelative) throw new Error("Missing url");
-  if (maybeRelative.startsWith("http://") || maybeRelative.startsWith("https://")) return maybeRelative;
+  if (
+    maybeRelative.startsWith("http://") ||
+    maybeRelative.startsWith("https://")
+  ) {
+    return maybeRelative;
+  }
   return base.replace(/\/+$/, "/") + maybeRelative.replace(/^\/+/, "");
 }
 
@@ -212,14 +459,20 @@ function sha512Base64(filePath) {
 }
 
 function compareVersions(a, b) {
-  const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
-  const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
+  const pa = String(a)
+    .split(".")
+    .map((n) => parseInt(n, 10) || 0);
+  const pb = String(b)
+    .split(".")
+    .map((n) => parseInt(n, 10) || 0);
+
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const da = pa[i] || 0;
     const db = pb[i] || 0;
     if (da > db) return 1;
     if (da < db) return -1;
   }
+
   return 0;
 }
 
@@ -231,7 +484,9 @@ function parseElectronBuilderYaml(manifestText) {
   const files = doc.files;
 
   if (!version) throw new Error("Manifest missing version");
-  if (!Array.isArray(files) || files.length < 1) throw new Error("Manifest missing files[]");
+  if (!Array.isArray(files) || files.length < 1) {
+    throw new Error("Manifest missing files[]");
+  }
 
   const file = files[0];
   if (!file.url) throw new Error("Manifest file missing url");
@@ -244,7 +499,9 @@ async function verifyManifestOrThrow(manifestBytes, sigB64) {
   await sodium.ready;
 
   const pk = Buffer.from(STELLAR_RELEASE_PUBKEY_B64, "base64");
-  if (pk.length !== 32) throw new Error(`Bad public key length: ${pk.length} bytes (expected 32)`);
+  if (pk.length !== 32) {
+    throw new Error(`Bad public key length: ${pk.length} bytes (expected 32)`);
+  }
 
   const sig = Buffer.from(sigB64.trim(), "base64");
   const ok = sodium.crypto_sign_verify_detached(sig, manifestBytes, pk);
@@ -262,7 +519,12 @@ async function fetchSignedManifest(progressWin = null) {
       setUpdateProgress(progressWin, "Fetching update manifest…", null, name);
       const manifestBytes = await httpsGetBuffer(manifestUrl);
 
-      setUpdateProgress(progressWin, "Fetching manifest signature…", null, name + ".sig");
+      setUpdateProgress(
+        progressWin,
+        "Fetching manifest signature…",
+        null,
+        `${name}.sig`
+      );
       const sigText = (await httpsGetBuffer(sigUrl)).toString("utf8");
 
       setUpdateProgress(progressWin, "Verifying manifest signature…", null, "");
@@ -273,7 +535,7 @@ async function fetchSignedManifest(progressWin = null) {
       lastErr = e;
       logLine("Signed manifest fetch failed", {
         name,
-        error: String(e && e.message ? e.message : e),
+        error: String(e && e.message ? e.message : e)
       });
     }
   }
@@ -291,13 +553,12 @@ async function secureLinuxUpdateFlow() {
   let progressWin = null;
 
   try {
-    // Silent background check: do NOT show spinner/window here
     const { manifestBytes } = await fetchSignedManifest(null);
     const manifestText = manifestBytes.toString("utf8");
     const {
       version: remoteVersion,
       fileUrl,
-      sha512Base64: expectedSha512,
+      sha512Base64: expectedSha512
     } = parseElectronBuilderYaml(manifestText);
 
     const localVersion = app.getVersion();
@@ -305,7 +566,7 @@ async function secureLinuxUpdateFlow() {
     if (compareVersions(remoteVersion, localVersion) <= 0) {
       logLine("Linux update check: already up to date", {
         localVersion,
-        remoteVersion,
+        remoteVersion
       });
       return;
     }
@@ -317,12 +578,11 @@ async function secureLinuxUpdateFlow() {
       cancelId: 1,
       message: `Update available: ${localVersion} → ${remoteVersion}`,
       detail:
-        "Update is verified (Ed25519 signed manifest + sha512 file hash) before launch.",
+        "Update is verified (Ed25519 signed manifest + sha512 file hash) before launch."
     });
 
     if (choice !== 0) return;
 
-    // Only show progress UI AFTER user chooses to update
     progressWin = createUpdateProgressWindow(mainWindow);
     setUpdateProgress(progressWin, "Preparing download…", null, "");
     setMainProgress(0.01);
@@ -376,14 +636,26 @@ async function secureLinuxUpdateFlow() {
 
     fs.chmodSync(outPath, 0o755);
 
+    let launchPath = outPath;
+
+    try {
+      if (fs.existsSync(getLinuxInstallPaths().appImagePath) || isRunningInstalledLinuxAppImage()) {
+        launchPath = replaceInstalledLinuxAppImage(outPath);
+      }
+    } catch (e) {
+      logLine("Failed to replace installed Linux AppImage, falling back to downloaded file", {
+        error: String(e && e.message ? e.message : e)
+      });
+    }
+
     setUpdateProgress(progressWin, "Launching update…", 100, "");
     setMainProgress(-1);
 
-    logLine("Launching downloaded Linux AppImage", { outPath, remoteVersion });
-    spawn(outPath, [], {
+    logLine("Launching Linux AppImage", { launchPath, remoteVersion });
+    spawn(launchPath, [], {
       detached: true,
       stdio: "ignore",
-      env: process.env,
+      env: process.env
     }).unref();
 
     app.quit();
@@ -405,18 +677,20 @@ function loadMainApp() {
   if (!fs.existsSync(APP_INDEX_PATH)) {
     const message = `Renderer entry not found:\n${APP_INDEX_PATH}`;
     logLine("Renderer entry missing", { APP_INDEX_PATH });
-
     dialog.showErrorBox("App load failed", message);
     return;
   }
 
-  mainWindow.loadFile(APP_INDEX_PATH).then(() => {
-    logLine("Renderer entry loaded");
-  }).catch((err) => {
-    logLine("Failed to load renderer entry", {
-      error: String(err && err.message ? err.message : err)
+  mainWindow
+    .loadFile(APP_INDEX_PATH)
+    .then(() => {
+      logLine("Renderer entry loaded");
+    })
+    .catch((err) => {
+      logLine("Failed to load renderer entry", {
+        error: String(err && err.message ? err.message : err)
+      });
     });
-  });
 }
 
 function scheduleStartupUpdateCheck() {
@@ -439,7 +713,9 @@ function scheduleStartupUpdateCheck() {
       logLine("Starting macOS/Windows update check");
       autoUpdater.checkForUpdatesAndNotify();
     } catch (e) {
-      logLine("Startup update check failed", { error: String(e && e.message ? e.message : e) });
+      logLine("Startup update check failed", {
+        error: String(e && e.message ? e.message : e)
+      });
 
       if (process.platform === "linux") {
         dialog.showMessageBox({
@@ -483,7 +759,9 @@ function installNavigationGuards() {
         }
       }
     } catch (e) {
-      logLine("Navigation guard error", { error: String(e && e.message ? e.message : e) });
+      logLine("Navigation guard error", {
+        error: String(e && e.message ? e.message : e)
+      });
     }
   });
 
@@ -498,12 +776,21 @@ function installNavigationGuards() {
       });
 
       if (isMainFrame && validatedURL && validatedURL.startsWith("file://")) {
-        setTimeout(() => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            logLine("Reloading app shell after did-fail-load");
-            loadMainApp();
-          }
-        }, 300);
+        if (mainFrameReloadAttempts < 1) {
+          mainFrameReloadAttempts += 1;
+
+          setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              logLine("Reloading app shell after did-fail-load", {
+                attempt: mainFrameReloadAttempts
+              });
+              loadMainApp();
+            }
+          }, 300);
+        } else if (mainWindow && !mainWindow.isDestroyed()) {
+          logLine("Main frame load failed after retry, forcing window visible");
+          mainWindow.show();
+        }
       }
     }
   );
@@ -513,6 +800,7 @@ function installNavigationGuards() {
   });
 
   mainWindow.webContents.on("did-finish-load", () => {
+    mainFrameReloadAttempts = 0;
     logLine("did-finish-load");
   });
 
@@ -520,9 +808,12 @@ function installNavigationGuards() {
     logLine("did-navigate", { navigationUrl });
   });
 
-  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    logLine("renderer-console", { level, message, line, sourceId });
-  });
+  mainWindow.webContents.on(
+    "console-message",
+    (_event, level, message, line, sourceId) => {
+      logLine("renderer-console", { level, message, line, sourceId });
+    }
+  );
 
   app.on("child-process-gone", (_event, details) => {
     logLine("child-process-gone", details);
@@ -536,7 +827,7 @@ function installNavigationGuards() {
 /* ================= WINDOW / APP ================= */
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const windowOptions = {
     width: 1024,
     height: 768,
     show: false,
@@ -546,7 +837,23 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false
     }
-  });
+  };
+
+  const linuxWindowIcon = getLinuxWindowIconPath();
+  if (linuxWindowIcon) {
+    windowOptions.icon = linuxWindowIcon;
+    logLine("Using Linux window icon", { linuxWindowIcon });
+  }
+
+  mainWindow = new BrowserWindow(windowOptions);
+
+  let didShowWindow = false;
+  const showMainWindow = (reason) => {
+    if (!mainWindow || mainWindow.isDestroyed() || didShowWindow) return;
+    didShowWindow = true;
+    logLine("Showing main window", { reason });
+    mainWindow.show();
+  };
 
   installNavigationGuards();
   loadMainApp();
@@ -557,12 +864,26 @@ function createWindow() {
   });
 
   mainWindow.once("ready-to-show", () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.show();
-    }
-
-    scheduleStartupUpdateCheck();
+    showMainWindow("ready-to-show");
   });
+
+  mainWindow.webContents.once("did-finish-load", () => {
+    showMainWindow("did-finish-load");
+  });
+
+  setTimeout(() => {
+    showMainWindow("timeout-fallback");
+  }, 1500);
+
+  setTimeout(() => {
+    maybeOfferLinuxInstall().catch((e) => {
+      logLine("Linux install prompt failed", {
+        error: String(e && e.message ? e.message : e)
+      });
+    });
+  }, 1200);
+
+  scheduleStartupUpdateCheck();
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -572,9 +893,15 @@ function createWindow() {
 /* ================= OTA EVENTS (Win/mac only) ================= */
 
 if (process.platform !== "linux") {
-  autoUpdater.on("checking-for-update", () => logLine("AutoUpdater: checking-for-update"));
-  autoUpdater.on("update-available", (info) => logLine("AutoUpdater: update-available", info));
-  autoUpdater.on("update-not-available", (info) => logLine("AutoUpdater: update-not-available", info));
+  autoUpdater.on("checking-for-update", () =>
+    logLine("AutoUpdater: checking-for-update")
+  );
+  autoUpdater.on("update-available", (info) =>
+    logLine("AutoUpdater: update-available", info)
+  );
+  autoUpdater.on("update-not-available", (info) =>
+    logLine("AutoUpdater: update-not-available", info)
+  );
   autoUpdater.on("download-progress", (progressObj) => {
     logLine("AutoUpdater: download-progress", {
       percent: progressObj.percent,
@@ -583,7 +910,11 @@ if (process.platform !== "linux") {
       bytesPerSecond: progressObj.bytesPerSecond
     });
   });
-  autoUpdater.on("error", (err) => logLine("AutoUpdater error", { error: String(err && err.message ? err.message : err) }));
+  autoUpdater.on("error", (err) =>
+    logLine("AutoUpdater error", {
+      error: String(err && err.message ? err.message : err)
+    })
+  );
   autoUpdater.on("update-downloaded", (info) => {
     logLine("AutoUpdater: update-downloaded", info);
     setTimeout(() => {
@@ -595,10 +926,15 @@ if (process.platform !== "linux") {
 
 /* ================= IPC ================= */
 
+ipcMain.handle("app-version", () => app.getVersion());
+
 ipcMain.on("open-external", (_event, urlToOpen) => {
   if (urlToOpen) {
     shell.openExternal(urlToOpen).catch((err) => {
-      logLine("Failed to open external URL", { error: String(err && err.message ? err.message : err), urlToOpen });
+      logLine("Failed to open external URL", {
+        error: String(err && err.message ? err.message : err),
+        urlToOpen
+      });
     });
   }
 });
