@@ -147,3 +147,65 @@ ion-icon.lock-icon {
 .note-status-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: #eef3ff; color: #2152D4; font-size: 12px; font-weight: 600; }
 .note-status-pill.favorite { background: #fff4d6; color: #b78103; }
 .note-folder-indicator { color: #62626A; font-size: 12px; font-weight: 500; }
+
+
+.note-actions-menu-trigger-wrap {
+  margin-right: 4px;
+}
+
+.note-actions-menu-trigger {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --background-hover: transparent;
+  --background-focused: transparent;
+  --background-activated: transparent;
+  min-width: 40px;
+}
+
+.note-actions-menu-trigger img {
+  display: block;
+  opacity: 0.82;
+}
+
+.note-actions-popover::part(content) {
+  --width: 220px;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+}
+
+.note-actions-popover-list {
+  padding: 6px;
+  background: #ffffff;
+}
+
+.note-actions-popover-list ion-item {
+  --background: transparent;
+  --padding-start: 10px;
+  --inner-padding-end: 10px;
+  --min-height: 40px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #20212a;
+}
+
+.note-actions-popover-list ion-item + ion-item {
+  margin-top: 2px;
+}
+
+.note-actions-popover-list ion-item:hover {
+  --background: #f3f4f8;
+}
+
+.note-actions-popover-list ion-icon {
+  font-size: 18px;
+  color: #5f6470;
+  margin-right: 10px;
+}
+
+.note-actions-popover-danger {
+  color: #c03a2b;
+}
+
+.note-actions-popover-danger ion-icon {
+  color: #c03a2b;
+}
