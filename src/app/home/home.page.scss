@@ -41,11 +41,11 @@ ion-toolbar {
 
 .desktop-folders-pane {
   height: 100vh;
-  background: var(--sidebar-bg);
+  background: linear-gradient(180deg, #f8f8fb 0%, #f6f6fa 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 16px 12px 12px;
+  padding: 18px 14px 12px;
 }
 
 .folders-scroll {
@@ -76,7 +76,8 @@ ion-toolbar {
 }
 
 .folders-header {
-  padding-bottom: 18px;
+  padding: 6px 8px 22px;
+  gap: 10px;
 }
 
 .notes-header {
@@ -106,46 +107,61 @@ ion-toolbar {
   gap: 8px;
 }
 
-.logo-container {
+ .sidebar-brand {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-brand-copy {
+  min-width: 0;
 }
 
 .logo-img {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
   flex: 0 0 auto;
+  box-shadow: 0 10px 24px rgba(39, 97, 252, 0.16);
 }
 
 .logo-text {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-.logo-subtext {
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 4px;
+  color: #1f1f24;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
 }
 
 .folders-header ion-button {
   --border-radius: 999px;
-  --padding-start: 8px;
-  --padding-end: 8px;
-  --background-hover: rgba(29, 29, 31, 0.06);
+  --padding-start: 0;
+  --padding-end: 0;
+  --background: transparent;
+  --background-hover: rgba(29, 29, 31, 0.05);
   --color: var(--muted);
   margin: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.folder-user-button {
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .folders-header ion-button img {
-  width: 20px;
-  height: 20px;
-  opacity: 0.82;
+  width: 18px;
+  height: 18px;
+  opacity: 0.76;
 }
 
 .notes-heading {
@@ -191,6 +207,7 @@ ion-note span,
   text-transform: uppercase;
   letter-spacing: 0.12em;
   padding: 0 10px;
+  color: #8d8d96;
 }
 
 .folder-chip {

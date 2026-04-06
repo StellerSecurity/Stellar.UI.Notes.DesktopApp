@@ -17,48 +17,31 @@
       </ng-template>
     </div>
 
-    <ion-buttons slot="end" *ngIf="!note_locked" class="note-actions-menu-trigger-wrap">
-      <ion-button id="note-actions-trigger" class="note-actions-menu-trigger" fill="clear">
-        <img src="./assets/setting-horizontal.svg" width="22" height="22" alt="Settings">
+    <ion-buttons slot="end" *ngIf="!note_locked">
+      <ion-button (click)="togglePinned()">
+        <ion-icon [name]="isPinned() ? 'bookmark' : 'bookmark-outline'"></ion-icon>
       </ion-button>
+
+      <ion-button (click)="toggleFavorite()">
+        <ion-icon [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon>
+      </ion-button>
+
+      <ion-button (click)="selectFolder()">
+        <ion-icon name="folder-open-outline"></ion-icon>
+      </ion-button>
+
+      <ion-button (click)="openLockModal()">
+        <img *ngIf="!note_locked" src="./assets/lock-open.png" width="24" height="24">
+        <img *ngIf="note_locked" src="./assets/lock-close.png" width="24" height="24">
+      </ion-button>
+
+      <ion-button (click)="shareStellarSecret()">
+        <img src="./assets/note-share-icon.png" width="18" height="18">
+      </ion-button>
+
+      <ion-button (click)="deleteNote()"><ion-icon name="trash-outline"></ion-icon></ion-button>
     </ion-buttons>
     </ion-toolbar>
-
-  <ion-popover trigger="note-actions-trigger" triggerAction="click" side="bottom" alignment="end" class="note-actions-popover">
-    <ng-template>
-      <ion-list lines="none" class="note-actions-popover-list">
-        <ion-item button detail="false" (click)="togglePinned()">
-          <ion-icon slot="start" [name]="isPinned() ? 'bookmark' : 'bookmark-outline'"></ion-icon>
-          <ion-label>{{ isPinned() ? 'Unpin' : 'Pin' }}</ion-label>
-        </ion-item>
-
-        <ion-item button detail="false" (click)="toggleFavorite()">
-          <ion-icon slot="start" [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon>
-          <ion-label>{{ isFavorite() ? 'Remove favorite' : 'Favorite' }}</ion-label>
-        </ion-item>
-
-        <ion-item button detail="false" (click)="selectFolder()">
-          <ion-icon slot="start" name="folder-open-outline"></ion-icon>
-          <ion-label>Move to folder</ion-label>
-        </ion-item>
-
-        <ion-item button detail="false" (click)="openLockModal()">
-          <ion-icon slot="start" name="lock-closed-outline"></ion-icon>
-          <ion-label>Lock note</ion-label>
-        </ion-item>
-
-        <ion-item button detail="false" (click)="shareStellarSecret()">
-          <ion-icon slot="start" name="share-social-outline"></ion-icon>
-          <ion-label>Share</ion-label>
-        </ion-item>
-
-        <ion-item button detail="false" class="note-actions-popover-danger" (click)="deleteNote()">
-          <ion-icon slot="start" name="trash-outline"></ion-icon>
-          <ion-label>Delete</ion-label>
-        </ion-item>
-      </ion-list>
-    </ng-template>
-  </ion-popover>
   <div class="note-status-row">
     <span class="note-status-pill" *ngIf="isPinned()">Pinned</span>
     <span class="note-status-pill favorite" *ngIf="isFavorite()">Favorite</span>

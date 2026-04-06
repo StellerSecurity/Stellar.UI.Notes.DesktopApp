@@ -38,16 +38,15 @@
 <div class="desktop-layout" *ngIf="should_display">
   <aside class="desktop-folders-pane">
     <div class="pane-header folders-header">
-      <div class="logo-container" (click)="navigateToHome()" style="cursor: pointer;">
-        <img class="logo-img" src="./assets/note-logo.png" alt="">
-        <div>
+      <button class="sidebar-brand" (click)="navigateToHome()" type="button" aria-label="Go to home">
+        <img class="logo-img" src="./assets/note-logo.png" alt="Stellar Notes">
+        <div class="sidebar-brand-copy">
           <div class="logo-text">Stellar Notes</div>
-          <div class="logo-subtext">Folders</div>
         </div>
-      </div>
+      </button>
 
-      <ion-button fill="clear" size="small" class="folder-user-button" (click)="presentUserMenu($event)">
-        <img src="assets/user-circle.svg">
+      <ion-button fill="clear" size="small" class="folder-user-button" (click)="presentUserMenu($event)" aria-label="Open user menu">
+        <img src="assets/user-circle.svg" alt="User menu">
       </ion-button>
     </div>
 
