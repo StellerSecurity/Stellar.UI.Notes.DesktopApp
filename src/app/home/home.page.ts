@@ -46,6 +46,7 @@ import { LongPressConfig, initializePressGestures } from "../utils/home-gesture.
 import { normalize } from "../utils/home-normalize.util";
 import { setDecryptedNotesAndParse } from "../utils/home-notes.util";
 import { NoteContextMenuComponent } from "./note-context-menu/note-context-menu.component";
+import { Folder } from "../models/Folder";
 import { Secret } from "../models/Secret";
 import { sha512 } from 'js-sha512';
 import { ShareSecretModalComponent } from "../share-secret-modal/share-secret-modal.component";
@@ -72,7 +73,7 @@ export class HomePage implements AfterViewInit {
   // --------------------------------------------------
   // State
   // --------------------------------------------------
-  private notes: any;
+  public notes: any;
 
   public should_display = true;
   public checkboxOpened = false;
@@ -112,6 +113,10 @@ export class HomePage implements AfterViewInit {
   private mkRaw: Uint8Array | null = null;
 
   private syncTimer: any = null;
+
+  public folders: Folder[] = [];
+  public activeFolderName = '__all__';
+  public activeFilter: 'all' | 'favorites' = 'all';
 
   constructor(
     private cryptoService: CryptoService,
@@ -543,8 +548,15 @@ export class HomePage implements AfterViewInit {
       return false;
     }
     // @ts-ignore
-    this.notes = parsed ?? [];
-    this.filteredResults = this.notes;
+    this.notes = (parsed ?? []).map((note: any) => ({
+      ...note,
+      favorite: !!note?.favorite,
+      pinned: !!note?.pinned,
+      folder: (note?.folder ?? "").trim(),
+      folder_id: typeof note?.folder_id === "string" && note.folder_id.trim().length > 0 ? note.folder_id.trim() : null,
+    }));
+    this.rebuildFolders();
+    this.applyFilters();
     return true;
   }
 
@@ -584,7 +596,7 @@ export class HomePage implements AfterViewInit {
     try {
       const res = await this.notesApiServiceV1.download(0);
 
-      const serverNotes = res?.notes ?? [];
+      const serverNotes = (res as any)?.notes ?? [];
       const map = new Map<string, any>((this.notes ?? []).map((n: any) => [n.id, n]));
 
       for (const s of serverNotes) {
@@ -634,9 +646,16 @@ export class HomePage implements AfterViewInit {
           map.set(s.id, { ...local, ...s });
       }
 
-      const merged = Array.from(map.values()).filter((n: any) => !n.deleted);
+      const merged = Array.from(map.values()).filter((n: any) => !n.deleted).map((n: any) => ({
+        ...n,
+        favorite: !!n?.favorite,
+        pinned: !!n?.pinned,
+        folder: (n?.folder ?? "").trim(),
+        folder_id: typeof n?.folder_id === "string" && n.folder_id.trim().length > 0 ? n.folder_id.trim() : null,
+      }));
       this.notes = merged;
-      this.filteredResults = merged;
+      this.rebuildFolders();
+      this.applyFilters();
 
       if (this.noteService.appHasPasswordChallenge()) {
         const encryptedNotesSave = this.cryptoService.encrypt(
@@ -763,10 +782,7 @@ export class HomePage implements AfterViewInit {
       return [];
     }
 
-    // @ts-ignore
-    this.filteredResults = this.filteredResults.sort(
-      (a: any, b: any) => b.last_modified - a.last_modified
-    );
+    this.applyFilters();
 
     // descript current note on unlock temporary
     if (Array.isArray(this.filteredResults) && this.filteredResults.length) {
@@ -810,6 +826,182 @@ export class HomePage implements AfterViewInit {
   // --------------------------------------------------
   // Navigation
   // --------------------------------------------------
+  public folderChipCount(folderName: string): number {
+    return (this.notes ?? []).filter((note: any) => (note?.folder ?? '') === folderName && !note?.deleted).length;
+  }
+
+  public getFavoritesCount(): number {
+    return (this.notes ?? []).filter((note: any) => !!note?.favorite && !note?.deleted).length;
+  }
+
+  public rebuildFolders(): void {
+    const storedRaw = this.noteService.getFolders();
+    let stored: Folder[] = [];
+    try { stored = JSON.parse(storedRaw); } catch { stored = []; }
+    const folderMap = new Map<string, Folder>();
+    for (const folder of stored ?? []) {
+      const name = (folder?.name ?? '').trim();
+      if (!name || folder?.deleted) continue;
+      folderMap.set(name.toLowerCase(), {
+        id: folder?.id ?? (crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
+        name,
+        last_modified: Number(folder?.last_modified ?? Date.now()),
+        deleted: false,
+      });
+    }
+    for (const note of this.notes ?? []) {
+      const name = (note?.folder ?? '').trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!folderMap.has(key)) {
+        folderMap.set(key, {
+          id: note?.folder_id ?? (crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
+          name,
+          last_modified: Number(note?.last_modified ?? Date.now()),
+          deleted: false,
+        });
+      }
+    }
+    this.folders = Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    this.noteService.setFolders(JSON.stringify(this.folders));
+  }
+
+  public applyFilters(): void {
+    const base = Array.isArray(this.notes) ? [...this.notes] : [];
+    const scoped = base.filter((note: any) => {
+      if (note?.deleted) return false;
+      if (this.activeFolderName !== '__all__' && (note?.folder ?? '') !== this.activeFolderName) return false;
+      if (this.activeFilter === 'favorites' && !note?.favorite) return false;
+      if (this.search_query && this.search_query.trim().length > 0) {
+        const q = this.search_query.toLowerCase();
+        const title = String(note?.title ?? '').toLowerCase();
+        const body = String(note?.text ?? '').toLowerCase();
+        const folder = String(note?.folder ?? '').toLowerCase();
+        return title.includes(q) || body.includes(q) || folder.includes(q);
+      }
+      return true;
+    }).sort((a: any, b: any) => {
+      const pinDiff = Number(!!b?.pinned) - Number(!!a?.pinned);
+      if (pinDiff !== 0) return pinDiff;
+      return Number(b?.last_modified ?? 0) - Number(a?.last_modified ?? 0);
+    });
+    this.filteredResults = scoped;
+  }
+
+  public selectFolder(folderName: string): void {
+    this.activeFolderName = folderName || '__all__';
+    this.applyFilters();
+  }
+
+  public setActiveFilter(filter: string | number | undefined | null): void {
+    this.activeFilter = filter === 'favorites' ? 'favorites' : 'all';
+    this.applyFilters();
+  }
+
+  public async promptCreateFolder(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'New folder',
+      inputs: [{ name: 'name', type: 'text', placeholder: 'Folder name' }],
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Create',
+          handler: (data: any) => {
+            const name = String(data?.name ?? '').trim();
+            if (!name) return false;
+            if (this.folders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())) {
+              this.selectFolder(this.folders.find((folder) => folder.name.toLowerCase() === name.toLowerCase())?.name ?? '__all__');
+              return true;
+            }
+            this.folders = [...this.folders, { id: crypto?.randomUUID?.() ?? String(Date.now()), name, last_modified: Date.now(), deleted: false }].sort((a, b) => a.name.localeCompare(b.name));
+            this.noteService.setFolders(JSON.stringify(this.folders));
+            this.selectFolder(name);
+            return true;
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  public async promptDeleteFolder(folderName: string): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Delete folder',
+      message: `Delete "${folderName}"? Notes will be moved to All Notes.`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Delete',
+          role: 'destructive',
+          handler: async () => {
+            const now = Date.now();
+            this.notes = (this.notes ?? []).map((note: any) => (note?.folder === folderName ? { ...note, folder: '', folder_id: null, last_modified: now } : note));
+            this.folders = this.folders.filter((folder) => folder.name !== folderName);
+            this.noteService.setFolders(JSON.stringify(this.folders));
+            this.persistNotes();
+            this.selectFolder('__all__');
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  public async togglePinnedFromHome(event: Event, noteId: string): Promise<void> {
+    event.stopPropagation();
+    const now = Date.now();
+    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, pinned: !note?.pinned, last_modified: now } : note);
+    this.noteService.markPendingMutation(noteId, 'pin', now);
+    this.persistNotes();
+  }
+
+  public async toggleFavoriteFromHome(event: Event, noteId: string): Promise<void> {
+    event.stopPropagation();
+    const now = Date.now();
+    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, favorite: !note?.favorite, last_modified: now } : note);
+    this.noteService.markPendingMutation(noteId, 'favorite', now);
+    this.persistNotes();
+  }
+
+  public async moveNoteToFolderFromHome(event: Event, noteId: string): Promise<void> {
+    event.stopPropagation();
+    const inputs: any[] = [
+      { label: 'All Notes', type: 'radio', value: '__all__', checked: true },
+      ...this.folders.map((folder) => ({ label: folder.name, type: 'radio', value: folder.name, checked: false })),
+    ];
+    const alert = await this.alertCtrl.create({
+      header: 'Move to folder',
+      inputs,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Move',
+          handler: (selectedFolder: string) => {
+            const target = selectedFolder === '__all__' ? '' : selectedFolder;
+            const folderId = this.folders.find((folder) => folder.name === target)?.id ?? null;
+            const now = Date.now();
+            this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, folder: target, folder_id: folderId, last_modified: now } : note);
+            this.noteService.markPendingMutation(noteId, 'move', now);
+            this.rebuildFolders();
+            this.persistNotes();
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  private persistNotes(): void {
+    if (this.noteService.appHasPasswordChallenge()) {
+      const encryptedNotesSave = this.cryptoService.encrypt(JSON.stringify(this.notes), this.noteService.getNotesAppPassword());
+      this.noteService.setNotes(encryptedNotesSave);
+    } else {
+      this.noteService.setNotes(JSON.stringify(this.notes));
+    }
+    this.applyFilters();
+    this.noteService.setNoteIsUpdatedSubject(true);
+  }
+
   public settings() {
     this.navController.navigateForward("app-settings").then((r) => {});
   }
@@ -1132,9 +1324,10 @@ export class HomePage implements AfterViewInit {
   // Extra navigation helpers (from current branch)
   // --------------------------------------------------
   goToCreateNewNote(): void {
+    const extras = this.activeFolderName !== "__all__" ? { queryParams: { folder: this.activeFolderName } } : undefined;
     this.router.navigate(["/dummy-route"]);
     setTimeout(() => {
-      this.router.navigate(["/note"]);
+      this.router.navigate(["/note"], extras as any);
     });
   }
 

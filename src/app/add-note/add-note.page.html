@@ -18,6 +18,18 @@
     </div>
 
     <ion-buttons slot="end" *ngIf="!note_locked">
+      <ion-button (click)="togglePinned()">
+        <ion-icon [name]="isPinned() ? 'bookmark' : 'bookmark-outline'"></ion-icon>
+      </ion-button>
+
+      <ion-button (click)="toggleFavorite()">
+        <ion-icon [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon>
+      </ion-button>
+
+      <ion-button (click)="selectFolder()">
+        <ion-icon name="folder-open-outline"></ion-icon>
+      </ion-button>
+
       <ion-button (click)="openLockModal()">
         <img *ngIf="!note_locked" src="./assets/lock-open.png" width="24" height="24">
         <img *ngIf="note_locked" src="./assets/lock-close.png" width="24" height="24">
@@ -29,7 +41,12 @@
 
       <ion-button (click)="deleteNote()"><ion-icon name="trash-outline"></ion-icon></ion-button>
     </ion-buttons>
-  </ion-toolbar>
+    </ion-toolbar>
+  <div class="note-status-row">
+    <span class="note-status-pill" *ngIf="isPinned()">Pinned</span>
+    <span class="note-status-pill favorite" *ngIf="isFavorite()">Favorite</span>
+    <span class="note-folder-indicator">{{ folderDisplayName() }}</span>
+  </div>
 </ion-header>
 
 <ion-content [fullscreen]="true" scroll-y="false" style="height: 100vh; --height: 100vh">

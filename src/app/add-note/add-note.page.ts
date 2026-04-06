@@ -23,6 +23,7 @@ import { DataService } from '../services/data.service';
 import { NoteLockedModalComponent } from '../note-locked-modal/note-locked-modal.component';
 import { DeleteNoteModalComponent } from '../delete-note-modal/delete-note-modal.component';
 import { NoteV1 } from "../models/NoteV1";
+import { Folder } from "../models/Folder";
 import { AuthService } from "../services/auth.service";
 
 // ✅ New: use Stellar Crypto SDK
@@ -62,6 +63,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   public note_title = '';
   public allTranslations: any;
   public isEditingTitle = false;
+  public folders: Folder[] = [];
 
   private notes_id: string | null = null;
   private notes: NoteV1[] = [];
@@ -97,13 +99,18 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   ) {
     this.routeSub = this.activatedRoute.paramMap.subscribe((params: ParamMap) => {
       const decrypted = this.notesService.getDecryptedNotes();
-      this.notes = decrypted ? (JSON.parse(decrypted) as NoteV1[]) : [];
+      this.notes = decrypted ? (JSON.parse(decrypted) as NoteV1[]).map((note: any) => ({ ...note, favorite: !!note?.favorite, pinned: !!note?.pinned, folder: (note?.folder ?? "").trim(), folder_id: note?.folder_id ?? null })) : [];
+      this.loadFolders();
 
       this.notes_id = params.get('id');
       if (this.notes_id === null) {
         // New note
         this.newlyCreatedNote = true;
         this.notes_id = uuidv4();
+        const requestedFolder = (this.activatedRoute.snapshot.queryParamMap.get("folder") ?? "").trim();
+        if (requestedFolder) {
+          this.currentNote = { id: this.notes_id as string, text: "", title: "Untitled", favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
+        }
         return;
       }
 
@@ -114,6 +121,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         // defensive: if note not found, treat as new
         this.newlyCreatedNote = true;
         this.notes_id = uuidv4();
+        const requestedFolder = (this.activatedRoute.snapshot.queryParamMap.get("folder") ?? "").trim();
+        if (requestedFolder) {
+          this.currentNote = { id: this.notes_id as string, text: "", title: "Untitled", favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
+        }
         return;
       }
 
@@ -122,6 +133,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         this.askforNotePassword().then(() => {});
       }
 
+      this.currentNote.favorite = !!this.currentNote.favorite;
+      this.currentNote.pinned = !!this.currentNote.pinned;
+      this.currentNote.folder = (this.currentNote.folder ?? "").trim();
+      this.currentNote.folder_id = this.currentNote.folder_id ?? null;
       this.note_text = this.currentNote.text ?? '';
       this.note_title = this.currentNote.title !== undefined ? this.currentNote.title : 'Untitled';
 
@@ -371,6 +386,117 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
   }
 
+  public loadFolders(): void {
+    const raw = this.notesService.getFolders();
+    try {
+      const stored = JSON.parse(raw);
+      this.folders = Array.isArray(stored) ? stored.filter((folder: any) => !folder?.deleted && (folder?.name ?? '').trim().length > 0) : [];
+    } catch {
+      this.folders = [];
+    }
+  }
+
+  public async selectFolder(): Promise<void> {
+    const inputs: any[] = [
+      { label: 'All Notes', type: 'radio', value: '__all__', checked: !(this.currentNote?.folder ?? '').trim() },
+      ...this.folders.map((folder) => ({ label: folder.name, type: 'radio', value: folder.name, checked: (this.currentNote?.folder ?? '') === folder.name })),
+    ];
+    const alert = await this.alertCtrl.create({
+      header: 'Move to folder',
+      inputs,
+      buttons: [
+        { text: 'New folder', handler: () => { this.createFolder(); return false; } },
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Save',
+          handler: (selectedFolder: string) => {
+            const target = selectedFolder === '__all__' ? '' : selectedFolder;
+            const folderId = this.folders.find((folder) => folder.name === target)?.id ?? null;
+            if (!this.currentNote) {
+              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: target, folder_id: folderId, protected: false, auto_wipe: true, last_modified: Date.now() };
+            } else {
+              this.currentNote.folder = target;
+              this.currentNote.folder_id = folderId;
+              this.currentNote.last_modified = Date.now();
+            }
+            this.save(null);
+            return true;
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  public async createFolder(): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'New folder',
+      inputs: [{ name: 'name', type: 'text', placeholder: 'Folder name' }],
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Create',
+          handler: (data: any) => {
+            const name = String(data?.name ?? '').trim();
+            if (!name) return false;
+            const existing = this.folders.find((folder) => folder.name.toLowerCase() === name.toLowerCase());
+            if (existing) {
+              if (this.currentNote) {
+                this.currentNote.folder = existing.name;
+                this.currentNote.folder_id = existing.id ?? null;
+              }
+              this.save(null);
+              return true;
+            }
+            const folder = { id: uuidv4(), name, last_modified: Date.now(), deleted: false };
+            this.folders = [...this.folders, folder].sort((a, b) => a.name.localeCompare(b.name));
+            this.notesService.setFolders(JSON.stringify(this.folders));
+            if (!this.currentNote) {
+              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: name, folder_id: folder.id, protected: false, auto_wipe: true, last_modified: Date.now() };
+            } else {
+              this.currentNote.folder = name;
+              this.currentNote.folder_id = folder.id;
+              this.currentNote.last_modified = Date.now();
+            }
+            this.save(null);
+            return true;
+          }
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  public async togglePinned(): Promise<void> {
+    if (!this.currentNote) {
+      this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
+    }
+    this.currentNote.pinned = !this.currentNote.pinned;
+    this.currentNote.last_modified = Date.now();
+    this.save(null);
+  }
+
+  public async toggleFavorite(): Promise<void> {
+    if (!this.currentNote) {
+      this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
+    }
+    this.currentNote.favorite = !this.currentNote.favorite;
+    this.currentNote.last_modified = Date.now();
+    this.save(null);
+  }
+
+  public isPinned(): boolean {
+    return !!this.currentNote?.pinned;
+  }
+
+  public isFavorite(): boolean {
+    return !!this.currentNote?.favorite;
+  }
+
+  public folderDisplayName(): string {
+    return (this.currentNote?.folder ?? '').trim() || 'All Notes';
+  }
+
   // should be called on key enter.
   save(ev: any) {
     console.log('save');
@@ -411,6 +537,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       text: encryptedText,
       protected: protectedNote,
       auto_wipe: true,
+      favorite: !!this.currentNote?.favorite,
+      pinned: !!this.currentNote?.pinned,
+      folder: (this.currentNote?.folder ?? '').trim(),
+      folder_id: this.currentNote?.folder_id ?? null,
     };
 
     if (this.notes === null) {

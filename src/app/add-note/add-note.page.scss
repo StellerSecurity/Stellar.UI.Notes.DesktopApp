@@ -142,3 +142,8 @@ ion-icon.lock-icon {
   --color: #333;
   margin-bottom: 0;
 }
+
+.note-status-row { display: flex; gap: 8px; align-items: center; padding: 0 16px 12px; }
+.note-status-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: #eef3ff; color: #2152D4; font-size: 12px; font-weight: 600; }
+.note-status-pill.favorite { background: #fff4d6; color: #b78103; }
+.note-folder-indicator { color: #62626A; font-size: 12px; font-weight: 500; }
