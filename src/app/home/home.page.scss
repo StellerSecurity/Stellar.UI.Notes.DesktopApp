@@ -109,22 +109,19 @@ ion-toolbar {
 .logo-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
-  padding: 2px 4px;
+  padding: 0;
 }
 
 .logo-badge {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   border-radius: 14px;
   display: flex;
-  align-items: center;
-  justify-content: center;
   background: #eef2f8;
-  border: 1px solid #dfe6f1;
   flex: 0 0 auto;
 }
 
@@ -143,7 +140,7 @@ ion-toolbar {
 }
 
 .logo-text {
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.02em;

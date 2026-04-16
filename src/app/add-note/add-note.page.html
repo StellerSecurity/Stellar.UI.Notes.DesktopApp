@@ -65,11 +65,6 @@
       </div>
     </ng-template>
   </ion-popover>
-  <div class="note-status-row">
-    <span class="note-status-pill" *ngIf="isPinned()">Pinned</span>
-    <span class="note-status-pill favorite" *ngIf="isFavorite()">Favorite</span>
-    <span class="note-folder-indicator">{{ folderDisplayName() }}</span>
-  </div>
 </ion-header>
 
 <ion-content [fullscreen]="true" scroll-y="false" style="height: 100vh; --height: 100vh">

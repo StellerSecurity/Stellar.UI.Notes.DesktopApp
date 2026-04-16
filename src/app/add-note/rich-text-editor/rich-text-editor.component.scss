@@ -18,7 +18,7 @@
   background: #ffffff !important;
   border: 0 !important;
   border-bottom: 1px solid rgba(60, 60, 67, 0.10) !important;
-  padding: 6px 14px !important;
+  padding: 6px !important;
 }
 
 :host ::ng-deep .angular-editor-toolbar .angular-editor-toolbar-set {
@@ -37,7 +37,6 @@
 :host ::ng-deep .angular-editor-textarea {
   border: 0 !important;
   background: #ffffff !important;
-  padding: 18px 22px 28px !important;
   min-height: calc(100vh - 150px) !important;
   font-size: 16px !important;
   line-height: 1.58 !important;
@@ -45,7 +44,7 @@
 }
 
 :host ::ng-deep .angular-editor-placeholder {
-  padding: 18px 22px !important;
+
 }
 
 
