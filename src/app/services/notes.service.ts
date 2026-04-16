@@ -141,6 +141,35 @@ export class NotesService {
     return this.pendingNoteMutations.get(noteId) ?? null;
   }
 
+
+
+  public dedupeByIdAndLastModified<T extends { id?: any; last_modified?: any }>(items: T[]): T[] {
+    const map = new Map<string, T>();
+
+    for (const item of Array.isArray(items) ? items : []) {
+      const id = typeof item?.id === 'string' ? item.id.trim() : String(item?.id ?? '').trim();
+      if (!id) continue;
+
+      const existing = map.get(id);
+      const currentLm = Number(item?.last_modified ?? 0);
+      const existingLm = Number((existing as any)?.last_modified ?? 0);
+
+      if (!existing || currentLm >= existingLm) {
+        map.set(id, item);
+      }
+    }
+
+    return Array.from(map.values());
+  }
+
+  public dedupeNotes(notes: any[]): any[] {
+    return this.dedupeByIdAndLastModified(Array.isArray(notes) ? notes : []);
+  }
+
+  public dedupeFolders(folders: any[]): any[] {
+    return this.dedupeByIdAndLastModified(Array.isArray(folders) ? folders : []);
+  }
+
   public async flushPersistence(): Promise<void> {
     return;
   }

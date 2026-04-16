@@ -14,6 +14,7 @@ import { OutboxStorage } from "./outbox-storage.service";
 import { packCipherBlob, unpackCipherBlob } from '@stellarsecurity/stellar-crypto';
 import { buildApiUrl, notes } from '../constants/api/product.api';
 import { normalizeNoteSyncFlags, normalizeNoteSyncFlagsList } from '../utils/note-sync-normalize.util';
+import { NotesService } from './notes.service';
 
 @Injectable({ providedIn: 'root' })
 export class NotesApiV1Service {
@@ -27,6 +28,7 @@ export class NotesApiV1Service {
     private secureStorageService: SecureStorageService,
     private crypto: CryptoKeyService,
     private outbox: OutboxStorage,
+    private notesService: NotesService,
   ) {}
 
 
@@ -100,12 +102,25 @@ export class NotesApiV1Service {
       await this.crypto.importEAK(eakB64);
     }
 
-    const normalizedFolders = (Array.isArray(folders) ? folders : []).map((folder: any) => ({
-      id: this.normalizeFolderId(folder?.id) ?? (crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
-      name: typeof folder?.name === 'string' ? folder.name.trim() : '',
-      last_modified: Number(folder?.last_modified ?? Date.now()),
-      deleted: !!folder?.deleted,
-    })).filter((folder: any) => folder.name || folder.deleted);
+    const rawFolders = Array.isArray(folders) ? folders : [];
+    const normalizedFolders = this.notesService.dedupeFolders(
+      rawFolders
+        .map((folder: any) => {
+          const normalizedId = this.normalizeFolderId(folder?.id);
+          const fallbackId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : String(Date.now() + Math.random());
+
+          return {
+            id: normalizedId ?? fallbackId,
+            name: typeof folder?.name === 'string' ? folder.name.trim() : '',
+            last_modified: Number(folder?.last_modified ?? Date.now()),
+            deleted: !!folder?.deleted,
+          };
+        })
+        .filter((folder: any) => !!folder.name || !!folder.deleted)
+    );
 
     const folderIdByName = new Map<string, string>();
     for (const folder of normalizedFolders) {
@@ -125,7 +140,7 @@ export class NotesApiV1Service {
 
     // 2) Encrypt each note body + title + folder metadata via CryptoKeyService (MK in RAM)
     const encryptedNotes: NoteV1[] = [];
-    for (const rawNote of normalizeNoteSyncFlagsList(notes)) {
+    for (const rawNote of this.notesService.dedupeNotes(normalizeNoteSyncFlagsList(notes) as any[])) {
       const n = normalizeNoteSyncFlags(rawNote);
       const encText  = await this.crypto.encryptText(n.text  ?? '', n.id);
       const encTitle = await this.crypto.encryptText(n.title ?? '', n.id + '#title');
@@ -203,7 +218,7 @@ export class NotesApiV1Service {
     );
 
     const decryptedFolders: Folder[] = [];
-    for (const folder of Array.isArray(response?.folders) ? response.folders : []) {
+    for (const folder of this.notesService.dedupeFolders(Array.isArray(response?.folders) ? response.folders : [])) {
       const folderId = this.normalizeFolderId((folder as any)?.id) ?? '';
       const decryptedName = folder.deleted
         ? ''
@@ -230,7 +245,7 @@ export class NotesApiV1Service {
     }
 
     const decryptedNotes: NoteV1[] = [];
-    for (const rawNote of normalizeNoteSyncFlagsList(response?.notes)) {
+    for (const rawNote of this.notesService.dedupeNotes(normalizeNoteSyncFlagsList(response?.notes) as any[])) {
       const note = normalizeNoteSyncFlags(rawNote);
       const noteFolderId = this.normalizeFolderId((note as any)?.folder_id);
       const resolvedFolderName = noteFolderId ? (folderNameById.get(noteFolderId) ?? '') : '';

@@ -5,6 +5,7 @@ import { App } from '@capacitor/app';
 import { OutboxStorage } from './outbox-storage.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import {SecureStorageService} from "./secure-storage.service";
+import { NotesService } from "./notes.service";
 
 const MAX_ATTEMPT = 8;
 
@@ -18,7 +19,8 @@ export class SyncWorkerService {
     private http: HttpClient,
     private outbox: OutboxStorage,
     private zone: NgZone,
-    private secure: SecureStorageService
+    private secure: SecureStorageService,
+    private notesService: NotesService
   ) {}
 
   init() {
@@ -50,6 +52,17 @@ export class SyncWorkerService {
     return h;
   }
 
+  private sanitizeUploadPayload(payload: any): any {
+    const notes = this.notesService.dedupeNotes(Array.isArray(payload?.notes) ? payload.notes : []);
+    const folders = this.notesService.dedupeFolders(Array.isArray(payload?.folders) ? payload.folders : []);
+
+    return {
+      ...payload,
+      notes,
+      folders,
+    };
+  }
+
   async trySync() {
 
     if (this.syncing) {
@@ -74,7 +87,7 @@ export class SyncWorkerService {
         ops: batch.map((o:any) => ({
           opId: o.opId,
           type: o.type,
-          payload: o.payload,
+          payload: o.type === 'upload' ? this.sanitizeUploadPayload(o.payload) : o.payload,
         })),
       };
 
@@ -97,7 +110,7 @@ export class SyncWorkerService {
         try {
           if (op.type === 'upload') {
             // Payload already has: { op_id, since, notes, deleted_ids? }
-            await this.http.post(`${this.base}upload`, op.payload, { headers }).toPromise();
+            await this.http.post(`${this.base}upload`, this.sanitizeUploadPayload(op.payload), { headers }).toPromise();
             await this.outbox.drop([op.opId]);
           } else if (op.type === 'delete') {
             // Server wants: { deleted_ids, notes: [] }
