@@ -15,7 +15,7 @@ ion-textarea {
 
 
 ion-title {
-  font-size: 15px;
+  font-size: 16px;
   font-family: 'Poppins';
   font-weight: 650;
   color: #1d1d1f;
@@ -36,23 +36,24 @@ ion-toolbar {
 }
 
 ion-button {
-  --border-radius: 250px;
-  border-radius: 250px;
-  height: 48px;
+  --border-radius: 14px;
+  border-radius: 14px;
+  height: 44px;
+  font-weight: 600;
 }
 
 ion-button.p {
-  --background: #4364fa;
-  ;
+  --background: #e8edf8;
+  --color: #4a6094;
 }
 
 ion-input {
-  --background: #EAEAF0;
+  --background: #f1f2f6;
   --color: #62626A;
-  --padding-bottom: 16px;
-  --padding-end: 24px;
-  --padding-start: 24px;
-  --padding-top: 16px;
+  --padding-bottom: 15px;
+  --padding-end: 18px;
+  --padding-start: 18px;
+  --padding-top: 15px;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
@@ -62,7 +63,7 @@ ion-input {
 }
 
 ion-icon.lock-icon {
-  color: #425ef9;
+  color: #5b6f9f;
 }
 
 .input-group {
@@ -100,9 +101,10 @@ ion-icon.lock-icon {
 }
 .pass-info-box {
   background-color: #FFFFFF;
-  padding: 16px;
-  border-radius: 16px;
-  margin-bottom: 30px;
+  padding: 18px;
+  border-radius: 18px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(60, 60, 67, 0.08);
 }
 
 // .angular-editor-textarea {
@@ -111,15 +113,15 @@ ion-icon.lock-icon {
 // }
 
 .editable-title {
-  font-weight: 500;
+  font-weight: 600;
   padding: 8px 12px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 10px;
   transition: background-color 0.2s;
 }
 
 .editable-title:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(72, 94, 150, 0.06);
 }
 
 .editable-title-input-wrapper {
@@ -139,15 +141,15 @@ ion-icon.lock-icon {
   --padding-end: 0px;
   --background: transparent;
   --placeholder-color: #888;
-  --highlight-color-focused: #007bff;
-  --color: #333;
+  --highlight-color-focused: #5b6f9f;
+  --color: #2b3140;
   margin-bottom: 0;
 }
 
-.note-status-row { display: flex; gap: 8px; align-items: center; padding: 0 16px 12px; }
-.note-status-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: #eef3ff; color: #2152D4; font-size: 12px; font-weight: 600; }
-.note-status-pill.favorite { background: #fff4d6; color: #b78103; }
-.note-folder-indicator { color: #62626A; font-size: 12px; font-weight: 500; }
+.note-status-row { display: flex; gap: 8px; align-items: center; padding: 0 18px 12px; flex-wrap: wrap; }
+.note-status-pill { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #edf1f8; color: #536891; font-size: 11px; font-weight: 600; }
+.note-status-pill.favorite { background: #f8eed9; color: #9b7624; }
+.note-folder-indicator { color: #7a8090; font-size: 12px; font-weight: 500; }
 
 
 .note-actions-menu-trigger ion-button {
@@ -161,7 +163,7 @@ ion-icon.lock-icon {
 }
 
 .desktop-note-actions-list {
-  min-width: 220px;
+  min-width: 224px;
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -189,7 +191,7 @@ ion-icon.lock-icon {
 }
 
 .desktop-note-action-item:hover {
-  background: #f3f4f8;
+  background: #f4f6fa;
 }
 
 .desktop-note-action-item.danger {
@@ -203,13 +205,13 @@ ion-icon.lock-icon {
 
 ion-toolbar {
   --min-height: 44px;
-  padding: 2px 6px 0;
+  padding: 6px 10px 2px;
   border-bottom: 1px solid rgba(60, 60, 67, 0.12);
 }
 
 .editable-title {
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 18px;
+  font-weight: 600;
   letter-spacing: -0.025em;
   padding: 2px 2px 0;
 }
@@ -219,26 +221,26 @@ ion-toolbar {
 }
 
 .note-status-row {
-  gap: 6px;
-  padding: 0 16px 8px;
+  gap: 8px;
+  padding: 0 18px 10px;
   align-items: center;
 }
 
 .note-status-pill {
-  padding: 1px 8px;
-  font-size: 10px;
+  padding: 4px 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .note-folder-indicator {
-  color: #8a8a93;
-  font-size: 11px;
+  color: #7c8291;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .note-actions-menu-trigger ion-button {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .desktop-note-actions-popover::part(content) {
@@ -247,15 +249,15 @@ ion-toolbar {
 }
 
 .desktop-note-actions-list {
-  min-width: 200px;
-  padding: 6px;
+  min-width: 216px;
+  padding: 8px;
   gap: 1px;
 }
 
 .desktop-note-action-item {
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
   font-size: 13px;
 }
 
@@ -287,7 +289,7 @@ ion-header {
   height: 26px;
   --padding-start: 0;
   --padding-end: 0;
-  --border-radius: 7px;
+  --border-radius: 10px;
   --color: #6b6b73;
   --background-hover: rgba(28, 28, 30, 0.06);
 }

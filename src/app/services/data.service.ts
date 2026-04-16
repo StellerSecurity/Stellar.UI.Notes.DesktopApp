@@ -4,13 +4,25 @@ import {SecureStorageService} from "./secure-storage.service";
 import { Preferences } from '@capacitor/preferences';
 import { Storage } from '@ionic/storage-angular';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { NotesService } from './notes.service';
+import { CryptoKeyService } from './crypto-key.service';
+import { AuthService } from './auth.service';
+import { OutboxStorage } from './outbox-storage.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DataService {
 
-    constructor(private secureStorageService: SecureStorageService, private storage: Storage) { }
+    constructor(
+      private secureStorageService: SecureStorageService,
+      private storage: Storage,
+      private router: Router,
+      private notesService: NotesService,
+      private cryptoKeyService: CryptoKeyService,
+      private authService: AuthService,
+      private outboxStorage: OutboxStorage,
+    ) { }
 
     private forceDownloadOnHome = false;
 
@@ -25,6 +37,13 @@ export class DataService {
     public async clearAppData() {
       console.log('Starting nuclear reset…');
 
+      this.forceDownloadOnHome = false;
+      this.authService.setLoggedInState(false);
+      this.cryptoKeyService.clearRuntimeKeys();
+      this.notesService.resetRuntimeState();
+
+      await this.outboxStorage.clear().catch(() => {});
+      await this.storage.clear().catch(() => {});
       await this.secureStorageService.clear();
       localStorage.clear();
       await Preferences.clear();
@@ -55,6 +74,11 @@ export class DataService {
       await wipeDir(Directory.Data);
 
       console.log('Nuke complete.');
+    }
+
+    public async logoutAndResetApp(redirectUrl: string = '/profile/login') {
+      await this.clearAppData();
+      await this.router.navigateByUrl(redirectUrl, { replaceUrl: true });
     }
 
 }

@@ -145,6 +145,19 @@ export class NotesService {
     return;
   }
 
+  public resetRuntimeState(): void {
+    this.selectedNoteId = '';
+    this.currentNote = null;
+    this.isNoteTemporaryDescripted = false;
+    this.notesPasswordStored = null;
+    this.decryptedNotes = null;
+    this.notesAppPassword = '';
+    this.LAST_ACTIVITY_TIMESTAMP = 0;
+    this.pendingNoteMutations.clear();
+    this.noteIsUpdatedSubject.next(true);
+    this.noteIsDeletedSubject.next(false);
+  }
+
   public shouldIgnoreServerNote(serverNote: any): boolean {
     if (!serverNote?.id) return false;
     const pending = this.getPendingMutation(serverNote.id);

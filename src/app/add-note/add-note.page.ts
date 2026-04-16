@@ -458,24 +458,33 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             note.title = '';
           }
 
-          if (typeof note.folder === 'string' && note.folder.length > 0) {
-            try {
-              const blobFolder = unpackCipherBlob(note.folder);
-              note.folder = await decryptTextWithMK(this.mkRaw, {
-                ...blobFolder,
-                v: 1,
-                aad_b64: btoa(noteId + '#folder'),
-              });
-            } catch {
-              note.folder = String(note.folder ?? '').trim();
-            }
-          } else {
-            note.folder = '';
-          }
-
           this.currentNote.text = note.text;
+          this.currentNote.favorite = !!note.favorite;
+          this.currentNote.pinned = !!note.pinned;
+          this.currentNote.last_modified = note.last_modified;
+          this.currentNote.title = note.title;
+          this.currentNote.folder = (note.folder ?? '').trim();
+          this.currentNote.folder_id = this.normalizeFolderId((note as any).folder_id);
+
           this.note_title = note.title;
           this.note_text = note.text;
+
+          for (let i = 0; i < this.notes.length; i++) {
+            if (this.notes[i].id === noteId) {
+              this.notes[i] = {
+                ...this.notes[i],
+                ...note,
+                favorite: !!note.favorite,
+                pinned: !!note.pinned,
+                folder: (note.folder ?? '').trim(),
+                folder_id: this.normalizeFolderId((note as any).folder_id),
+              };
+              break;
+            }
+          }
+
+          this.notesService.reconcileServerConfirmation(note);
+
           this.currentNote.title = this.note_title;
 
           if (note.protected) {

@@ -68,7 +68,6 @@ export class ProfileComponent implements OnInit {
   }
 
   private async logout() {
-    await this.dataService.clearAppData();
-    await this.router.navigateByUrl('/');
+    await this.dataService.logoutAndResetApp('/profile/login');
   }
 }

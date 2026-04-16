@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  HostListener,
   QueryList,
   ViewChild,
   ViewChildren,
@@ -28,6 +29,11 @@ import { ResetPassModalComponent } from "../restpass-modal/resetpass-modal.compo
 import { TranslatorService } from "../services/translator.service";
 import { search } from "ionicons/icons";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { App } from '@capacitor/app';
+
+type PluginListenerHandle = {
+  remove: () => Promise<void>;
+};
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UserMenuComponent } from "../user-menu/user-menu.component";
 import { Subscription, filter } from "rxjs";
@@ -62,6 +68,7 @@ const CryptoJS = require('crypto-js');
   styleUrls: ["home.page.scss"],
 })
 export class HomePage implements AfterViewInit {
+  private static readonly UI_STATE_KEY = 'home_ui_state_v1';
   // --------------------------------------------------
   // Constants
   // --------------------------------------------------
@@ -99,6 +106,7 @@ export class HomePage implements AfterViewInit {
   searchMode = false;
   searchQuery = "";
   @ViewChild("searchbar") searchbar: IonSearchbar;
+  @ViewChild('notesListScroll', { read: ElementRef }) notesListScroll?: ElementRef<HTMLElement>;
   subscriptions: Subscription[] = [];
   noteId: any = "";
   userPopover: any;
@@ -113,6 +121,8 @@ export class HomePage implements AfterViewInit {
   private mkRaw: Uint8Array | null = null;
 
   private syncTimer: any = null;
+  private appStateListener: PluginListenerHandle | null = null;
+  private pendingRestoreScrollTop: number | null = null;
 
   public folders: Folder[] = [];
   private allFoldersState: Folder[] = [];
@@ -124,6 +134,8 @@ export class HomePage implements AfterViewInit {
   private pendingRenameFolder: Folder | null = null;
   public renamingFolderId: string | null = null;
   public renamingFolderName = '';
+  public draggingNoteId: string | null = null;
+  public draggingFolderTarget: string | null = null;
 
   constructor(
     private cryptoService: CryptoService,
@@ -168,6 +180,100 @@ export class HomePage implements AfterViewInit {
     return typeof folderId === 'string' && folderId.trim().length > 0 ? folderId.trim() : null;
   }
 
+  private loadUiState(): any {
+    try {
+      const raw = localStorage.getItem(HomePage.UI_STATE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private persistUiState(): void {
+    try {
+      const container = this.notesListScroll?.nativeElement;
+      const payload = {
+        activeFolderName: this.activeFolderName || '__all__',
+        activeFilter: this.activeFilter === 'favorites' ? 'favorites' : 'all',
+        searchQuery: this.search_query ?? '',
+        searchMode: !!this.searchMode,
+        selectedNoteId: this.noteService.selectedNoteId ?? this.noteId ?? null,
+        scrollTop: container?.scrollTop ?? 0,
+      };
+      localStorage.setItem(HomePage.UI_STATE_KEY, JSON.stringify(payload));
+    } catch {}
+  }
+
+  private restoreUiState(): void {
+    const saved = this.loadUiState();
+    if (!saved) {
+      return;
+    }
+
+    const savedFilter = saved?.activeFilter === 'favorites' ? 'favorites' : 'all';
+    const savedFolderName = typeof saved?.activeFolderName === 'string' && saved.activeFolderName.trim().length > 0
+      ? saved.activeFolderName.trim()
+      : '__all__';
+    const hasSavedFolder = savedFolderName === '__all__' || this.folders.some((folder) => folder.name === savedFolderName);
+
+    this.activeFilter = savedFilter;
+    this.activeFolderName = hasSavedFolder ? savedFolderName : '__all__';
+    this.search_query = typeof saved?.searchQuery === 'string' ? saved.searchQuery : '';
+    this.searchMode = !!saved?.searchMode && this.search_query.trim().length > 0;
+
+    const selectedNoteId = typeof saved?.selectedNoteId === 'string' ? saved.selectedNoteId : null;
+    if (selectedNoteId) {
+      this.noteId = selectedNoteId;
+      this.noteService.selectedNoteId = selectedNoteId;
+    }
+
+    this.pendingRestoreScrollTop = Number.isFinite(Number(saved?.scrollTop))
+      ? Number(saved.scrollTop)
+      : null;
+
+    this.applyFilters();
+    this.restoreNotesListScroll();
+  }
+
+  private restoreNotesListScroll(): void {
+    if (this.pendingRestoreScrollTop == null) {
+      return;
+    }
+
+    const scrollTop = this.pendingRestoreScrollTop;
+    setTimeout(() => {
+      const container = this.notesListScroll?.nativeElement;
+      if (!container) {
+        return;
+      }
+      container.scrollTop = scrollTop;
+      this.pendingRestoreScrollTop = null;
+    }, 0);
+  }
+
+  private async registerAppResumeSync(): Promise<void> {
+    if (this.appStateListener) {
+      return;
+    }
+
+    this.appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
+      if (!isActive || !this.authService.isLoggedIn) {
+        return;
+      }
+
+      this.dataService.setForceDownloadOnHome(true);
+
+      if (this.should_display && !this.noteService.shouldAskForPassword()) {
+        this.waitForSync = true;
+        await this.syncFromServer();
+      }
+    });
+  }
+
+  public onNotesListScroll(): void {
+    this.persistUiState();
+  }
+
   private getStoredFolders(password: string = ''): Folder[] {
     try {
       const rawFolders = this.noteService.getFolders();
@@ -204,6 +310,45 @@ export class HomePage implements AfterViewInit {
       return null;
     }
     return this.folders.find((folder) => (folder.name ?? '').trim().toLowerCase() === normalizedName)?.id ?? null;
+  }
+
+
+  private async decryptFolderNameWithMK(rawName: string, folderId: string | null | undefined): Promise<string> {
+    const normalizedRaw = (rawName ?? '').trim();
+    const normalizedFolderId = this.normalizeFolderId(folderId);
+    if (!normalizedRaw || !normalizedFolderId || !this.mkRaw) {
+      return normalizedRaw;
+    }
+
+    try {
+      const blobName = unpackCipherBlob(normalizedRaw);
+      return await decryptTextWithMK(this.mkRaw, {
+        ...blobName,
+        v: 1,
+        aad_b64: btoa(normalizedFolderId + '#folder-name'),
+      });
+    } catch {
+      return normalizedRaw;
+    }
+  }
+
+  private async decryptServerFolders(serverFolders: any[]): Promise<Map<string, string>> {
+    const folderNameById = new Map<string, string>();
+
+    for (const folder of serverFolders ?? []) {
+      const folderId = this.normalizeFolderId((folder as any)?.id);
+      if (!folderId) {
+        continue;
+      }
+
+      const decryptedName = folder?.deleted
+        ? ''
+        : await this.decryptFolderNameWithMK((folder?.name ?? '').trim(), folderId);
+
+      folderNameById.set(folderId, decryptedName);
+    }
+
+    return folderNameById;
   }
 
   private loadFolders(password: string = ''): void {
@@ -281,12 +426,16 @@ export class HomePage implements AfterViewInit {
       this.should_display = false;
     } else {
       this.setData(this.noteService.getNotesAppPassword()); // will send a password, if the app is encrypted.
-      await this.syncFromServer(); // 🔄 added server sync from main branch
+      this.restoreUiState();
+      this.waitForSync = true;
+      await this.syncFromServer(); // immediate refresh with latest notes on open/re-open
+      this.restoreUiState();
     }
 
     this.checkboxOpened = false;
     this.initializePressGesture();
     this.subscribeNoteUpdated();
+    await this.registerAppResumeSync();
   }
 
   ngAfterViewInit(): void {
@@ -302,6 +451,7 @@ export class HomePage implements AfterViewInit {
   }
 
   ionViewWillLeave() {
+    this.persistUiState();
     this.exitSearchMode();
 
     // 🔄 pause background sync (from main branch)
@@ -318,6 +468,8 @@ export class HomePage implements AfterViewInit {
   ionViewDidLeave() {
     this.subscriptions.forEach((sub) => sub.unsubscribe());
     this.subscriptions = [];
+    this.appStateListener?.remove();
+    this.appStateListener = null;
   }
 
   // --------------------------------------------------
@@ -367,6 +519,7 @@ export class HomePage implements AfterViewInit {
   // --------------------------------------------------
   enterSearchMode() {
     this.searchMode = true;
+    this.persistUiState();
     setTimeout(() => {
       this.searchbar?.setFocus();
     }, 100); // Delay to ensure DOM renders
@@ -380,6 +533,7 @@ export class HomePage implements AfterViewInit {
     setTimeout(() => {
       this.searchMode = false;
       this.cdr.detectChanges();
+      this.persistUiState();
     }, 500);
   }
 
@@ -498,6 +652,7 @@ export class HomePage implements AfterViewInit {
     this.isSearching = true;
     this.pauseSync = true;
     this.filteredResults = filteredNewResults;
+    this.persistUiState();
 
     this.initializePressGesture();
     setTimeout(() => this.cdr.detectChanges(), HomePage.DETECT_CHANGES_DELAY_MS);
@@ -516,19 +671,7 @@ export class HomePage implements AfterViewInit {
   }
 
   initializePressGesture(): void {
-    const cfg: LongPressConfig = {
-      delayMs: HomePage.LONG_PRESS_DELAY_MS,
-      moveTolerancePx: HomePage.MOVE_TOLERANCE_PX,
-      startDelayMs: HomePage.LONG_PRESS_START_DELAY_MS,
-    };
-
-    initializePressGestures(
-      this.longPressElements,
-      this.gestureCtrl,
-      (nativeEl) => this.handlePressStart(nativeEl),
-      () => this.handlePressEnd(),
-      cfg
-    );
+    return;
   }
 
   createLongPressGesture(element: ElementRef) {
@@ -575,29 +718,11 @@ export class HomePage implements AfterViewInit {
   }
 
   handlePressStart(element: any) {
-    this.timeout = setTimeout(() => {
-      this.checkboxOpened = true;
-      setTimeout(() => {
-        this.cdr.detectChanges();
-        const noteId = element.id;
-
-        // ✅ If not already selected, check it
-        if (!this.listOfCheckedCheckboxes.includes(noteId)) {
-          const checkboxEle = element.children[0].children[0];
-          checkboxEle.checked = true;
-          this.listOfCheckedCheckboxes.push(noteId);
-        }
-
-        Haptics.vibrate({ duration: 50 }).then(() => {});
-        setTimeout(() => {
-          this.cdr.detectChanges();
-        }, 200);
-      }, 100);
-    }, 100);
+    return;
   }
 
   handlePressEnd() {
-    clearTimeout(this.timeout);
+    return;
   }
 
   disableNativeContextMenu() {
@@ -691,6 +816,8 @@ export class HomePage implements AfterViewInit {
       const res = await this.notesApiServiceV1.download(0);
 
       const serverNotes = (res as any)?.notes ?? [];
+      const serverFolders = Array.isArray((res as any)?.folders) ? (res as any).folders : [];
+      const decryptedFolderNameById = await this.decryptServerFolders(serverFolders);
       const map = new Map<string, any>((this.notes ?? []).map((n: any) => [n.id, n]));
 
       for (const s of serverNotes) {
@@ -738,6 +865,10 @@ export class HomePage implements AfterViewInit {
           s.title = '';
         }
 
+        const noteFolderId = this.normalizeFolderId((s as any)?.folder_id);
+        s.folder_id = noteFolderId;
+        s.folder = noteFolderId ? (decryptedFolderNameById.get(noteFolderId) ?? '') : '';
+
         if (!local) {
           map.set(s.id, s);
           this.noteService.reconcileServerConfirmation(s);
@@ -756,7 +887,6 @@ export class HomePage implements AfterViewInit {
       this.filteredResults = merged;
       this.applyFilters();
 
-      const serverFolders = Array.isArray((res as any)?.folders) ? (res as any).folders : [];
       const localFolders = this.getStoredFolders(this.noteService.getNotesAppPassword());
       const folderMap = new Map<string, any>();
       for (const folder of localFolders) {
@@ -764,9 +894,10 @@ export class HomePage implements AfterViewInit {
         folderMap.set(key, folder);
       }
       for (const folder of serverFolders) {
+        const normalizedFolderId = this.normalizeFolderId((folder as any)?.id) ?? (crypto?.randomUUID?.() ?? String(Date.now() + Math.random()));
         const normalizedFolder = {
-          id: this.normalizeFolderId((folder as any)?.id) ?? (crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
-          name: (folder?.name ?? '').trim(),
+          id: normalizedFolderId,
+          name: folder?.deleted ? '' : (decryptedFolderNameById.get(normalizedFolderId) ?? '').trim(),
           last_modified: Number(folder?.last_modified ?? 0),
           deleted: !!folder?.deleted,
         };
@@ -795,6 +926,7 @@ export class HomePage implements AfterViewInit {
 
       await this.noteService.flushPersistence();
       this.setData(this.noteService.getNotesAppPassword());
+      this.restoreUiState();
     } catch (err) {
     } finally {
       this.isSyncing = false;
@@ -949,6 +1081,132 @@ export class HomePage implements AfterViewInit {
   // --------------------------------------------------
   // Navigation
   // --------------------------------------------------
+  private isTypingTarget(target: HTMLElement | null): boolean {
+    if (!target) {
+      return false;
+    }
+
+    const tag = String(target.tagName || '').toLowerCase();
+    if (['input', 'textarea', 'select', 'ion-input', 'ion-textarea', 'ion-searchbar'].includes(tag)) {
+      return true;
+    }
+
+    return !!target.closest('input, textarea, select, ion-input, ion-textarea, ion-searchbar, [contenteditable="true"], .folder-rename-input, .ql-editor');
+  }
+
+  private selectRelativeNote(step: number): void {
+    const list = Array.isArray(this.filteredResults) ? this.filteredResults : [];
+    if (!list.length) {
+      return;
+    }
+
+    const currentId = String(this.noteService.selectedNoteId ?? this.noteId ?? '').trim();
+    const currentIndex = list.findIndex((note: any) => note?.id === currentId);
+    const nextIndex = currentIndex === -1
+      ? (step > 0 ? 0 : list.length - 1)
+      : Math.min(Math.max(currentIndex + step, 0), list.length - 1);
+
+    const next = list[nextIndex];
+    if (!next?.id) {
+      return;
+    }
+
+    this.noteId = next.id;
+    this.noteService.selectedNoteId = next.id;
+    this.persistUiState();
+    this.cdr.detectChanges();
+  }
+
+  private async assignNoteToFolder(noteId: string, folderName: string): Promise<void> {
+    const targetNote = (this.notes ?? []).find((note: any) => note.id === noteId);
+    if (!targetNote) {
+      return;
+    }
+
+    const nextFolderName = folderName === '__all__' ? '' : String(folderName ?? '').trim();
+    const folderId = nextFolderName
+      ? this.folders.find((folder) => folder.name === nextFolderName)?.id ?? null
+      : null;
+
+    if ((targetNote?.folder ?? '') === nextFolderName && this.normalizeFolderId(targetNote?.folder_id) === this.normalizeFolderId(folderId)) {
+      return;
+    }
+
+    const now = Date.now();
+    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, folder: nextFolderName, folder_id: folderId, last_modified: now } : note);
+    this.noteService.markPendingMutation(noteId, 'move', now);
+    this.rebuildFolders();
+    this.syncFoldersManifest();
+    this.persistNotes();
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  public handleDesktopShortcuts(event: KeyboardEvent): void {
+    if (!this.should_display || this.app_requires_password) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    const isTyping = this.isTypingTarget(target);
+    const metaOrCtrl = event.metaKey || event.ctrlKey;
+
+    if (metaOrCtrl && event.key.toLowerCase() === 'n') {
+      event.preventDefault();
+      this.goToCreateNewNote();
+      return;
+    }
+
+    if (metaOrCtrl && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.enterSearchMode();
+      return;
+    }
+
+    if (!isTyping && event.key === '/') {
+      event.preventDefault();
+      this.enterSearchMode();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      if (this.searchMode) {
+        event.preventDefault();
+        this.exitSearchMode();
+        return;
+      }
+
+      if (this.renamingFolderId) {
+        event.preventDefault();
+        this.cancelRenameFolder();
+        return;
+      }
+    }
+
+    if (isTyping || this.checkboxOpened || metaOrCtrl || event.altKey) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.selectRelativeNote(1);
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.selectRelativeNote(-1);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      const selectedId = String(this.noteService.selectedNoteId ?? '').trim();
+      if (selectedId) {
+        event.preventDefault();
+        this.openOrCheckbox(selectedId);
+      }
+    }
+  }
+
   public folderChipCount(folderName: string): number {
     return (this.notes ?? []).filter((note: any) => (note?.folder ?? '') === folderName && !note?.deleted).length;
   }
@@ -981,16 +1239,25 @@ export class HomePage implements AfterViewInit {
       return Number(b?.last_modified ?? 0) - Number(a?.last_modified ?? 0);
     });
     this.filteredResults = scoped;
+    this.persistUiState();
+    this.restoreNotesListScroll();
   }
 
   public selectFolder(folderName: string): void {
     this.activeFolderName = folderName || '__all__';
+
+    if (this.activeFolderName !== '__all__') {
+      this.activeFilter = 'all';
+    }
+
     this.applyFilters();
+    this.persistUiState();
   }
 
   public setActiveFilter(filter: string | number | undefined | null): void {
     this.activeFilter = filter === 'favorites' ? 'favorites' : 'all';
     this.applyFilters();
+    this.persistUiState();
   }
 
 
@@ -1199,19 +1466,65 @@ export class HomePage implements AfterViewInit {
         {
           text: 'Move',
           handler: (selectedFolder: string) => {
-            const target = selectedFolder === '__all__' ? '' : selectedFolder;
-            const folderId = this.folders.find((folder) => folder.name === target)?.id ?? null;
-            const now = Date.now();
-            this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, folder: target, folder_id: folderId, last_modified: now } : note);
-            this.noteService.markPendingMutation(noteId, 'move', now);
-            this.rebuildFolders();
-            this.syncFoldersManifest();
-            this.persistNotes();
+            this.assignNoteToFolder(noteId, selectedFolder).then(() => {});
           }
         }
       ]
     });
     await alert.present();
+  }
+
+  public onNoteDragStart(event: DragEvent, note: any): void {
+    if (!note?.id || this.checkboxOpened) {
+      event.preventDefault();
+      return;
+    }
+
+    this.draggingNoteId = note.id;
+    this.draggingFolderTarget = null;
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', note.id);
+    }
+  }
+
+  public onNoteDragEnd(): void {
+    this.draggingNoteId = null;
+    this.draggingFolderTarget = null;
+  }
+
+  public onFolderDragOver(event: DragEvent, folderName: string): void {
+    if (!this.draggingNoteId) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    this.draggingFolderTarget = folderName;
+  }
+
+  public onFolderDragLeave(folderName: string): void {
+    if (this.draggingFolderTarget === folderName) {
+      this.draggingFolderTarget = null;
+    }
+  }
+
+  public onFolderDrop(event: DragEvent, folderName: string): void {
+    event.preventDefault();
+    const noteId = event.dataTransfer?.getData('text/plain') || this.draggingNoteId;
+    const targetFolder = folderName === '__all__' ? '' : folderName;
+
+    this.draggingFolderTarget = null;
+    this.draggingNoteId = null;
+
+    if (!noteId) {
+      return;
+    }
+
+    this.assignNoteToFolder(noteId, targetFolder).then(() => {});
   }
 
   private syncFoldersManifest(): void {
@@ -1239,6 +1552,9 @@ export class HomePage implements AfterViewInit {
 
   public openOrCheckbox(note_id: string) {
     if (!this.checkboxOpened) {
+      this.noteId = note_id;
+      this.noteService.selectedNoteId = note_id;
+      this.persistUiState();
       // this.navController.navigateForward("/note/" + note_id).then((r) => {});
       this.navController.navigateForward('/dummy-route').then(() => {
         this.navController.navigateForward("/note/" + note_id);
@@ -1573,6 +1889,11 @@ export class HomePage implements AfterViewInit {
 
   navigateToHome(): void {
     localStorage.removeItem("recentOpenedNoteId");
+    this.activeFolderName = '__all__';
+    this.activeFilter = 'all';
+    this.search_query = '';
+    this.searchMode = false;
+    this.persistUiState();
     setTimeout(async () => {
       // window.location.href = "/home";
       await this.navController.navigateRoot('/home');

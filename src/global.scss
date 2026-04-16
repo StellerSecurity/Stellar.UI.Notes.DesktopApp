@@ -790,3 +790,50 @@ ion-button::part(native) {
 .angular-editor-textarea {
   background: #ffffff;
 }
+
+
+:root {
+  --app-surface: #ffffff;
+  --app-surface-soft: #f7f7f9;
+  --app-surface-muted: #f1f2f6;
+  --app-border-soft: rgba(60, 60, 67, 0.12);
+  --app-border-strong: rgba(60, 60, 67, 0.18);
+  --app-text-strong: #1d1d1f;
+  --app-text-body: #4f5563;
+  --app-text-muted: #7b8190;
+  --app-accent-soft: #e9eefb;
+  --app-accent-text: #485e96;
+  --app-radius-sm: 10px;
+  --app-radius-md: 14px;
+  --app-radius-lg: 18px;
+  --app-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+html, body, ion-app {
+  color: var(--app-text-strong);
+  background: #f5f5f7;
+}
+
+ion-button {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+ion-button.button-clear {
+  --color: var(--app-text-body);
+}
+
+ion-searchbar {
+  --box-shadow: none;
+}
+
+ion-input,
+ion-textarea,
+ion-searchbar,
+.angular-editor .angular-editor-wrapper,
+.angular-editor-textarea {
+  --highlight-color-focused: var(--app-accent-text);
+  --highlight-color-valid: var(--app-accent-text);
+  --highlight-color-invalid: var(--ion-color-danger);
+}

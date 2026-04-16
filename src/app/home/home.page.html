@@ -39,21 +39,24 @@
   <aside class="desktop-folders-pane">
     <div class="pane-header folders-header">
       <div class="logo-container" (click)="navigateToHome()" style="cursor: pointer;">
-        <img class="logo-img" src="./assets/note-logo.png" alt="">
+        <div class="logo-badge">
+          <img class="logo-img" src="./assets/note-logo.png" alt="">
+        </div>
         <div class="logo-copy">
           <div class="logo-text">Stellar Notes</div>
+          <div class="logo-subtext">Private notes, beautifully organized</div>
         </div>
       </div>
 
-      <ion-button fill="clear" size="small" class="folder-user-button" (click)="presentUserMenu($event)">
-        <img src="assets/user-circle.svg">
+      <ion-button fill="clear" size="default" class="folder-user-button" (click)="presentUserMenu($event)">
+        <img src="assets/user-circle.svg" alt="User menu">
       </ion-button>
     </div>
 
     <div class="folders-scroll">
       <div class="sidebar-section-label">Library</div>
 
-      <button class="folder-chip" [class.active]="activeFilter === 'all' && activeFolderName === '__all__'" (click)="selectFolder('__all__'); setActiveFilter('all')">
+      <button class="folder-chip" [class.active]="activeFilter === 'all' && activeFolderName === '__all__'" [class.drop-target]="draggingFolderTarget === '__all__'" (click)="selectFolder('__all__'); setActiveFilter('all')" (dragover)="onFolderDragOver($event, '__all__')" (dragleave)="onFolderDragLeave('__all__')" (drop)="onFolderDrop($event, '__all__')">
         <span class="folder-chip-left">
           <ion-icon name="document-text-outline"></ion-icon>
           <span>All Notes</span>
@@ -79,12 +82,16 @@
         *ngFor="let folder of folders"
         [class.active]="activeFolderName === folder.name"
         [class.is-renaming]="renamingFolderId === folder.id"
+        [class.drop-target]="draggingFolderTarget === folder.name"
         tabindex="0"
         role="button"
         (click)="renamingFolderId ? null : selectFolder(folder.name)"
         (keydown.enter)="renamingFolderId ? null : selectFolder(folder.name)"
         (keydown.space)="$event.preventDefault(); renamingFolderId ? null : selectFolder(folder.name)"
-        (contextmenu)="openFolderActions($event, folder)">
+        (contextmenu)="openFolderActions($event, folder)"
+        (dragover)="onFolderDragOver($event, folder.name)"
+        (dragleave)="onFolderDragLeave(folder.name)"
+        (drop)="onFolderDrop($event, folder.name)">
         <span class="folder-chip-left">
           <ion-icon name="folder-outline"></ion-icon>
           <ng-container *ngIf="renamingFolderId !== folder.id; else renameFolderInputTpl">
@@ -180,7 +187,7 @@
       <div class="empty-copy">{{'TryAnotherSearchQuery' | translate}}</div>
     </div>
 
-    <div class="home-note-list">
+    <div class="home-note-list" #notesListScroll (scroll)="onNotesListScroll()">
       <ion-list>
         <ion-item
           lines="none"
@@ -188,10 +195,13 @@
           (click)="$event.stopPropagation(); openOrCheckbox(note.id); setSelectedNoteId(note.id)"
           (contextmenu)="openContextMenu($event, note)"
           [detail]="false"
-          class="long-press-target cursor-pointer"
-          [ngClass]="{ 'note-active-on-sidebar': note?.id == noteService.selectedNoteId }"
-          #longPressElements
-          [id]="note.id">
+          class="cursor-pointer"
+          [ngClass]="{ 'note-active-on-sidebar': note?.id == noteService.selectedNoteId, 'is-dragging': draggingNoteId === note?.id }"
+          [id]="note.id"
+          tabindex="0"
+          draggable="true"
+          (dragstart)="onNoteDragStart($event, note)"
+          (dragend)="onNoteDragEnd()">
           <div class="box-item-main">
             <ion-checkbox
               *ngIf="checkboxOpened"
