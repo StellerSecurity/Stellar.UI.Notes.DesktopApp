@@ -468,6 +468,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
           this.note_title = note.title;
           this.note_text = note.text;
+          this.richTextEditorComponent?.applyExternalContent?.(this.note_text);
 
           for (let i = 0; i < this.notes.length; i++) {
             if (this.notes[i].id === noteId) {

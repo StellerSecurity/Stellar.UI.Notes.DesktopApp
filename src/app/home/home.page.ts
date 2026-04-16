@@ -123,8 +123,10 @@ export class HomePage implements AfterViewInit {
   private syncTimer: any = null;
   private appStateListener: PluginListenerHandle | null = null;
   private pendingRestoreScrollTop: number | null = null;
+  private networkListenersRegistered = false;
+  private syncRequestInFlight: Promise<void> | null = null;
   private networkOnlineHandler = () => {
-    this.handleNetworkBackOnline();
+    void this.handleNetworkBackOnline();
   };
   private networkOfflineHandler = () => {
     this.handleNetworkOffline();
@@ -263,16 +265,11 @@ export class HomePage implements AfterViewInit {
     }
 
     this.appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
-      if (!isActive || !this.authService.isLoggedIn || !this.hasInternetConnection()) {
+      if (!isActive) {
         return;
       }
 
-      this.dataService.setForceDownloadOnHome(true);
-
-      if (this.should_display && !this.noteService.shouldAskForPassword()) {
-        this.waitForSync = true;
-        await this.syncFromServer();
-      }
+      await this.requestImmediateSync('resume');
     });
   }
 
@@ -284,31 +281,71 @@ export class HomePage implements AfterViewInit {
     return !!this.authService.isLoggedIn && this.hasInternetConnection();
   }
 
-  private registerNetworkListeners(): void {
-    window.addEventListener('online', this.networkOnlineHandler);
-    window.addEventListener('offline', this.networkOfflineHandler);
+
+  private clearSyncUiState(options: { clearForceDownload?: boolean } = {}): void {
+    this.isSyncing = false;
+    this.waitForSync = false;
+
+    if (options.clearForceDownload !== false) {
+      this.dataService.setForceDownloadOnHome(false);
+    }
   }
 
-  private unregisterNetworkListeners(): void {
-    window.removeEventListener('online', this.networkOnlineHandler);
-    window.removeEventListener('offline', this.networkOfflineHandler);
-  }
-
-  private async handleNetworkBackOnline(): Promise<void> {
+  private async requestImmediateSync(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual'): Promise<void> {
     if (!this.authService.isLoggedIn) {
+      this.clearSyncUiState();
       return;
     }
 
-    this.dataService.setForceDownloadOnHome(true);
-
-    if (this.should_display && !this.noteService.shouldAskForPassword()) {
-      this.waitForSync = true;
-      await this.syncFromServer();
+    if (!this.hasInternetConnection()) {
+      this.waitForSync = false;
+      this.isSyncing = false;
+      this.dataService.setForceDownloadOnHome(true);
+      return;
     }
+
+    if (this.noteService.shouldAskForPassword() || !this.should_display) {
+      this.waitForSync = false;
+      this.isSyncing = false;
+      this.dataService.setForceDownloadOnHome(true);
+      return;
+    }
+
+    this.waitForSync = true;
+    this.dataService.setForceDownloadOnHome(true);
+    await this.syncFromServer(reason);
+  }
+
+  private registerNetworkListeners(): void {
+    if (this.networkListenersRegistered || typeof window === 'undefined') {
+      return;
+    }
+
+    window.addEventListener('online', this.networkOnlineHandler);
+    window.addEventListener('offline', this.networkOfflineHandler);
+    this.networkListenersRegistered = true;
+  }
+
+  private unregisterNetworkListeners(): void {
+    if (!this.networkListenersRegistered || typeof window === 'undefined') {
+      return;
+    }
+
+    window.removeEventListener('online', this.networkOnlineHandler);
+    window.removeEventListener('offline', this.networkOfflineHandler);
+    this.networkListenersRegistered = false;
+  }
+
+  private async handleNetworkBackOnline(): Promise<void> {
+    await this.requestImmediateSync('online');
   }
 
   private handleNetworkOffline(): void {
     this.waitForSync = false;
+    this.isSyncing = false;
+    if (this.authService.isLoggedIn) {
+      this.dataService.setForceDownloadOnHome(true);
+    }
   }
 
   public onNotesListScroll(): void {
@@ -448,8 +485,10 @@ export class HomePage implements AfterViewInit {
     this.hiddenId = this.activatedRoute.snapshot.queryParamMap.get("hide_ids");
 
     // if we should force download when coming home
-    if (this.dataService.getForceDownloadOnHome() && this.authService.isLoggedIn) {
+    if (this.dataService.getForceDownloadOnHome() && this.authService.isLoggedIn && this.hasInternetConnection()) {
       this.waitForSync = true;
+    } else if (!this.authService.isLoggedIn || !this.hasInternetConnection()) {
+      this.waitForSync = false;
     }
 
     // If app does NOT have password challenge, load MK directly from secure storage (from main branch)
@@ -465,13 +504,15 @@ export class HomePage implements AfterViewInit {
 
     if (this.noteService.shouldAskForPassword()) {
       this.should_display = false;
+      this.clearSyncUiState({ clearForceDownload: !this.authService.isLoggedIn });
     } else {
       this.setData(this.noteService.getNotesAppPassword()); // will send a password, if the app is encrypted.
       this.restoreUiState();
       if (this.shouldAttemptRemoteDownload()) {
-        this.waitForSync = true;
-        await this.syncFromServer(); // immediate refresh with latest notes on open/re-open
+        await this.requestImmediateSync('enter'); // immediate refresh with latest notes on open/re-open
         this.restoreUiState();
+      } else {
+        this.clearSyncUiState({ clearForceDownload: this.authService.isLoggedIn ? false : true });
       }
     }
 
@@ -841,39 +882,59 @@ export class HomePage implements AfterViewInit {
     if (!this.shouldAttemptRemoteDownload()) {
       if (this.authService.isLoggedIn && !this.hasInternetConnection()) {
         this.dataService.setForceDownloadOnHome(true);
+      } else if (!this.authService.isLoggedIn) {
+        this.clearSyncUiState();
       }
       return;
     }
 
-    this.waitForSync = true;
-    this.dataService.setForceDownloadOnHome(true);
-    this.syncFromServer();
+    void this.requestImmediateSync('manual');
   }
 
-  async syncFromServer() {
-    if (!this.authService.isLoggedIn) {
-      this.waitForSync = false;
-      this.dataService.setForceDownloadOnHome(false);
-      return;
-    }
-    if (!this.hasInternetConnection()) {
-      this.waitForSync = false;
-      this.dataService.setForceDownloadOnHome(true);
-      return;
-    }
-    if (this.pauseSync) return;
+  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual') {
+    void reason;
 
-    if (this.syncTimer == null) {
-      this.syncTimer = setInterval(() => {
-        if (!this.pauseSync && this.authService.isLoggedIn) {
-          this.syncFromServer();
-        }
-      }, 30_000);
+    if (this.syncRequestInFlight) {
+      return this.syncRequestInFlight;
     }
 
-    this.isSyncing = true;
+    const run = async () => {
+      let syncSucceeded = false;
+      if (!this.authService.isLoggedIn) {
+        this.clearSyncUiState();
+        return;
+      }
+      if (!this.hasInternetConnection()) {
+        this.waitForSync = false;
+        this.isSyncing = false;
+        this.dataService.setForceDownloadOnHome(true);
+        return;
+      }
+      if (this.noteService.shouldAskForPassword() || !this.should_display) {
+        this.waitForSync = false;
+        this.isSyncing = false;
+        this.dataService.setForceDownloadOnHome(true);
+        return;
+      }
+      if (this.pauseSync) {
+        this.waitForSync = false;
+        this.isSyncing = false;
+        this.dataService.setForceDownloadOnHome(true);
+        return;
+      }
 
-    try {
+      if (this.syncTimer == null) {
+        this.syncTimer = setInterval(() => {
+          if (!this.pauseSync && this.authService.isLoggedIn && this.hasInternetConnection()) {
+            void this.syncFromServer('manual');
+          }
+        }, 30_000);
+      }
+
+      this.isSyncing = true;
+      this.waitForSync = true;
+
+      try {
       const res = await this.notesApiServiceV1.download(0);
 
       const serverNotes = (res as any)?.notes ?? [];
@@ -988,12 +1049,19 @@ export class HomePage implements AfterViewInit {
       await this.noteService.flushPersistence();
       this.setData(this.noteService.getNotesAppPassword());
       this.restoreUiState();
-    } catch (err) {
-    } finally {
-      this.isSyncing = false;
-      this.waitForSync = false;
-      this.dataService.setForceDownloadOnHome(false);
-    }
+      syncSucceeded = true;
+      } catch (err) {
+        this.dataService.setForceDownloadOnHome(this.authService.isLoggedIn);
+      } finally {
+        this.clearSyncUiState({ clearForceDownload: syncSucceeded });
+      }
+    };
+
+    this.syncRequestInFlight = run().finally(() => {
+      this.syncRequestInFlight = null;
+    });
+
+    return this.syncRequestInFlight;
   }
 
   // --------------------------------------------------

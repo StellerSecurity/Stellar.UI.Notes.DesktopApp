@@ -8,6 +8,8 @@ import {
   ChangeDetectorRef,
   AfterViewInit,
   Renderer2,
+  OnChanges,
+  SimpleChanges,
 } from "@angular/core";
 import {
   AngularEditorComponent,
@@ -21,7 +23,7 @@ import { AlertController } from "@ionic/angular";
   templateUrl: "./rich-text-editor.component.html",
   styleUrls: ["./rich-text-editor.component.scss"],
 })
-export class RichTextEditorComponent implements AfterViewInit {
+export class RichTextEditorComponent implements AfterViewInit, OnChanges {
   @ViewChild("editorRef") editorComponent!: AngularEditorComponent;
   @ViewChild("editorWrapper") editorWrapper!: ElementRef;
   @Input() note_text: string = "";
@@ -91,6 +93,19 @@ export class RichTextEditorComponent implements AfterViewInit {
     this.updateNote = JSON.parse(JSON.stringify(this.note_text));
   }
 
+
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes["note_text"]) return;
+
+    const nextValue = changes["note_text"].currentValue ?? "";
+    const previousValue = changes["note_text"].previousValue ?? "";
+
+    if (nextValue === previousValue) return;
+
+    this.applyExternalContent(nextValue);
+  }
+
   ngAfterViewInit() {
     this.initializeEditorToolbar();
     this.setupLinkButtonOverride();
@@ -115,6 +130,31 @@ export class RichTextEditorComponent implements AfterViewInit {
     }, 300); // delay to ensure editor is fully rendered
   }
   
+
+
+
+  public applyExternalContent(content: string): void {
+    const normalizedContent = content ?? "";
+    this.note_text = normalizedContent;
+
+    setTimeout(() => {
+      const editorDiv: HTMLElement | null =
+        this.editorWrapper?.nativeElement?.querySelector?.(".angular-editor-textarea") ??
+        document.querySelector(".angular-editor-textarea");
+
+      if (!editorDiv) {
+        this.cdr.detectChanges();
+        return;
+      }
+
+      if (editorDiv.innerHTML !== normalizedContent) {
+        editorDiv.innerHTML = normalizedContent;
+      }
+
+      this.interceptEditorLinks();
+      this.cdr.detectChanges();
+    }, 0);
+  }
 
   // ---------------------------
   // Toolbar setup
