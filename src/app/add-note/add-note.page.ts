@@ -81,6 +81,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   private fetchLiveNoteBound = () => {};
   private routeSub?: Subscription;
+  private editorFocused = false;
+  private pendingLiveNote: any | null = null;
 
   // 🔐 Master key held in RAM (derived from EAK)
   private mkRaw: Uint8Array | null = null;
@@ -149,7 +151,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     private translatorService: TranslatorService,
     private authService: AuthService
   ) {
-    this.routeSub = this.activatedRoute.paramMap.subscribe((params: ParamMap) => {
+    this.routeSub = this.activatedRoute.paramMap.subscribe(async (params: ParamMap) => {
       const decrypted = this.notesService.getDecryptedNotes();
       const parsedNotes = decrypted ? (JSON.parse(decrypted) as NoteV1[]) : [];
       this.notes = (parsedNotes ?? []).map((note: any) => ({
@@ -199,6 +201,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.note_text = this.currentNote.text ?? '';
       this.note_title = this.currentNote.title !== undefined ? this.currentNote.title : 'Untitled';
 
+      await this.ensureMkLoaded();
       this.startLiveNotePolling();
     });
   }
@@ -229,33 +232,95 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     return out;
   }
 
-  async ionViewWillEnter(): Promise<void> {
-    this.allTranslations = this.translatorService.allTranslations;
+  private async ensureMkLoaded(): Promise<boolean> {
+    if (this.mkRaw) {
+      return true;
+    }
 
-    // 🔐 Load MK from secure storage (same logic som HomePage)
     try {
       if (!this.notesService.appHasPasswordChallenge()) {
         const eakB64 = await this.secureStorageService.getItem('ssEakB64');
         if (eakB64) {
           this.mkRaw = this.b64ToBytes(eakB64);
+          return true;
         }
       } else {
         const enc = await this.secureStorageService.getItem('ssEakB64_Encrypted');
         const appPass = this.notesService.getNotesAppPassword();
         if (enc && appPass) {
           const decrypted = this.cryptoService.decrypt(enc, appPass) as string;
-          this.mkRaw = this.b64ToBytes(decrypted);
+          if (decrypted) {
+            this.mkRaw = this.b64ToBytes(decrypted);
+            return true;
+          }
         }
       }
     } catch (e) {
       console.error('Failed to load MK from storage in AddNotePage:', e);
     }
+
+    return false;
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    this.allTranslations = this.translatorService.allTranslations;
+    await this.ensureMkLoaded();
   }
 
   ionViewWillLeave() {
     this.stopLiveNotePolling();
     if (this.richTextEditorComponent?.onLeave) {
       this.richTextEditorComponent.onLeave();
+    }
+  }
+
+
+
+  private applyLiveNoteToUi(note: any): void {
+    const noteId = this.notes_id as string;
+    if (!this.currentNote) return;
+
+    this.currentNote.text = note.text;
+    this.currentNote.favorite = !!note.favorite;
+    this.currentNote.pinned = !!note.pinned;
+    this.currentNote.last_modified = note.last_modified;
+    this.currentNote.title = note.title;
+    this.currentNote.folder = (note.folder ?? '').trim();
+    this.currentNote.folder_id = this.normalizeFolderId((note as any).folder_id);
+
+    this.note_title = note.title;
+    this.note_text = note.text;
+
+    for (let i = 0; i < this.notes.length; i++) {
+      if (this.notes[i].id === noteId) {
+        this.notes[i] = {
+          ...this.notes[i],
+          ...note,
+          favorite: !!note.favorite,
+          pinned: !!note.pinned,
+          folder: (note.folder ?? '').trim(),
+          folder_id: this.normalizeFolderId((note as any).folder_id),
+        };
+        break;
+      }
+    }
+
+    this.notesService.reconcileServerConfirmation(note);
+
+    if (!this.isEditingTitle) {
+      this.currentNote.title = this.note_title;
+    }
+
+    this.richTextEditorComponent?.setExternalContent?.(note.text);
+  }
+
+  public onEditorFocusChange(focused: boolean): void {
+    this.editorFocused = focused;
+
+    if (!focused && this.pendingLiveNote) {
+      const pending = this.pendingLiveNote;
+      this.pendingLiveNote = null;
+      this.applyLiveNoteToUi(pending);
     }
   }
 
@@ -367,6 +432,11 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   startLiveNotePolling() {
+    if (this.liveNoteTimer) {
+      clearInterval(this.liveNoteTimer);
+    }
+
+    this.stopSyncing = false;
     this.liveNoteTimer = window.setInterval(() => {
       if (this.isPaused || document.hidden || !navigator.onLine) return;
       this.fetchLiveNote();
@@ -433,7 +503,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             return;
           }
 
-          if (!this.mkRaw) {
+          const mkReady = await this.ensureMkLoaded();
+          if (!mkReady || !this.mkRaw) {
             console.warn('MK not loaded in AddNotePage; skipping decrypt for live note');
             return;
           }
@@ -458,35 +529,12 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             note.title = '';
           }
 
-          this.currentNote.text = note.text;
-          this.currentNote.favorite = !!note.favorite;
-          this.currentNote.pinned = !!note.pinned;
-          this.currentNote.last_modified = note.last_modified;
-          this.currentNote.title = note.title;
-          this.currentNote.folder = (note.folder ?? '').trim();
-          this.currentNote.folder_id = this.normalizeFolderId((note as any).folder_id);
-
-          this.note_title = note.title;
-          this.note_text = note.text;
-          this.richTextEditorComponent?.applyExternalContent?.(this.note_text);
-
-          for (let i = 0; i < this.notes.length; i++) {
-            if (this.notes[i].id === noteId) {
-              this.notes[i] = {
-                ...this.notes[i],
-                ...note,
-                favorite: !!note.favorite,
-                pinned: !!note.pinned,
-                folder: (note.folder ?? '').trim(),
-                folder_id: this.normalizeFolderId((note as any).folder_id),
-              };
-              break;
-            }
+          if (this.editorFocused || this.isEditingTitle) {
+            this.pendingLiveNote = note;
+          } else {
+            this.pendingLiveNote = null;
+            this.applyLiveNoteToUi(note);
           }
-
-          this.notesService.reconcileServerConfirmation(note);
-
-          this.currentNote.title = this.note_title;
 
           if (note.protected) {
             console.log('Note is protected, lets decrypt it.');

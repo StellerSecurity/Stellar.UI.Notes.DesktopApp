@@ -134,6 +134,7 @@
 
   <div *ngIf="!note_locked">
     <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text"
-      (noteChange)="onSave($event, 'note_text')"></app-rich-text-editor>
+      (noteChange)="onSave($event, 'note_text')"
+      (editorFocusChange)="onEditorFocusChange($event)"></app-rich-text-editor>
   </div>
 </ion-content>

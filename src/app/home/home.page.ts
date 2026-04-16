@@ -29,11 +29,6 @@ import { ResetPassModalComponent } from "../restpass-modal/resetpass-modal.compo
 import { TranslatorService } from "../services/translator.service";
 import { search } from "ionicons/icons";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { App } from '@capacitor/app';
-
-type PluginListenerHandle = {
-  remove: () => Promise<void>;
-};
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UserMenuComponent } from "../user-menu/user-menu.component";
 import { Subscription, filter } from "rxjs";
@@ -43,6 +38,7 @@ import { NotesApiV1Service } from "../services/notes-api-v1.service";
 import { SecureStorageService } from "../services/secure-storage.service";
 import { DataService } from "../services/data.service";
 import { AuthService } from "../services/auth.service";
+import { RemoteDownloadSyncService } from "../services/remote-download-sync.service";
 import { CryptoKeyService } from "../services/crypto-key.service";
 import {
   decryptTextWithMK,
@@ -120,8 +116,6 @@ export class HomePage implements AfterViewInit {
   // 🔐 MK kept in RAM (EAK already resolved to plaintext MK elsewhere)
   private mkRaw: Uint8Array | null = null;
 
-  private syncTimer: any = null;
-  private appStateListener: PluginListenerHandle | null = null;
   private pendingRestoreScrollTop: number | null = null;
   private networkListenersRegistered = false;
   private syncRequestInFlight: Promise<void> | null = null;
@@ -169,6 +163,7 @@ export class HomePage implements AfterViewInit {
     private dataService: DataService,
     private authService: AuthService,
     private crypto: CryptoKeyService,
+    private remoteDownloadSync: RemoteDownloadSyncService,
   ) {
     // for make selected note on sidebar
     const urlParts = this.router.url.split("/");
@@ -259,19 +254,6 @@ export class HomePage implements AfterViewInit {
     }, 0);
   }
 
-  private async registerAppResumeSync(): Promise<void> {
-    if (this.appStateListener) {
-      return;
-    }
-
-    this.appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
-      if (!isActive) {
-        return;
-      }
-
-      await this.requestImmediateSync('resume');
-    });
-  }
 
   private hasInternetConnection(): boolean {
     return typeof navigator === 'undefined' ? true : navigator.onLine !== false;
@@ -312,8 +294,19 @@ export class HomePage implements AfterViewInit {
     }
 
     this.waitForSync = true;
+    this.isSyncing = true;
     this.dataService.setForceDownloadOnHome(true);
-    await this.syncFromServer(reason);
+
+    const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'manual' ? 'manual' : (reason === 'online' ? 'online' : 'resume'));
+
+    if (didSync) {
+      this.setData(this.noteService.getNotesAppPassword());
+      this.restoreUiState();
+      this.clearSyncUiState({ clearForceDownload: true });
+      return;
+    }
+
+    this.clearSyncUiState({ clearForceDownload: !this.authService.isLoggedIn });
   }
 
   private registerNetworkListeners(): void {
@@ -520,7 +513,6 @@ export class HomePage implements AfterViewInit {
     this.initializePressGesture();
     this.subscribeNoteUpdated();
     this.registerNetworkListeners();
-    await this.registerAppResumeSync();
   }
 
   ngAfterViewInit(): void {
@@ -542,19 +534,12 @@ export class HomePage implements AfterViewInit {
     // 🔄 pause background sync (from main branch)
     this.pauseSync = true;
 
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
-    }
-
     // (your existing comment) // Perform cleanup, stop timers, dismiss modals, etc.
   }
 
   ionViewDidLeave() {
     this.subscriptions.forEach((sub) => sub.unsubscribe());
     this.subscriptions = [];
-    this.appStateListener?.remove();
-    this.appStateListener = null;
     this.unregisterNetworkListeners();
   }
 
@@ -892,176 +877,7 @@ export class HomePage implements AfterViewInit {
   }
 
   async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual') {
-    void reason;
-
-    if (this.syncRequestInFlight) {
-      return this.syncRequestInFlight;
-    }
-
-    const run = async () => {
-      let syncSucceeded = false;
-      if (!this.authService.isLoggedIn) {
-        this.clearSyncUiState();
-        return;
-      }
-      if (!this.hasInternetConnection()) {
-        this.waitForSync = false;
-        this.isSyncing = false;
-        this.dataService.setForceDownloadOnHome(true);
-        return;
-      }
-      if (this.noteService.shouldAskForPassword() || !this.should_display) {
-        this.waitForSync = false;
-        this.isSyncing = false;
-        this.dataService.setForceDownloadOnHome(true);
-        return;
-      }
-      if (this.pauseSync) {
-        this.waitForSync = false;
-        this.isSyncing = false;
-        this.dataService.setForceDownloadOnHome(true);
-        return;
-      }
-
-      if (this.syncTimer == null) {
-        this.syncTimer = setInterval(() => {
-          if (!this.pauseSync && this.authService.isLoggedIn && this.hasInternetConnection()) {
-            void this.syncFromServer('manual');
-          }
-        }, 30_000);
-      }
-
-      this.isSyncing = true;
-      this.waitForSync = true;
-
-      try {
-      const res = await this.notesApiServiceV1.download(0);
-
-      const serverNotes = (res as any)?.notes ?? [];
-      const serverFolders = Array.isArray((res as any)?.folders) ? (res as any).folders : [];
-      const decryptedFolderNameById = await this.decryptServerFolders(serverFolders);
-      const map = new Map<string, any>((this.notes ?? []).map((n: any) => [n.id, n]));
-
-      for (const s of serverNotes) {
-        const local = map.get(s.id);
-
-        if (this.hiddenId === s.id) {
-          map.delete(s.id);
-          continue;
-        }
-
-        if (s.deleted) {
-          if (!local || (s.last_modified ?? 0) >= (local?.last_modified ?? 0)) {
-            map.delete(s.id);
-          }
-
-          this.noteService.reconcileServerConfirmation(s);
-          continue;
-        }
-
-        if (this.noteService.shouldIgnoreServerNote(s)) {
-          continue;
-        }
-
-        if (!this.mkRaw) {
-          continue;
-        }
-
-        const blobText = unpackCipherBlob(s.text);
-        s.text = await decryptTextWithMK(this.mkRaw, {
-          ...blobText,
-          v: 1,
-          aad_b64: btoa(s.id)
-        });
-
-        s.favorite = !!(s.favorite ?? local?.favorite);
-        s.pinned = !!(s.pinned ?? local?.pinned);
-
-        if (typeof s.title === 'string' && s.title.length > 0) {
-          const blobTitle = unpackCipherBlob(s.title);
-          s.title = await decryptTextWithMK(
-            this.mkRaw,
-            { ...blobTitle, v: 1, aad_b64: btoa(s.id + '#title') }
-          );
-        } else {
-          s.title = '';
-        }
-
-        const noteFolderId = this.normalizeFolderId((s as any)?.folder_id);
-        s.folder_id = noteFolderId;
-        s.folder = noteFolderId ? (decryptedFolderNameById.get(noteFolderId) ?? '') : '';
-
-        if (!local) {
-          map.set(s.id, s);
-          this.noteService.reconcileServerConfirmation(s);
-          continue;
-        }
-
-        if ((s.last_modified ?? 0) >= (local.last_modified ?? 0)) {
-          map.set(s.id, { ...local, ...s });
-        }
-
-        this.noteService.reconcileServerConfirmation(s);
-      }
-
-      const merged = Array.from(map.values()).filter((n: any) => !n.deleted);
-      this.notes = merged;
-      this.filteredResults = merged;
-      this.applyFilters();
-
-      const localFolders = this.getStoredFolders(this.noteService.getNotesAppPassword());
-      const folderMap = new Map<string, any>();
-      for (const folder of localFolders) {
-        const key = this.normalizeFolderId((folder as any)?.id) ?? `name:${(folder?.name ?? '').trim().toLowerCase()}`;
-        folderMap.set(key, folder);
-      }
-      for (const folder of serverFolders) {
-        const normalizedFolderId = this.normalizeFolderId((folder as any)?.id) ?? (crypto?.randomUUID?.() ?? String(Date.now() + Math.random()));
-        const normalizedFolder = {
-          id: normalizedFolderId,
-          name: folder?.deleted ? '' : (decryptedFolderNameById.get(normalizedFolderId) ?? '').trim(),
-          last_modified: Number(folder?.last_modified ?? 0),
-          deleted: !!folder?.deleted,
-        };
-        const key = normalizedFolder.id as string;
-        const localFolder = folderMap.get(key);
-        if (!localFolder || normalizedFolder.last_modified >= Number(localFolder?.last_modified ?? 0)) {
-          folderMap.set(key, normalizedFolder);
-        }
-      }
-
-      if (this.noteService.appHasPasswordChallenge()) {
-        const encryptedNotesSave = this.cryptoService.encrypt(
-          JSON.stringify(merged),
-          this.noteService.getNotesAppPassword()
-        );
-        this.noteService.setNotes(encryptedNotesSave);
-        const encryptedFoldersSave = this.cryptoService.encrypt(
-          JSON.stringify(Array.from(folderMap.values())),
-          this.noteService.getNotesAppPassword()
-        );
-        this.noteService.setFolders(encryptedFoldersSave);
-      } else {
-        this.noteService.setNotes(JSON.stringify(merged));
-        this.noteService.setFolders(JSON.stringify(Array.from(folderMap.values())));
-      }
-
-      await this.noteService.flushPersistence();
-      this.setData(this.noteService.getNotesAppPassword());
-      this.restoreUiState();
-      syncSucceeded = true;
-      } catch (err) {
-        this.dataService.setForceDownloadOnHome(this.authService.isLoggedIn);
-      } finally {
-        this.clearSyncUiState({ clearForceDownload: syncSucceeded });
-      }
-    };
-
-    this.syncRequestInFlight = run().finally(() => {
-      this.syncRequestInFlight = null;
-    });
-
-    return this.syncRequestInFlight;
+    await this.requestImmediateSync(reason);
   }
 
   // --------------------------------------------------

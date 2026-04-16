@@ -8,8 +8,6 @@ import {
   ChangeDetectorRef,
   AfterViewInit,
   Renderer2,
-  OnChanges,
-  SimpleChanges,
 } from "@angular/core";
 import {
   AngularEditorComponent,
@@ -23,11 +21,12 @@ import { AlertController } from "@ionic/angular";
   templateUrl: "./rich-text-editor.component.html",
   styleUrls: ["./rich-text-editor.component.scss"],
 })
-export class RichTextEditorComponent implements AfterViewInit, OnChanges {
+export class RichTextEditorComponent implements AfterViewInit {
   @ViewChild("editorRef") editorComponent!: AngularEditorComponent;
   @ViewChild("editorWrapper") editorWrapper!: ElementRef;
   @Input() note_text: string = "";
   @Output() noteChange = new EventEmitter<string>();
+  @Output() editorFocusChange = new EventEmitter<boolean>();
   updateNote: any = "";
 
   private savedSelection: Range[] = [];
@@ -93,19 +92,6 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges {
     this.updateNote = JSON.parse(JSON.stringify(this.note_text));
   }
 
-
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (!changes["note_text"]) return;
-
-    const nextValue = changes["note_text"].currentValue ?? "";
-    const previousValue = changes["note_text"].previousValue ?? "";
-
-    if (nextValue === previousValue) return;
-
-    this.applyExternalContent(nextValue);
-  }
-
   ngAfterViewInit() {
     this.initializeEditorToolbar();
     this.setupLinkButtonOverride();
@@ -132,28 +118,50 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges {
   
 
 
+  public isEditorFocused(): boolean {
+    const editorDiv = this.getEditorElement();
+    if (!editorDiv) return false;
 
-  public applyExternalContent(content: string): void {
-    const normalizedContent = content ?? "";
-    this.note_text = normalizedContent;
+    const active = document.activeElement;
+    return !!active && (active === editorDiv || editorDiv.contains(active));
+  }
 
-    setTimeout(() => {
-      const editorDiv: HTMLElement | null =
-        this.editorWrapper?.nativeElement?.querySelector?.(".angular-editor-textarea") ??
-        document.querySelector(".angular-editor-textarea");
+  public setExternalContent(content: string): void {
+    const normalized = content ?? "";
+    if (this.note_text === normalized) {
+      return;
+    }
 
-      if (!editorDiv) {
-        this.cdr.detectChanges();
-        return;
-      }
+    this.note_text = normalized;
 
-      if (editorDiv.innerHTML !== normalizedContent) {
-        editorDiv.innerHTML = normalizedContent;
-      }
-
-      this.interceptEditorLinks();
+    const editorDiv = this.getEditorElement();
+    if (!editorDiv) {
       this.cdr.detectChanges();
+      return;
+    }
+
+    const previousScrollTop = editorDiv.scrollTop;
+    if (editorDiv.innerHTML !== normalized) {
+      editorDiv.innerHTML = normalized;
+    }
+    editorDiv.scrollTop = previousScrollTop;
+
+    this.interceptEditorLinks();
+    this.cdr.detectChanges();
+  }
+
+  public onEditorFocusIn(): void {
+    this.editorFocusChange.emit(true);
+  }
+
+  public onEditorFocusOut(): void {
+    setTimeout(() => {
+      this.editorFocusChange.emit(this.isEditorFocused());
     }, 0);
+  }
+
+  private getEditorElement(): HTMLElement | null {
+    return this.editorWrapper?.nativeElement?.querySelector?.(".angular-editor-textarea") ?? null;
   }
 
   // ---------------------------
