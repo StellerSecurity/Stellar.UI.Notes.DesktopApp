@@ -123,6 +123,12 @@ export class HomePage implements AfterViewInit {
   private syncTimer: any = null;
   private appStateListener: PluginListenerHandle | null = null;
   private pendingRestoreScrollTop: number | null = null;
+  private networkOnlineHandler = () => {
+    this.handleNetworkBackOnline();
+  };
+  private networkOfflineHandler = () => {
+    this.handleNetworkOffline();
+  };
 
   public folders: Folder[] = [];
   private allFoldersState: Folder[] = [];
@@ -257,7 +263,7 @@ export class HomePage implements AfterViewInit {
     }
 
     this.appStateListener = await App.addListener('appStateChange', async ({ isActive }) => {
-      if (!isActive || !this.authService.isLoggedIn) {
+      if (!isActive || !this.authService.isLoggedIn || !this.hasInternetConnection()) {
         return;
       }
 
@@ -268,6 +274,41 @@ export class HomePage implements AfterViewInit {
         await this.syncFromServer();
       }
     });
+  }
+
+  private hasInternetConnection(): boolean {
+    return typeof navigator === 'undefined' ? true : navigator.onLine !== false;
+  }
+
+  private shouldAttemptRemoteDownload(): boolean {
+    return !!this.authService.isLoggedIn && this.hasInternetConnection();
+  }
+
+  private registerNetworkListeners(): void {
+    window.addEventListener('online', this.networkOnlineHandler);
+    window.addEventListener('offline', this.networkOfflineHandler);
+  }
+
+  private unregisterNetworkListeners(): void {
+    window.removeEventListener('online', this.networkOnlineHandler);
+    window.removeEventListener('offline', this.networkOfflineHandler);
+  }
+
+  private async handleNetworkBackOnline(): Promise<void> {
+    if (!this.authService.isLoggedIn) {
+      return;
+    }
+
+    this.dataService.setForceDownloadOnHome(true);
+
+    if (this.should_display && !this.noteService.shouldAskForPassword()) {
+      this.waitForSync = true;
+      await this.syncFromServer();
+    }
+  }
+
+  private handleNetworkOffline(): void {
+    this.waitForSync = false;
   }
 
   public onNotesListScroll(): void {
@@ -427,14 +468,17 @@ export class HomePage implements AfterViewInit {
     } else {
       this.setData(this.noteService.getNotesAppPassword()); // will send a password, if the app is encrypted.
       this.restoreUiState();
-      this.waitForSync = true;
-      await this.syncFromServer(); // immediate refresh with latest notes on open/re-open
-      this.restoreUiState();
+      if (this.shouldAttemptRemoteDownload()) {
+        this.waitForSync = true;
+        await this.syncFromServer(); // immediate refresh with latest notes on open/re-open
+        this.restoreUiState();
+      }
     }
 
     this.checkboxOpened = false;
     this.initializePressGesture();
     this.subscribeNoteUpdated();
+    this.registerNetworkListeners();
     await this.registerAppResumeSync();
   }
 
@@ -470,6 +514,7 @@ export class HomePage implements AfterViewInit {
     this.subscriptions = [];
     this.appStateListener?.remove();
     this.appStateListener = null;
+    this.unregisterNetworkListeners();
   }
 
   // --------------------------------------------------
@@ -793,13 +838,29 @@ export class HomePage implements AfterViewInit {
     // for <ion-refresher>
     event?.target?.complete?.();
 
+    if (!this.shouldAttemptRemoteDownload()) {
+      if (this.authService.isLoggedIn && !this.hasInternetConnection()) {
+        this.dataService.setForceDownloadOnHome(true);
+      }
+      return;
+    }
+
     this.waitForSync = true;
     this.dataService.setForceDownloadOnHome(true);
     this.syncFromServer();
   }
 
   async syncFromServer() {
-    if (!this.authService.isLoggedIn) return;
+    if (!this.authService.isLoggedIn) {
+      this.waitForSync = false;
+      this.dataService.setForceDownloadOnHome(false);
+      return;
+    }
+    if (!this.hasInternetConnection()) {
+      this.waitForSync = false;
+      this.dataService.setForceDownloadOnHome(true);
+      return;
+    }
     if (this.pauseSync) return;
 
     if (this.syncTimer == null) {
@@ -1006,7 +1067,11 @@ export class HomePage implements AfterViewInit {
       this.input_password_app_unlock = "";
 
       // 🔄 trigger sync with server after unlock (from main branch)
-      this.syncFromServer().then(() => {});
+      if (this.hasInternetConnection()) {
+        this.syncFromServer().then(() => {});
+      } else {
+        this.dataService.setForceDownloadOnHome(true);
+      }
 
       setTimeout(() => {
         this.initializePressGesture();
