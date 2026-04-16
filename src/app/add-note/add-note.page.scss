@@ -15,10 +15,10 @@ ion-textarea {
 
 
 ion-title {
-  font-size: 18px;
+  font-size: 15px;
   font-family: 'Poppins';
-  font-weight: 400;
-  color: #0B0C19;
+  font-weight: 650;
+  color: #1d1d1f;
 }
 
 .header-md {
@@ -31,7 +31,8 @@ ion-content,
 ion-header,
 ion-footer,
 ion-toolbar {
-  --ion-background-color: rgba(246, 246, 253, 1);
+  --ion-background-color: #ffffff;
+  background: #ffffff;
 }
 
 ion-button {
@@ -147,3 +148,156 @@ ion-icon.lock-icon {
 .note-status-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: #eef3ff; color: #2152D4; font-size: 12px; font-weight: 600; }
 .note-status-pill.favorite { background: #fff4d6; color: #b78103; }
 .note-folder-indicator { color: #62626A; font-size: 12px; font-weight: 500; }
+
+
+.note-actions-menu-trigger ion-button {
+  --color: #4f5563;
+  --padding-start: 8px;
+  --padding-end: 8px;
+}
+
+.note-actions-menu-trigger ion-icon {
+  font-size: 20px;
+}
+
+.desktop-note-actions-list {
+  min-width: 220px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #ffffff;
+}
+
+.desktop-note-action-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #1f2430;
+  font: inherit;
+  text-align: left;
+}
+
+.desktop-note-action-item ion-icon {
+  font-size: 18px;
+  color: #5a6170;
+}
+
+.desktop-note-action-item:hover {
+  background: #f3f4f8;
+}
+
+.desktop-note-action-item.danger {
+  color: #d64545;
+}
+
+.desktop-note-action-item.danger ion-icon {
+  color: #d64545;
+}
+
+
+ion-toolbar {
+  --min-height: 44px;
+  padding: 2px 6px 0;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+}
+
+.editable-title {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  padding: 2px 2px 0;
+}
+
+.editable-title-input-wrapper {
+  padding: 0 8px;
+}
+
+.note-status-row {
+  gap: 6px;
+  padding: 0 16px 8px;
+  align-items: center;
+}
+
+.note-status-pill {
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.note-folder-indicator {
+  color: #8a8a93;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.note-actions-menu-trigger ion-button {
+  width: 28px;
+  height: 28px;
+}
+
+.desktop-note-actions-popover::part(content) {
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+}
+
+.desktop-note-actions-list {
+  min-width: 200px;
+  padding: 6px;
+  gap: 1px;
+}
+
+.desktop-note-action-item {
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.desktop-note-action-item ion-icon {
+  font-size: 16px;
+}
+
+ion-content {
+  --background: #ffffff;
+}
+
+app-rich-text-editor {
+  display: block;
+  height: 100%;
+}
+
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+ion-header {
+  border-bottom: 1px solid rgba(60, 60, 67, 0.10);
+}
+
+.note-actions-menu-trigger ion-button {
+  width: 26px;
+  height: 26px;
+  --padding-start: 0;
+  --padding-end: 0;
+  --border-radius: 7px;
+  --color: #6b6b73;
+  --background-hover: rgba(28, 28, 30, 0.06);
+}
+
+.note-actions-menu-trigger ion-icon {
+  font-size: 16px;
+}
+
+.desktop-note-actions-popover::part(content) {
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  border: 1px solid rgba(60, 60, 67, 0.12);
+}

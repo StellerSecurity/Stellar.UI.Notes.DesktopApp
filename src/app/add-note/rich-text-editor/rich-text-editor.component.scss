@@ -1,7 +1,58 @@
 .editor-container {
   position: relative;
-  overflow-x: auto !important;
-  white-space: nowrap;
   width: 100%;
-  overflow-x: auto;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-container {
+  background: transparent;
+}
+
+:host ::ng-deep .angular-editor {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+:host ::ng-deep .angular-editor-toolbar {
+  background: #ffffff !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.10) !important;
+  padding: 6px 14px !important;
+}
+
+:host ::ng-deep .angular-editor-toolbar .angular-editor-toolbar-set {
+  margin-right: 6px !important;
+}
+
+:host ::ng-deep .angular-editor-toolbar button,
+:host ::ng-deep .angular-editor-toolbar select {
+  min-height: 28px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(60, 60, 67, 0.12) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+:host ::ng-deep .angular-editor-textarea {
+  border: 0 !important;
+  background: #ffffff !important;
+  padding: 18px 22px 28px !important;
+  min-height: calc(100vh - 150px) !important;
+  font-size: 16px !important;
+  line-height: 1.58 !important;
+  color: #1d1d1f !important;
+}
+
+:host ::ng-deep .angular-editor-placeholder {
+  padding: 18px 22px !important;
+}
+
+
+:host ::ng-deep .angular-editor-wrapper {
+  background: #ffffff !important;
+}
+
+:host ::ng-deep .angular-editor-toolbar .angular-editor-toolbar-set {
+  margin-right: 4px !important;
 }

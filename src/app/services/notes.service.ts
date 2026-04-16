@@ -136,4 +136,33 @@ export class NotesService {
   public clearPendingMutation(noteId: string): void {
     this.pendingNoteMutations.delete(noteId);
   }
+
+  public getPendingMutation(noteId: string): PendingNoteMutation | null {
+    return this.pendingNoteMutations.get(noteId) ?? null;
+  }
+
+  public async flushPersistence(): Promise<void> {
+    return;
+  }
+
+  public shouldIgnoreServerNote(serverNote: any): boolean {
+    if (!serverNote?.id) return false;
+    const pending = this.getPendingMutation(serverNote.id);
+    if (!pending) return false;
+    if (pending.type === 'delete') return true;
+    const serverLastModified = Number(serverNote?.last_modified ?? 0);
+    return serverLastModified < pending.localUpdatedAt;
+  }
+
+  public reconcileServerConfirmation(serverNote: any): void {
+    if (!serverNote?.id) return;
+    const pending = this.getPendingMutation(serverNote.id);
+    if (!pending) return;
+    if (serverNote?.deleted) { this.clearPendingMutation(serverNote.id); return; }
+    const serverLastModified = Number(serverNote?.last_modified ?? 0);
+    if (serverLastModified >= pending.localUpdatedAt) {
+      this.clearPendingMutation(serverNote.id);
+    }
+  }
+
 }

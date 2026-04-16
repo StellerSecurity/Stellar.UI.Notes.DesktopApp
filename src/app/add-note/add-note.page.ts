@@ -64,6 +64,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   public allTranslations: any;
   public isEditingTitle = false;
   public folders: Folder[] = [];
+  public actionsPopoverOpen = false;
+  public actionsPopoverEvent: any = null;
 
   private notes_id: string | null = null;
   private notes: NoteV1[] = [];
@@ -83,6 +85,56 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   // 🔐 Master key held in RAM (derived from EAK)
   private mkRaw: Uint8Array | null = null;
 
+  private normalizeFolderId(folderId: any): string | null {
+    return typeof folderId === 'string' && folderId.trim().length > 0 ? folderId.trim() : null;
+  }
+
+  private findFolderByName(name: string): Folder | undefined {
+    const normalizedName = (name ?? '').trim().toLowerCase();
+    if (!normalizedName) {
+      return undefined;
+    }
+
+    return this.folders.find((folder) => !folder?.deleted && (folder.name ?? '').trim().toLowerCase() === normalizedName);
+  }
+
+  private getStoredFolders(): Folder[] {
+    try {
+      const rawFolders = this.notesService.getFolders();
+      const decodedFolders = this.notesService.appHasPasswordChallenge()
+        ? this.cryptoService.decrypt(rawFolders, this.notesService.getNotesAppPassword())
+        : rawFolders;
+      const parsedFolders = decodedFolders ? JSON.parse(decodedFolders) : [];
+
+      if (!Array.isArray(parsedFolders)) {
+        return [];
+      }
+
+      return parsedFolders
+        .map((folder: any) => ({
+          id: this.normalizeFolderId(folder?.id) ?? uuidv4(),
+          name: (folder?.name ?? '').trim(),
+          last_modified: Number(folder?.last_modified ?? Date.now()),
+          deleted: !!folder?.deleted,
+        }))
+        .filter((folder: Folder) => folder.name.length > 0 || folder.deleted);
+    } catch {
+      return [];
+    }
+  }
+
+  private async uploadFoldersState(): Promise<void> {
+    if (!this.authService.isLoggedIn) {
+      return;
+    }
+
+    await this.notesApiV1Service.upload(0, [], undefined, this.getStoredFolders());
+  }
+
+  private resolveFolderIdByName(name: string): string | null {
+    return this.findFolderByName(name)?.id ?? null;
+  }
+
   constructor(
     private cryptoService: CryptoService,
     public activatedRoute: ActivatedRoute,
@@ -99,7 +151,14 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   ) {
     this.routeSub = this.activatedRoute.paramMap.subscribe((params: ParamMap) => {
       const decrypted = this.notesService.getDecryptedNotes();
-      this.notes = decrypted ? (JSON.parse(decrypted) as NoteV1[]).map((note: any) => ({ ...note, favorite: !!note?.favorite, pinned: !!note?.pinned, folder: (note?.folder ?? "").trim(), folder_id: note?.folder_id ?? null })) : [];
+      const parsedNotes = decrypted ? (JSON.parse(decrypted) as NoteV1[]) : [];
+      this.notes = (parsedNotes ?? []).map((note: any) => ({
+        ...note,
+        favorite: !!note?.favorite,
+        pinned: !!note?.pinned,
+        folder: (note?.folder ?? '').trim(),
+        folder_id: this.normalizeFolderId((note as any)?.folder_id),
+      }));
       this.loadFolders();
 
       this.notes_id = params.get('id');
@@ -214,6 +273,42 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       range.collapse(false);
       selection.removeAllRanges();
       selection.addRange(range);
+    }
+  }
+
+
+  public openActionsPopover(event: Event): void {
+    this.actionsPopoverEvent = event;
+    this.actionsPopoverOpen = true;
+  }
+
+  public closeActionsPopover(): void {
+    this.actionsPopoverOpen = false;
+    this.actionsPopoverEvent = null;
+  }
+
+  public async handlePopoverAction(action: string): Promise<void> {
+    this.closeActionsPopover();
+
+    switch (action) {
+      case 'pin':
+        await this.togglePinned();
+        break;
+      case 'favorite':
+        await this.toggleFavorite();
+        break;
+      case 'folder':
+        await this.selectFolder();
+        break;
+      case 'lock':
+        await this.openLockModal();
+        break;
+      case 'share':
+        await this.shareStellarSecret();
+        break;
+      case 'delete':
+        await this.deleteNote();
+        break;
     }
   }
 
@@ -363,6 +458,21 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             note.title = '';
           }
 
+          if (typeof note.folder === 'string' && note.folder.length > 0) {
+            try {
+              const blobFolder = unpackCipherBlob(note.folder);
+              note.folder = await decryptTextWithMK(this.mkRaw, {
+                ...blobFolder,
+                v: 1,
+                aad_b64: btoa(noteId + '#folder'),
+              });
+            } catch {
+              note.folder = String(note.folder ?? '').trim();
+            }
+          } else {
+            note.folder = '';
+          }
+
           this.currentNote.text = note.text;
           this.note_title = note.title;
           this.note_text = note.text;
@@ -387,10 +497,31 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   public loadFolders(): void {
-    const raw = this.notesService.getFolders();
     try {
-      const stored = JSON.parse(raw);
-      this.folders = Array.isArray(stored) ? stored.filter((folder: any) => !folder?.deleted && (folder?.name ?? '').trim().length > 0) : [];
+      const storedFolders = this.getStoredFolders();
+      const folderMap = new Map<string, Folder>();
+      for (const folder of storedFolders ?? []) {
+        if (folder.deleted) continue;
+        const name = (folder?.name ?? '').trim();
+        if (!name) continue;
+        folderMap.set(name.toLowerCase(), {
+          id: folder.id,
+          name,
+          last_modified: folder?.last_modified ?? Date.now(),
+          deleted: false,
+        });
+      }
+      for (const note of this.notes ?? []) {
+        const name = (note?.folder ?? '').trim();
+        if (!name || folderMap.has(name.toLowerCase())) continue;
+        folderMap.set(name.toLowerCase(), {
+          id: this.normalizeFolderId((note as any)?.folder_id) ?? uuidv4(),
+          name,
+          last_modified: note?.last_modified ?? Date.now(),
+          deleted: false,
+        });
+      }
+      this.folders = Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     } catch {
       this.folders = [];
     }
@@ -419,6 +550,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
               this.currentNote.folder_id = folderId;
               this.currentNote.last_modified = Date.now();
             }
+            this.syncFoldersManifest();
             this.save(null);
             return true;
           }
@@ -448,9 +580,14 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
               this.save(null);
               return true;
             }
-            const folder = { id: uuidv4(), name, last_modified: Date.now(), deleted: false };
-            this.folders = [...this.folders, folder].sort((a, b) => a.name.localeCompare(b.name));
-            this.notesService.setFolders(JSON.stringify(this.folders));
+            const now = Date.now();
+            const storedFolders = this.getStoredFolders();
+            const existingStored = storedFolders.find((folder: any) => String(folder?.name ?? '').trim().toLowerCase() === name.toLowerCase());
+            const folder = existingStored
+              ? { ...existingStored, name, last_modified: now, deleted: false }
+              : { id: uuidv4(), name, last_modified: now, deleted: false };
+            this.folders = [...this.folders.filter((item) => item.name.toLowerCase() !== name.toLowerCase()), folder].sort((a, b) => a.name.localeCompare(b.name));
+            this.syncFoldersManifest();
             if (!this.currentNote) {
               this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: name, folder_id: folder.id, protected: false, auto_wipe: true, last_modified: Date.now() };
             } else {
@@ -465,6 +602,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       ]
     });
     await alert.present();
+  }
+
+  private syncFoldersManifest(): void {
+    this.uploadFoldersState().then(() => {});
   }
 
   public async togglePinned(): Promise<void> {

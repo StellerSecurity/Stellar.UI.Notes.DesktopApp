@@ -38,15 +38,15 @@
 <div class="desktop-layout" *ngIf="should_display">
   <aside class="desktop-folders-pane">
     <div class="pane-header folders-header">
-      <button class="sidebar-brand" (click)="navigateToHome()" type="button" aria-label="Go to home">
-        <img class="logo-img" src="./assets/note-logo.png" alt="Stellar Notes">
-        <div class="sidebar-brand-copy">
+      <div class="logo-container" (click)="navigateToHome()" style="cursor: pointer;">
+        <img class="logo-img" src="./assets/note-logo.png" alt="">
+        <div class="logo-copy">
           <div class="logo-text">Stellar Notes</div>
         </div>
-      </button>
+      </div>
 
-      <ion-button fill="clear" size="small" class="folder-user-button" (click)="presentUserMenu($event)" aria-label="Open user menu">
-        <img src="assets/user-circle.svg" alt="User menu">
+      <ion-button fill="clear" size="small" class="folder-user-button" (click)="presentUserMenu($event)">
+        <img src="assets/user-circle.svg">
       </ion-button>
     </div>
 
@@ -74,27 +74,69 @@
         <ion-button fill="clear" size="small" (click)="promptCreateFolder()">New</ion-button>
       </div>
 
-      <button class="folder-chip" [class.active]="activeFilter === 'all' && activeFolderName === '__all__'" (click)="selectFolder('__all__'); setActiveFilter('all')">
-        <span class="folder-chip-left">
-          <ion-icon name="albums-outline"></ion-icon>
-          <span>All Folders</span>
-        </span>
-        <span class="folder-count">{{ (notes || []).length }}</span>
-      </button>
-
-      <button
-        class="folder-chip"
+      <div
+        class="folder-chip folder-chip-interactive"
         *ngFor="let folder of folders"
         [class.active]="activeFolderName === folder.name"
-        (click)="selectFolder(folder.name)"
-        (contextmenu)="$event.preventDefault(); promptDeleteFolder(folder.name)">
+        [class.is-renaming]="renamingFolderId === folder.id"
+        tabindex="0"
+        role="button"
+        (click)="renamingFolderId ? null : selectFolder(folder.name)"
+        (keydown.enter)="renamingFolderId ? null : selectFolder(folder.name)"
+        (keydown.space)="$event.preventDefault(); renamingFolderId ? null : selectFolder(folder.name)"
+        (contextmenu)="openFolderActions($event, folder)">
         <span class="folder-chip-left">
           <ion-icon name="folder-outline"></ion-icon>
-          <span>{{ folder.name }}</span>
+          <ng-container *ngIf="renamingFolderId !== folder.id; else renameFolderInputTpl">
+            <span>{{ folder.name }}</span>
+          </ng-container>
+          <ng-template #renameFolderInputTpl>
+            <input
+              class="folder-rename-input"
+              [id]="'folder-rename-' + folder.id"
+              [(ngModel)]="renamingFolderName"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation()"
+              (keydown)="handleRenameFolderKeydown($event, folder)"
+              (blur)="submitRenameFolder(folder)"
+              maxlength="80" />
+          </ng-template>
         </span>
-        <span class="folder-count">{{ folderChipCount(folder.name) }}</span>
-      </button>
+        <div class="folder-chip-right">
+          <button
+            type="button"
+            class="folder-actions-button"
+            aria-label="Folder actions"
+            (mousedown)="$event.stopPropagation()"
+            (click)="openFolderActions($event, folder)">
+            <ion-icon name="ellipsis-horizontal"></ion-icon>
+          </button>
+          <span class="folder-count">{{ folderChipCount(folder.name) }}</span>
+        </div>
+      </div>
     </div>
+
+    <ion-popover
+      [isOpen]="folderActionsOpen"
+      [event]="folderActionsEvent"
+      side="right"
+      alignment="start"
+      class="folder-actions-popover"
+      (didDismiss)="handleFolderActionsDidDismiss()">
+      <ng-template>
+        <div class="folder-actions-menu">
+          <button type="button" class="folder-actions-menu-item" (click)="folderActionsTarget && requestRenameFolder(folderActionsTarget)">
+            <ion-icon name="create-outline"></ion-icon>
+            <span>Rename</span>
+          </button>
+          <button type="button" class="folder-actions-menu-item folder-actions-menu-item-danger" (click)="folderActionsTarget && promptDeleteFolder(folderActionsTarget.name); closeFolderActions()">
+            <ion-icon name="trash-outline"></ion-icon>
+            <span>Delete</span>
+          </button>
+        </div>
+      </ng-template>
+    </ion-popover>
+
   </aside>
 
   <section class="desktop-notes-pane">

@@ -17,31 +17,54 @@
       </ng-template>
     </div>
 
-    <ion-buttons slot="end" *ngIf="!note_locked">
-      <ion-button (click)="togglePinned()">
-        <ion-icon [name]="isPinned() ? 'bookmark' : 'bookmark-outline'"></ion-icon>
+    <ion-buttons slot="end" *ngIf="!note_locked" class="note-actions-menu-trigger">
+      <ion-button fill="clear" (click)="openActionsPopover($event)">
+        <ion-icon name="settings-outline"></ion-icon>
       </ion-button>
-
-      <ion-button (click)="toggleFavorite()">
-        <ion-icon [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon>
-      </ion-button>
-
-      <ion-button (click)="selectFolder()">
-        <ion-icon name="folder-open-outline"></ion-icon>
-      </ion-button>
-
-      <ion-button (click)="openLockModal()">
-        <img *ngIf="!note_locked" src="./assets/lock-open.png" width="24" height="24">
-        <img *ngIf="note_locked" src="./assets/lock-close.png" width="24" height="24">
-      </ion-button>
-
-      <ion-button (click)="shareStellarSecret()">
-        <img src="./assets/note-share-icon.png" width="18" height="18">
-      </ion-button>
-
-      <ion-button (click)="deleteNote()"><ion-icon name="trash-outline"></ion-icon></ion-button>
     </ion-buttons>
     </ion-toolbar>
+
+  <ion-popover
+    [isOpen]="actionsPopoverOpen"
+    [event]="actionsPopoverEvent"
+    side="bottom"
+    alignment="end"
+    class="desktop-note-actions-popover"
+    (didDismiss)="closeActionsPopover()">
+    <ng-template>
+      <div class="desktop-note-actions-list">
+        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('pin')">
+          <ion-icon [name]="isPinned() ? 'bookmark' : 'bookmark-outline'"></ion-icon>
+          <span>{{ isPinned() ? 'Unpin' : 'Pin' }}</span>
+        </button>
+
+        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('favorite')">
+          <ion-icon [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon>
+          <span>{{ isFavorite() ? 'Remove favorite' : 'Favorite' }}</span>
+        </button>
+
+        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('folder')">
+          <ion-icon name="folder-open-outline"></ion-icon>
+          <span>Move to folder</span>
+        </button>
+
+        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('lock')">
+          <ion-icon [name]="note_locked ? 'lock-closed-outline' : 'lock-open-outline'"></ion-icon>
+          <span>{{ note_locked ? 'Unlock' : 'Lock note' }}</span>
+        </button>
+
+        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('share')">
+          <ion-icon name="share-social-outline"></ion-icon>
+          <span>Share</span>
+        </button>
+
+        <button type="button" class="desktop-note-action-item danger" (click)="handlePopoverAction('delete')">
+          <ion-icon name="trash-outline"></ion-icon>
+          <span>Delete</span>
+        </button>
+      </div>
+    </ng-template>
+  </ion-popover>
   <div class="note-status-row">
     <span class="note-status-pill" *ngIf="isPinned()">Pinned</span>
     <span class="note-status-pill favorite" *ngIf="isFavorite()">Favorite</span>

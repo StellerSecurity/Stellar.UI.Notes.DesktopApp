@@ -1,13 +1,13 @@
 :host {
-  --app-bg: #f4f4f8;
+  --app-bg: #f5f5f7;
   --pane-bg: #ffffff;
-  --sidebar-bg: #f7f7fa;
-  --notes-bg: #f8f8fb;
+  --sidebar-bg: #f6f6f7;
+  --notes-bg: #fbfbfd;
   --muted: #6e6e73;
   --text: #1d1d1f;
-  --border: #e6e6eb;
-  --selected: #e8ebf3;
-  --selected-strong: #dde3f0;
+  --border: rgba(60, 60, 67, 0.16);
+  --selected: rgba(28, 28, 30, 0.06);
+  --selected-strong: rgba(28, 28, 30, 0.08);
   display: block;
   height: 100%;
 }
@@ -27,7 +27,7 @@ ion-toolbar {
 
 .desktop-layout {
   display: grid;
-  grid-template-columns: 258px 430px minmax(0, 1fr);
+  grid-template-columns: 238px 410px minmax(0, 1fr);
   height: 100vh;
   background: var(--app-bg);
 }
@@ -41,20 +41,20 @@ ion-toolbar {
 
 .desktop-folders-pane {
   height: 100vh;
-  background: linear-gradient(180deg, #f8f8fb 0%, #f6f6fa 100%);
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 18px 14px 12px;
+  padding: 12px 8px 10px;
 }
 
 .folders-scroll {
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 2px;
 }
 
 .desktop-notes-pane {
-  background: var(--notes-bg);
+  background: #fafafc;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -71,23 +71,22 @@ ion-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 12px;
+  gap: 10px;
+  padding: 12px 16px 10px;
 }
 
 .folders-header {
-  padding: 6px 8px 22px;
-  gap: 10px;
+  padding: 8px 8px 12px;
 }
 
 .notes-header {
-  padding: 18px 16px 10px;
+  padding: 12px 16px 6px;
 }
 
 .notes-header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .notes-header-actions ion-button {
@@ -98,7 +97,7 @@ ion-toolbar {
 }
 
 .notes-toolbar {
-  padding: 0 14px 10px;
+  padding: 0 16px 6px;
 }
 
 .search-row {
@@ -107,65 +106,53 @@ ion-toolbar {
   gap: 8px;
 }
 
- .sidebar-brand {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin: 0;
+.logo-container {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sidebar-brand-copy {
-  min-width: 0;
+  padding: 4px 6px;
 }
 
 .logo-img {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
   flex: 0 0 auto;
-  box-shadow: 0 10px 24px rgba(39, 97, 252, 0.16);
+}
+
+.logo-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
 }
 
 .logo-text {
-  font-size: 19px;
+  font-size: 11px;
   font-weight: 700;
-  color: #1f1f24;
-  letter-spacing: -0.04em;
-  line-height: 0.98;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
 .folders-header ion-button {
   --border-radius: 999px;
-  --padding-start: 0;
-  --padding-end: 0;
-  --background: transparent;
-  --background-hover: rgba(29, 29, 31, 0.05);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --background-hover: rgba(29, 29, 31, 0.06);
   --color: var(--muted);
   margin: 0;
-  width: 32px;
-  height: 32px;
-}
-
-.folder-user-button {
-  flex: 0 0 auto;
-  align-self: center;
 }
 
 .folders-header ion-button img {
   width: 18px;
   height: 18px;
-  opacity: 0.76;
+  opacity: 0.78;
 }
 
 .notes-heading {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.035em;
@@ -181,23 +168,23 @@ ion-note span,
 }
 
 .notes-subheading {
-  font-size: 13px;
-  margin-top: 6px;
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 .sidebar-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 18px;
-  margin-bottom: 8px;
+  margin-top: 14px;
+  margin-bottom: 6px;
 }
 
 .sidebar-section-header ion-button {
   --color: #4b7cf2;
   --padding-start: 6px;
   --padding-end: 6px;
-  font-weight: 600;
+  font-weight: 550;
   margin: 0;
 }
 
@@ -206,8 +193,7 @@ ion-note span,
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  padding: 0 10px;
-  color: #8d8d96;
+  padding: 0 12px;
 }
 
 .folder-chip {
@@ -215,14 +201,14 @@ ion-note span,
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 11px 12px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: #2b2b2f;
   margin-bottom: 2px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   text-align: left;
   transition: background-color 140ms ease, color 140ms ease;
@@ -242,7 +228,7 @@ ion-note span,
 }
 
 .folder-chip-left ion-icon {
-  font-size: 18px;
+  font-size: 17px;
   color: #7d7d86;
   flex: 0 0 auto;
 }
@@ -254,13 +240,13 @@ ion-note span,
 }
 
 .folder-chip:hover {
-  background: rgba(29, 29, 31, 0.05);
+  background: rgba(0, 0, 0, 0.035);
 }
 
 .folder-chip.active {
   background: var(--selected);
   color: var(--text);
-  font-weight: 600;
+  font-weight: 550;
 }
 
 .folder-chip.active .folder-chip-left ion-icon,
@@ -271,17 +257,17 @@ ion-note span,
 .create-note-btn {
   --background: #3f7cff;
   --background-hover: #316ef1;
-  --border-radius: 12px;
+  --border-radius: 10px;
   --box-shadow: none;
   --padding-start: 12px;
   --padding-end: 14px;
-  font-weight: 600;
+  font-weight: 550;
   margin: 0;
 }
 
 ion-searchbar {
   --box-shadow: none;
-  --border-radius: 12px;
+  --border-radius: 10px;
   --background: rgba(255, 255, 255, 0.9);
   --color: var(--text);
   --placeholder-color: #8a8a93;
@@ -298,7 +284,7 @@ ion-searchbar {
 .home-note-list {
   flex: 1;
   overflow-y: auto;
-  padding: 2px 4px 14px 12px;
+  padding: 2px 10px 12px 12px;
 }
 
 ion-list {
@@ -315,11 +301,11 @@ ion-item {
   --inner-padding-end: 0;
   --inner-border-width: 0;
   --ion-background-color: transparent;
-  border-radius: 16px;
+  border-radius: 8px;
   border-bottom: none;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   width: 100%;
-  --min-height: 88px;
+  --min-height: 58px;
 }
 
 ion-item::part(native) {
@@ -335,22 +321,22 @@ ion-item.note-active-on-sidebar {
   box-sizing: border-box;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 14px 14px 13px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.66);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: transparent;
   border: 1px solid transparent;
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 
 ion-item:hover .box-item-main {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(223, 223, 230, 0.85);
+  background: rgba(28, 28, 30, 0.028);
+  border-color: transparent;
 }
 
 ion-item.note-active-on-sidebar .box-item-main {
   background: var(--selected);
-  border-color: var(--selected-strong);
+  border-color: transparent;
 }
 
 ion-label {
@@ -368,9 +354,9 @@ ion-label {
 .note-txt-title {
   display: block;
   color: var(--text);
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 650;
-  line-height: 1.35;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -378,16 +364,16 @@ ion-label {
 
 .note-txt {
   display: block;
-  color: #4b4b52;
-  font-size: 13px;
-  line-height: 1.45;
+  color: #5c5c63;
+  font-size: 10px;
+  line-height: 1.24;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 ion-note {
-  font-size: 11px;
+  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -396,8 +382,8 @@ ion-note {
 .note-actions-inline {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  opacity: 0.42;
+  gap: 0;
+  opacity: 0.32;
   transition: opacity 140ms ease;
 }
 
@@ -413,26 +399,26 @@ ion-item.note-active-on-sidebar .note-actions-inline {
   --color: #70707a;
   --background-hover: rgba(29, 29, 31, 0.06);
   margin: 0;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
 }
 
 .note-meta-row {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .note-folder-pill,
 .note-pin-badge {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: 550;
 }
 
 .note-folder-pill {
@@ -447,7 +433,7 @@ ion-item.note-active-on-sidebar .note-actions-inline {
 
 .uuid {
   color: #a2a2a2;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .notes-empty-state {
@@ -473,12 +459,12 @@ ion-item.note-active-on-sidebar .note-actions-inline {
 .empty-title {
   color: var(--text);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 550;
   margin-bottom: 4px;
 }
 
 .toolbar-bottom {
-  padding: 12px 16px 18px;
+  padding: 10px 14px 16px;
 }
 
 .delete-btn {
@@ -529,7 +515,7 @@ ion-input {
 
 @media (max-width: 1280px) {
   .desktop-layout {
-    grid-template-columns: 236px 360px minmax(0, 1fr);
+    grid-template-columns: 228px 352px minmax(0, 1fr);
   }
 
   .notes-heading {
@@ -544,4 +530,192 @@ ion-input {
     --padding-start: 10px;
     --padding-end: 10px;
   }
+}
+
+
+.folder-user-button {
+  width: 22px;
+  height: 22px;
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.folder-user-button img {
+  width: 14px;
+  height: 14px;
+  opacity: 0.72;
+}
+
+.notes-heading, .notes-subheading {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-active-on-sidebar .note-txt,
+.note-active-on-sidebar .note-txt-title {
+  color: var(--text);
+}
+
+.desktop-editor-pane {
+  background: #ffffff;
+}
+
+
+.notes-header-actions {
+  gap: 4px;
+}
+
+.notes-header-actions ion-button {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  height: 30px;
+}
+
+.create-note-btn {
+  --border-radius: 10px;
+  --padding-start: 10px;
+  --padding-end: 10px;
+  height: 36px;
+  font-size: 12px;
+}
+
+.search-row ion-button {
+  width: 22px;
+  height: 22px;
+}
+
+ion-searchbar {
+  --border-radius: 10px;
+  --box-shadow: none;
+  --background: rgba(255,255,255,0.92);
+}
+
+.note-actions-inline {
+  gap: 0;
+}
+
+.note-actions-inline ion-button {
+  width: 24px;
+  height: 24px;
+}
+
+.note-active-on-sidebar .box-item-main {
+  box-shadow: none;
+}
+
+
+.folder-chip-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.folder-actions-button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #8a8d96;
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.folder-chip:hover .folder-actions-button,
+.folder-chip.active .folder-actions-button,
+.folder-chip:focus-within .folder-actions-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.folder-actions-button:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #4c4f58;
+}
+
+.folder-actions-button ion-icon {
+  font-size: 14px;
+}
+
+.folder-rename-input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px rgba(63, 124, 255, 0.22);
+}
+
+.folder-actions-popover {
+  --width: 160px;
+}
+
+.folder-actions-menu {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-actions-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #1d1d1f;
+  font-size: 13px;
+  text-align: left;
+}
+
+.folder-actions-menu-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.folder-actions-menu-item ion-icon {
+  font-size: 16px;
+  color: #6e6e73;
+}
+
+.folder-actions-menu-item-danger {
+  color: #c53a37;
+}
+
+.folder-actions-menu-item-danger ion-icon {
+  color: #c53a37;
+}
+
+
+.folder-chip-interactive {
+  width: 100%;
+  border: 0;
+  appearance: none;
+  cursor: pointer;
+}
+
+.folder-chip-interactive:focus-visible {
+  outline: 2px solid rgba(39, 97, 252, 0.22);
+  outline-offset: 2px;
+}
+
+.folder-chip.is-renaming {
+  cursor: default;
+}
+
+.folder-rename-input {
+  pointer-events: auto;
 }
