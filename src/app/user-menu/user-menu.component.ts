@@ -75,9 +75,8 @@ export class UserMenuComponent implements OnInit, AfterViewInit {
   }
 
   private async logout() {
-    this.popoverController.dismiss();
-    await this.dataService.clearAppData();
-    this.showMessageAfterLogout();
+    await this.popoverController.dismiss();
+    await this.dataService.logoutAndResetApp('/profile/login');
   }
 
   async showMessageAfterLogout() {

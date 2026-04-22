@@ -83,10 +83,10 @@
 }
 
 .angular-editor .angular-editor-wrapper {
-  top: 80px !important;
-  margin: 0 15px;
-  border-radius: 24px;
-  height: calc(100vh - 80px)!important;
+  top: 72px !important;
+  margin: 0 12px;
+  border-radius: 18px;
+  height: calc(100vh - 72px)!important;
   overflow: hidden;
 
   max-width: 100%;
@@ -97,8 +97,9 @@
 }
 
 .angular-editor-textarea {
-  height: calc(100vh - 150px) !important;
+  height: calc(100vh - 132px) !important;
   border: none !important;
+  border-radius: 18px !important;
 }
 
 .fa.fa-font::before {
@@ -195,13 +196,13 @@
   white-space: nowrap;
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;
-  padding: 15px;
-  width: calc(100% - 50px);
-  height: 60px;
+  padding: 10px 12px;
+  width: calc(100% - 32px);
+  height: 48px;
   align-items: center;
   border: 0!important;
-  border-radius: 24px;
-  margin: 0 20px;
+  border-radius: 18px;
+  margin: 0 12px;
 
   :-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
@@ -216,10 +217,10 @@
     box-shadow: none!important;
     border: 0!important;
     border-radius: 50%;
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     background-color: white;
-    margin-right: 10px;
+    margin-right: 8px;
 
     &:active{
       background-color: #F6F6FD!important;
@@ -279,14 +280,14 @@
 
 .select-heading {
   border: 1px solid #EAEAF0;
-  border-radius: 40px;
+  border-radius: 16px;
   overflow: hidden;
   background: white;
 }
 
 .angular-editor-toolbar-set:nth-child(5) {
   border: 1px solid #EAEAF0;
-  border-radius: 40px;
+  border-radius: 16px;
 
   .angular-editor-button:nth-child(2) {
     margin-right: 0;
@@ -749,7 +750,7 @@ ion-modal.lock-note-modal {
 
 
 .note-active-on-sidebar {
-  border: 1px solid #2761FC!important;
+  border: none !important;
 }
 
 .cursor-pointer {
@@ -774,4 +775,65 @@ ion-button::part(native) {
   padding: 0;
   width: 148px;
   margin-left: -50px;
+}
+
+
+.angular-editor .angular-editor-wrapper {
+  background: #ffffff;
+  box-shadow: none !important;
+}
+
+.angular-editor-toolbar {
+  background: rgba(255,255,255,0.94);
+}
+
+.angular-editor-textarea {
+  background: #ffffff;
+}
+
+
+:root {
+  --app-surface: #ffffff;
+  --app-surface-soft: #f7f7f9;
+  --app-surface-muted: #f1f2f6;
+  --app-border-soft: rgba(60, 60, 67, 0.12);
+  --app-border-strong: rgba(60, 60, 67, 0.18);
+  --app-text-strong: #1d1d1f;
+  --app-text-body: #4f5563;
+  --app-text-muted: #7b8190;
+  --app-accent-soft: #e9eefb;
+  --app-accent-text: #485e96;
+  --app-radius-sm: 10px;
+  --app-radius-md: 14px;
+  --app-radius-lg: 18px;
+  --app-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+html, body, ion-app {
+  color: var(--app-text-strong);
+  background: #f5f5f7;
+}
+
+ion-button {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+ion-button.button-clear {
+  --color: var(--app-text-body);
+}
+
+ion-searchbar {
+  --box-shadow: none;
+}
+
+ion-input,
+ion-textarea,
+ion-searchbar,
+.angular-editor .angular-editor-wrapper,
+.angular-editor-textarea {
+  --highlight-color-focused: var(--app-accent-text);
+  --highlight-color-valid: var(--app-accent-text);
+  --highlight-color-invalid: var(--ion-color-danger);
 }

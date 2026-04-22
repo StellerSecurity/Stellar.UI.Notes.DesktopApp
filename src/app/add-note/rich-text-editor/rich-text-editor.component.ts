@@ -26,6 +26,7 @@ export class RichTextEditorComponent implements AfterViewInit {
   @ViewChild("editorWrapper") editorWrapper!: ElementRef;
   @Input() note_text: string = "";
   @Output() noteChange = new EventEmitter<string>();
+  @Output() editorFocusChange = new EventEmitter<boolean>();
   updateNote: any = "";
 
   private savedSelection: Range[] = [];
@@ -115,6 +116,53 @@ export class RichTextEditorComponent implements AfterViewInit {
     }, 300); // delay to ensure editor is fully rendered
   }
   
+
+
+  public isEditorFocused(): boolean {
+    const editorDiv = this.getEditorElement();
+    if (!editorDiv) return false;
+
+    const active = document.activeElement;
+    return !!active && (active === editorDiv || editorDiv.contains(active));
+  }
+
+  public setExternalContent(content: string): void {
+    const normalized = content ?? "";
+    if (this.note_text === normalized) {
+      return;
+    }
+
+    this.note_text = normalized;
+
+    const editorDiv = this.getEditorElement();
+    if (!editorDiv) {
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const previousScrollTop = editorDiv.scrollTop;
+    if (editorDiv.innerHTML !== normalized) {
+      editorDiv.innerHTML = normalized;
+    }
+    editorDiv.scrollTop = previousScrollTop;
+
+    this.interceptEditorLinks();
+    this.cdr.detectChanges();
+  }
+
+  public onEditorFocusIn(): void {
+    this.editorFocusChange.emit(true);
+  }
+
+  public onEditorFocusOut(): void {
+    setTimeout(() => {
+      this.editorFocusChange.emit(this.isEditorFocused());
+    }, 0);
+  }
+
+  private getEditorElement(): HTMLElement | null {
+    return this.editorWrapper?.nativeElement?.querySelector?.(".angular-editor-textarea") ?? null;
+  }
 
   // ---------------------------
   // Toolbar setup

@@ -1,218 +1,274 @@
-<ion-split-pane contentId="main-content">
-  <!-- Sidebar -->
-  <ion-menu contentId="main-content" type="overlay" style="width: 25%; min-width: 400px;">
-    <ion-content class="ion-padding sidebar" scroll-y="false">
-      <ion-header [translucent]="true">
-        <ion-toolbar>
-          <ion-title *ngIf="!searchMode">
-            <span *ngIf="checkboxOpened && filteredResults !== null &&  filteredResults.length > 0"
-              (click)="toggleCheckbox()">
-              <img src="assets/tabler-icon-x.svg" valign="left" style="position: relative; top: 5px;"
-                class="margin-right-top"> {{listOfCheckedCheckboxes.length}} {{'notesSelected' | translate}}
-            </span>
-            <!-- <img src="assets/Logo.svg" style="margin-top: 20px" *ngIf="!checkboxOpened"> -->
-            <div class="logo-container" *ngIf="!checkboxOpened" (click)="navigateToHome()" style="cursor: pointer;">
-              <img class="logo-img" src="./assets/note-logo.png" alt="">
-              <div class="logo-text">Stellar Notes</div>
-            </div>
-          </ion-title>
+<ng-container *ngIf="!should_display">
+  <ion-modal trigger="app-ask-password" class="app-ask-password-modal" [isOpen]="!should_display" [backdropDismiss]="false">
+    <ng-template>
+      <ion-content class="ion-padding">
+        <div align="center">
+          <div class="logo-container app-ask-password-logo-container" style="margin-top: 10px!important;">
+            <img class="logo-img" src="./assets/note-logo.png" alt="">
+            <div class="logo-text">Stellar Notes</div>
+          </div>
+        </div><br><br>
 
-          <ion-searchbar *ngIf="searchMode" #searchbar [(ngModel)]="search_query" (ionInput)="search()"
-            placeholder="{{'searchNotesInput' | translate}}" show-clear-button="focus"
-            clear-icon="trash-bin"></ion-searchbar>
-          <!-- (appClickOutside)="exitSearchMode()" appClickOutside -->
+        <div align="center"><img src="assets/icon-lock.svg"></div><br>
+        <div style="text-align: center; font-family: Poppins; font-size: 20px; font-style: normal; font-weight: 700; line-height: 150%;">
+          {{'appIsLocked' | translate}}
+        </div>
+        <p style="text-align: center; color: #62626A; font-family: Poppins; font-size: 14px; font-style: normal; font-weight: 400; line-height: 150%; margin-top: 3px; ">
+          {{'enterYourPasswordToGetAccessToYourNotes' | translate}}
+        </p>
+        <div class="input-group" style="position: relative;">
+          <ion-input type="{{ showPassword ? 'text' : 'password' }}" placeholder="{{'enterYourPassword' | translate}}" (keyup)="ionInputAppUnlockInput($event)" [(ngModel)]="input_password_app_unlock" autofocus="true"></ion-input>
+          <ion-icon slot="end" [name]="showPassword ? 'eye-off' : 'eye'" (click)="togglePasswordVisibility()"></ion-icon>
+        </div>
+        <span style="display: flex; padding: 14px 24px; justify-content: center; align-items: center; gap: 10px; align-self: stretch; background: #2761FC; color: #fff; border-radius: 250px" (click)="unlockNotesApp()">{{'unlock' | translate}}</span>
+        <br>
+      </ion-content>
 
-          <ion-buttons slot="end" style="position: relative; top: 5px;">
-            <ng-container *ngIf="!searchMode">
-              <ion-button *ngIf="filteredResults !== null && filteredResults.length > 0" slot="icon-only"
-                (click)="enterSearchMode()">
-                <ion-icon name="search-outline" style="font-size: 24px;"></ion-icon>
-              </ion-button>
-              <ion-button *ngIf="filteredResults !== null && filteredResults.length > 0" slot="icon-only"
-                (click)="toggleCheckbox()">
-                <img src="assets/tabler-icon-square-check.svg">
-              </ion-button>
-              <!-- <ion-button slot="icon-only" style="padding-right: 15px" (click)="settings()"><img
-                  src="assets/tabler-icon-settings.svg"></ion-button> -->
+      <ion-footer style="--ion-background-color: #F6F6FD; padding: 20px; background: #F6F6FD; box-shadow: none;">
+        <div align="center">
+          <span style="font-family: Poppins; text-align: center; font-size: 14px; color: #E10000; font-style: normal; font-weight: 600; line-height: 150%;" (click)="resetPassword()">
+            <img src="assets/tabler-icon-restore.svg"> <span style="position: relative; top: -6px; left: 10px">{{'resetPassword' | translate}}</span>
+          </span>
+        </div>
+      </ion-footer>
+    </ng-template>
+  </ion-modal>
+</ng-container>
 
-              <ion-button slot="icon-only" style="padding-right: 15px" (click)="presentUserMenu($event)"><img
-                  src="assets/user-circle.svg"></ion-button>
-            </ng-container>
+<div class="desktop-layout" *ngIf="should_display">
+  <aside class="desktop-folders-pane">
+    <div class="pane-header folders-header">
+      <div class="logo-container" (click)="navigateToHome()" style="cursor: pointer;">
+        <div class="logo-badge">
+          <img class="logo-img" src="./assets/note-logo.png" alt="">
+        </div>
+        <div class="logo-copy">
+          <div class="logo-text">Stellar Notes</div>
+        </div>
+      </div>
 
-            <ng-container *ngIf="searchMode">
-              <ion-button (click)="exitSearchMode()">
-                <ion-icon name="close-outline" style="font-size: 30px;"></ion-icon>
-              </ion-button>
-            </ng-container>
-
-          </ion-buttons>
-
-        </ion-toolbar>
-        <ion-progress-bar
-            *ngIf="waitForSync"
-            type="indeterminate"
-            color="primary"
-            class="header-progress">
-        </ion-progress-bar>
-      </ion-header>
-
-      <ion-refresher slot="fixed"  (ionRefresh)="handleRefresh($event)" *ngIf="isLoggedIn()" >
-        <ion-refresher-content></ion-refresher-content>
-      </ion-refresher>
-
-      <!-- modal ask for password -->
-      <ng-container *ngIf="!should_display">
-        <ion-modal trigger="app-ask-password" class="app-ask-password-modal" [isOpen]="!should_display"
-          [backdropDismiss]="false">
-          <ng-template>
-            <ion-content class="ion-padding">
-              <div align="center">
-                <div class="logo-container app-ask-password-logo-container" style="margin-top: 10px!important;">
-                  <img class="logo-img" src="./assets/note-logo.png" alt="">
-                  <div class="logo-text">Stellar Notes</div>
-                </div>
-              </div><br><br>
-
-              <div align="center"><img src="assets/icon-lock.svg"></div><br>
-              <div
-                style="text-align: center; font-family: Poppins; font-size: 20px; font-style: normal; font-weight: 700; line-height: 150%;">
-                {{'appIsLocked' | translate}}</div>
-              <p
-                style="text-align: center; color: #62626A; font-family: Poppins; font-size: 14px; font-style: normal; font-weight: 400; line-height: 150%; margin-top: 3px; ">
-                {{'enterYourPasswordToGetAccessToYourNotes' | translate}}</p>
-              <div class="input-group" style="position: relative;">
-                <ion-input type="{{ showPassword ? 'text' : 'password' }}"
-                  placeholder="{{'enterYourPassword' | translate}}" (keyup)="ionInputAppUnlockInput($event)"
-                  [(ngModel)]="input_password_app_unlock" autofocus="true"></ion-input>
-                <ion-icon slot="end" [name]="showPassword ? 'eye-off' : 'eye'"
-                  (click)="togglePasswordVisibility()"></ion-icon>
-              </div>
-              <span
-                style="display: flex; padding: 14px 24px; justify-content: center; align-items: center; gap: 10px; align-self: stretch; background: #2761FC; color: #fff; border-radius: 250px"
-                (click)="unlockNotesApp()">{{'unlock' | translate}}</span>
-              <br>
-            </ion-content>
-
-            <ion-footer
-              style="  --ion-background-color: #F6F6FD; padding: 20px; background: #F6F6FD; box-shadow: none;">
-              <div align="center">
-                <span
-                  style="font-family: Poppins; text-align: center; font-size: 14px; color: #E10000; font-style: normal; font-weight: 600; line-height: 150%;"
-                  (click)="resetPassword()">
-                  <img src="assets/tabler-icon-restore.svg"> <span style="position: relative; top: -6px; left: 10px">
-                    {{'resetPassword' | translate}}</span></span>
-              </div>
-            </ion-footer>
-          </ng-template>
-        </ion-modal>
-      </ng-container>
-
-      <ion-button (click)="goToCreateNewNote()" class="ion-margin-bottom ion-margin-top"
-        style="border-radius: 12px!important;--border-radius:12px">
-        <ion-icon name="add-outline"></ion-icon><span style="margin-left: 5px;">Create a Note</span>
+      <ion-button fill="clear" size="default" class="folder-user-button" (click)="presentUserMenu($event)">
+        <img src="assets/user-circle.svg" alt="User menu">
       </ion-button>
+    </div>
 
-      <!-- no results -->
-      <ion-grid *ngIf="filteredResults !== null && filteredResults.length == 0 && isSearching" style="height: -webkit-calc(100vh - 170px);
-        height: calc(100vh - 170px);">
-        <ion-row class="ion-align-items-center ion-justify-content-center" style="min-height: 100%;">
-          <ion-col size-md="12">
-            <p class="ion-padding" align="center">
-              <span
-                style="background: #EAEAF0;border-radius: 50%;height: 72px;width: 72px;display: flex;align-items: center;justify-content: center;">
-                <img src="assets/tabler-icon-notes.svg" />
-              </span><br>
-              <span style="color: #0B0C19;text-align: center;font-family: Poppins;font-size: 16px;font-style: normal;font-weight: 600;position: relative;
-         ">{{'NoResultsFor' | translate}} "{{search_query}}"</span><br>
-              <span
-                style="overflow: hidden;color: #62626A;text-align: center;text-overflow: ellipsis;font-family: Poppins;font-size: 14px;font-style: normal;font-weight: 400;">{{'TryAnotherSearchQuery'
-                | translate}}</span>
-            </p>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
+    <div class="folders-scroll">
+      <div class="sidebar-section-label">Library</div>
 
-      <div class="home-note-list"
-        style="height: calc(100vh - 225px); overflow-y: auto;margin-left: -20px; margin-right: -20px;">
-        <ion-list style="margin: 0 13px 0 20px;">
-          <ion-item
-            lines="none"
-            *ngFor="let note of getNotes()"
-            (click)="$event.stopPropagation(); openOrCheckbox(note.id); setSelectedNoteId(note.id)"
-            (contextmenu)="openContextMenu($event, note)"
-            [detail]="false"
-            class="long-press-target cursor-pointer"
-            [ngClass]="{ 'note-active-on-sidebar': note?.id == noteService.selectedNoteId }"
-            #longPressElements
-            [id]="note.id"
-          >
-            <div class="box-item-main">
-              <ion-checkbox
-                *ngIf="checkboxOpened"
-                (click)="$event.stopPropagation(); selectNote($event, note.id)"
-                justify="center"
-                style="margin-right: 7px"
-                size="small"
-                [checked]="listOfCheckedCheckboxes.includes(note.id) ? true: false"
-                id="checkbox_{{note.id}}">
-              </ion-checkbox>
+      <button class="folder-chip" [class.active]="activeFilter === 'all' && activeFolderName === '__all__'" [class.drop-target]="draggingFolderTarget === '__all__'" (click)="selectFolder('__all__'); setActiveFilter('all')" (dragover)="onFolderDragOver($event, '__all__')" (dragleave)="onFolderDragLeave('__all__')" (drop)="onFolderDrop($event, '__all__')">
+        <span class="folder-chip-left">
+          <ion-icon name="document-text-outline"></ion-icon>
+          <span>All Notes</span>
+        </span>
+        <span class="folder-count">{{ (notes || []).length }}</span>
+      </button>
 
-              <!-- <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected"> -->
-                <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected || (note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)">
-                <ion-note>
-                  <span>{{ note.last_modified | date: "yyyy-MM-dd H:mm":"Europe/Copenhagen" }}</span>
-                </ion-note>
+      <button class="folder-chip" [class.active]="activeFilter === 'favorites'" (click)="setActiveFilter('favorites')">
+        <span class="folder-chip-left">
+          <ion-icon name="star-outline"></ion-icon>
+          <span>Favorites</span>
+        </span>
+        <span class="folder-count">{{ getFavoritesCount() }}</span>
+      </button>
 
-                <span>
-                  <span class="note-txt-title" *ngIf="note.title !== undefined">
-                    {{ (note.title.length > 40)
-                      ? (note.title | striphtml | slice:0:40 ) +'...'
-                      : (note.title | striphtml) }}
-                    <br>
-                  </span>
+      <div class="sidebar-section-header">
+        <div class="sidebar-section-label">Folders</div>
+        <ion-button fill="clear" size="small" (click)="promptCreateFolder()">New</ion-button>
+      </div>
 
-                  <span class="note-txt">
-                    {{ (note.text.length > 40)
-                      ? (note.text | striphtml | slice:0:40 ) +'...'
-                      : (note.text | striphtml) }}
-                  </span>
+      <div
+        class="folder-chip folder-chip-interactive"
+        *ngFor="let folder of folders"
+        [class.active]="activeFolderName === folder.name"
+        [class.is-renaming]="renamingFolderId === folder.id"
+        [class.drop-target]="draggingFolderTarget === folder.name"
+        tabindex="0"
+        role="button"
+        (click)="renamingFolderId ? null : selectFolder(folder.name)"
+        (keydown.enter)="renamingFolderId ? null : selectFolder(folder.name)"
+        (keydown.space)="$event.preventDefault(); renamingFolderId ? null : selectFolder(folder.name)"
+        (contextmenu)="openFolderActions($event, folder)"
+        (dragover)="onFolderDragOver($event, folder.name)"
+        (dragleave)="onFolderDragLeave(folder.name)"
+        (drop)="onFolderDrop($event, folder.name)">
+        <span class="folder-chip-left">
+          <ion-icon name="folder-outline"></ion-icon>
+          <ng-container *ngIf="renamingFolderId !== folder.id; else renameFolderInputTpl">
+            <span>{{ folder.name }}</span>
+          </ng-container>
+          <ng-template #renameFolderInputTpl>
+            <input
+              class="folder-rename-input"
+              [id]="'folder-rename-' + folder.id"
+              [(ngModel)]="renamingFolderName"
+              (mousedown)="$event.stopPropagation()"
+              (click)="$event.stopPropagation()"
+              (keydown)="handleRenameFolderKeydown($event, folder)"
+              (blur)="submitRenameFolder(folder)"
+              maxlength="80" />
+          </ng-template>
+        </span>
+        <div class="folder-chip-right">
+          <button
+            type="button"
+            class="folder-actions-button"
+            aria-label="Folder actions"
+            (mousedown)="$event.stopPropagation()"
+            (click)="openFolderActions($event, folder)">
+            <ion-icon name="ellipsis-horizontal"></ion-icon>
+          </button>
+          <span class="folder-count">{{ folderChipCount(folder.name) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <ion-popover
+      [isOpen]="folderActionsOpen"
+      [event]="folderActionsEvent"
+      side="right"
+      alignment="start"
+      class="folder-actions-popover"
+      (didDismiss)="handleFolderActionsDidDismiss()">
+      <ng-template>
+        <div class="folder-actions-menu">
+          <button type="button" class="folder-actions-menu-item" (click)="folderActionsTarget && requestRenameFolder(folderActionsTarget)">
+            <ion-icon name="create-outline"></ion-icon>
+            <span>Rename</span>
+          </button>
+          <button type="button" class="folder-actions-menu-item folder-actions-menu-item-danger" (click)="folderActionsTarget && promptDeleteFolder(folderActionsTarget.name); closeFolderActions()">
+            <ion-icon name="trash-outline"></ion-icon>
+            <span>Delete</span>
+          </button>
+        </div>
+      </ng-template>
+    </ion-popover>
+
+  </aside>
+
+  <section class="desktop-notes-pane">
+    <div class="pane-header notes-header">
+      <div>
+        <div class="notes-heading">{{ activeFilter === 'favorites' ? 'Favorites' : (activeFolderName === '__all__' ? 'Notes' : activeFolderName) }}</div>
+        <div class="notes-subheading">{{ getNotes().length }} notes</div>
+      </div>
+
+      <div class="notes-header-actions">
+        <ion-button fill="clear" *ngIf="filteredResults !== null && filteredResults.length > 0" (click)="enterSearchMode()">
+          <ion-icon name="search-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" *ngIf="filteredResults !== null && filteredResults.length > 0" (click)="toggleCheckbox()">
+          <img src="assets/tabler-icon-square-check.svg">
+        </ion-button>
+        <ion-button (click)="goToCreateNewNote()" class="create-note-btn">
+          <ion-icon name="create-outline"></ion-icon>
+          <span>New Note</span>
+        </ion-button>
+      </div>
+    </div>
+
+    <div class="notes-toolbar">
+      <ion-searchbar *ngIf="!searchMode" [(ngModel)]="search_query" (ionInput)="search()" placeholder="{{'searchNotesInput' | translate}}" show-clear-button="focus"></ion-searchbar>
+      <div class="search-row" *ngIf="searchMode">
+        <ion-searchbar #searchbar [(ngModel)]="search_query" (ionInput)="search()" placeholder="{{'searchNotesInput' | translate}}" show-clear-button="focus"></ion-searchbar>
+        <ion-button fill="clear" (click)="exitSearchMode()">
+          <ion-icon name="close-outline"></ion-icon>
+        </ion-button>
+      </div>
+    </div>
+
+    <ion-progress-bar *ngIf="waitForSync" type="indeterminate" color="primary" class="header-progress"></ion-progress-bar>
+
+    <div class="notes-empty-state" *ngIf="filteredResults !== null && filteredResults.length == 0 && isSearching">
+      <span class="empty-icon-wrap">
+        <img src="assets/tabler-icon-notes.svg" />
+      </span>
+      <div class="empty-title">{{'NoResultsFor' | translate}} "{{search_query}}"</div>
+      <div class="empty-copy">{{'TryAnotherSearchQuery' | translate}}</div>
+    </div>
+
+    <div class="home-note-list" #notesListScroll (scroll)="onNotesListScroll()">
+      <ion-list>
+        <ion-item
+          lines="none"
+          *ngFor="let note of getNotes()"
+          (click)="$event.stopPropagation(); openOrCheckbox(note.id); setSelectedNoteId(note.id)"
+          (contextmenu)="openContextMenu($event, note)"
+          [detail]="false"
+          class="cursor-pointer"
+          [ngClass]="{ 'note-active-on-sidebar': note?.id == noteService.selectedNoteId, 'is-dragging': draggingNoteId === note?.id }"
+          [id]="note.id"
+          tabindex="0"
+          draggable="true"
+          (dragstart)="onNoteDragStart($event, note)"
+          (dragend)="onNoteDragEnd()">
+          <div class="box-item-main">
+            <ion-checkbox
+              *ngIf="checkboxOpened"
+              (click)="$event.stopPropagation(); selectNote($event, note.id)"
+              justify="center"
+              class="note-checkbox"
+              size="small"
+              [checked]="listOfCheckedCheckboxes.includes(note.id) ? true: false"
+              id="checkbox_{{note.id}}">
+            </ion-checkbox>
+
+            <ion-label class="ion-text-wrap m-0" *ngIf="!note.protected || (note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)">
+              <ion-note>
+                <span>{{ note.last_modified | date: "yyyy-MM-dd H:mm":"Europe/Copenhagen" }}</span>
+              </ion-note>
+
+              <span>
+                <span class="note-txt-title" *ngIf="note.title !== undefined">
+                  {{ (note.title.length > 40) ? (note.title | striphtml | slice:0:40 ) +'...' : (note.title | striphtml) }}
+                  <br>
                 </span>
-              </ion-label>
 
-              <!-- <ion-label *ngIf="note.protected" class="m-0"> -->
-                <ion-label *ngIf="note.protected && !(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)" class="m-0">
-                <ion-note>
-                  <span>
-                    {{ note.last_modified | date: "yyyy-MM-dd H:mm":"UTC"}}<br>
-                    <span class="uuid">{{ note.id | slice:note.id.len:6 }}</span>
-                  </span>
-                  <!-- <img [hidden]="note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted" src="./assets/tabler-icon-lock.svg"> -->
-                  <img
-                    *ngIf="!(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)"
-                    src="./assets/tabler-icon-lock.svg">
-                </ion-note>
-              </ion-label>
+                <span class="note-txt">
+                  {{ (note.text.length > 90) ? (note.text | striphtml | slice:0:90 ) +'...' : (note.text | striphtml) }}
+                </span>
+              </span>
+
+              <div class="note-meta-row">
+                <span class="note-folder-pill" *ngIf="note.folder">{{ note.folder }}</span>
+                <span class="note-pin-badge" *ngIf="note.pinned">Pinned</span>
+              </div>
+            </ion-label>
+
+            <ion-label *ngIf="note.protected && !(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)" class="m-0">
+              <ion-note>
+                <span>
+                  {{ note.last_modified | date: "yyyy-MM-dd H:mm":"UTC"}}<br>
+                  <span class="uuid">{{ note.id | slice:note.id.len:6 }}</span>
+                </span>
+                <img *ngIf="!(note.id == noteService.selectedNoteId && noteService.isNoteTemporaryDescripted)" src="./assets/tabler-icon-lock.svg">
+              </ion-note>
+            </ion-label>
+
+            <div class="note-actions-inline">
+              <ion-button fill="clear" size="small" (click)="togglePinnedFromHome($event, note.id)">
+                <ion-icon [name]="note.pinned ? 'bookmark' : 'bookmark-outline'"></ion-icon>
+              </ion-button>
+              <ion-button fill="clear" size="small" (click)="toggleFavoriteFromHome($event, note.id)">
+                <ion-icon [name]="note.favorite ? 'star' : 'star-outline'"></ion-icon>
+              </ion-button>
+              <ion-button fill="clear" size="small" (click)="moveNoteToFolderFromHome($event, note.id)">
+                <ion-icon name="folder-open-outline"></ion-icon>
+              </ion-button>
             </div>
-          </ion-item>
-        </ion-list>
-      </div>
+          </div>
+        </ion-item>
+      </ion-list>
+    </div>
 
-      <!-- <ion-button *ngIf="!appHasPasswordChallenge() && getNotes().length > 0" expand="block"
-          (click)="settings()">{{'addNotesAppPassword' | translate}}</ion-button><br> -->
+    <div class="toolbar-bottom" *ngIf="checkboxOpened && getNotes().length > 0">
+      <ion-button color="danger" shape="round" fill="outline" class="delete-btn" [disabled]="listOfCheckedCheckboxes.length == 0" (click)="deleteSelectedNotes()">
+        <img src="assets/tabler-icon-trash.svg" style="margin-right: 15px">
+        {{'delete' | translate}} ({{listOfCheckedCheckboxes.length}})
+      </ion-button>
+    </div>
+  </section>
 
-      <div class="toolbar-bottom" *ngIf="checkboxOpened && getNotes().length > 0">
-        <ion-button color="danger" shape="round" fill="outline" class="delete-btn"
-          [disabled]="listOfCheckedCheckboxes.length == 0" (click)="deleteSelectedNotes()"><img
-            src="assets/tabler-icon-trash.svg" style="margin-right: 15px">
-          {{'delete' | translate}} ({{listOfCheckedCheckboxes.length}}) </ion-button><br>
-      </div>
-
-    </ion-content>
-  </ion-menu>
-
-  <div class="main-content" id="main-content">
+  <section class="desktop-editor-pane" id="main-content">
     <router-outlet></router-outlet>
-
-  </div>
-
-</ion-split-pane>
+  </section>
+</div>

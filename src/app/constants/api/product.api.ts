@@ -10,3 +10,14 @@ export const auth = {
   resetPasswordUrl: 'api/v1/logincontroller/resetpasswordupdate'
 }
 
+
+
+export const notes = {
+  controller: 'api/v1/notescontroller/',
+  upload: 'upload',
+  syncPlan: 'sync-plan',
+};
+
+export function buildApiUrl(path: string): string {
+  return `${baseUrl}${path}`;
+}

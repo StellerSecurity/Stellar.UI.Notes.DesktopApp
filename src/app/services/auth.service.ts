@@ -19,6 +19,10 @@ export class AuthService {
     return this.loggedInSubject.value;
   }
 
+  setLoggedInState(isLoggedIn: boolean): void {
+    this.loggedInSubject.next(!!isLoggedIn);
+  }
+
   async initializeAuthState() {
     const token = await this.secureStorageService.getItem('ssToken');
     this.loggedInSubject.next(!!token);

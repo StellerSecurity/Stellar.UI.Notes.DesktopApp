@@ -1,6 +1,21 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject } from "rxjs";
 
+export type PendingNoteMutationType =
+  | 'delete'
+  | 'update'
+  | 'protect'
+  | 'unprotect'
+  | 'favorite'
+  | 'pin'
+  | 'move';
+
+export interface PendingNoteMutation {
+  noteId: string;
+  type: PendingNoteMutationType;
+  localUpdatedAt: number;
+}
+
 @Injectable({
   providedIn: "root",
 })
@@ -10,67 +25,37 @@ export class NotesService {
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();
   private noteIsDeletedSubject = new BehaviorSubject<boolean>(false);
   noteIsdeleted$ = this.noteIsDeletedSubject.asObservable();
-  currentNote:any;
+  currentNote: any;
   isNoteTemporaryDescripted = false;
-  notesPasswordStored:any = null;
-  
+  notesPasswordStored: any = null;
 
   private decryptedNotes: any = null;
-
-  /**
-   * Holds the app password if there is any.
-   * @private
-   */
-  private notesAppPassword: string = "";
-
-  /**
-   * Max failed attempts in a row before the app wipes it-self.
-   * @private
-   */
+  private notesAppPassword = "";
   private MAX_APP_FAILED_ATTEMPTS = 20;
-
-  /**
-   * Controls, when the active time was for the notesApp, when it was active && unlocked.
-   * @private
-   */
   private LAST_ACTIVITY_TIMESTAMP = 0;
+  private pendingNoteMutations = new Map<string, PendingNoteMutation>();
 
-  /**
-   * If the user has chosen to add a password to the notes-app,
-   * the methods returns an encrypted AES string.
-   */
   public getNotes() {
-    let notes = localStorage.getItem("notes");
+    const notes = localStorage.getItem("notes");
+    return notes == null ? "[]" : notes;
+  }
 
-    if (notes == null) {
-      return "[]";
-    }
+  public getFolders() {
+    return localStorage.getItem('folders') ?? '[]';
+  }
 
-    return notes;
+  public setFolders(data: any) {
+    localStorage.setItem('folders', data ?? '[]');
   }
 
   public shouldWipeAllNotesOrNot() {
-    // @ts-ignore
-    return (
-      this.MAX_APP_FAILED_ATTEMPTS + 1 <=
-      parseInt(this.getFailedPasswordAppAttempts())
-    );
+    return this.MAX_APP_FAILED_ATTEMPTS + 1 <= parseInt(this.getFailedPasswordAppAttempts());
   }
 
   public increaseAppNoteAttemptsFailedPasswords() {
-    let failedAttempts = this.getFailedPasswordAppAttempts();
-
-    let failedAttemptsUpdated = 0;
-
-    if (failedAttempts === null) {
-      failedAttemptsUpdated = 1;
-    } else {
-      failedAttemptsUpdated = parseInt(failedAttempts) + 1;
-    }
-
+    const failedAttempts = this.getFailedPasswordAppAttempts();
+    const failedAttemptsUpdated = failedAttempts === null ? 1 : parseInt(failedAttempts) + 1;
     this.setFailedPasswordAppAttempts(failedAttemptsUpdated);
-
-    // @ts-ignore
     return parseInt(this.getFailedPasswordAppAttempts());
   }
 
@@ -82,21 +67,11 @@ export class NotesService {
     return localStorage.getItem("failedAttemptsApp") as any;
   }
 
-  /**
-   * Will find a note by its ID.
-   * @param id
-   * @param notes
-   */
   public findNoteById(id: string, notes: any) {
     if (notes === null) return;
-
     let note = null;
-
-    // @ts-ignore
     for (let i = 0; i < notes.length; i++) {
-      // @ts-ignore
       if (notes[i].id === id) {
-        // @ts-ignore
         note = notes[i];
         break;
       }
@@ -104,20 +79,10 @@ export class NotesService {
     return note;
   }
 
-  /**
-   * Determines if we should ask the user about the password for app-access.
-   */
   public shouldAskForPassword(): boolean {
     return this.appHasPasswordChallenge() && this.notesAppPassword == "";
   }
 
-  /**
-   * Will return the notes in a decrypted state.
-   * Only if the user has unlocked the app and any other states has been meet.
-   * Otherwise, the return, can be null.
-   * If there is no notes-password on the app, it should always return a list
-   * [if there is any notes.]
-   */
   public getDecryptedNotes() {
     return this.decryptedNotes;
   }
@@ -126,18 +91,10 @@ export class NotesService {
     localStorage.setItem("notes", data);
   }
 
-  /**
-   *
-   */
   public appHasPasswordChallenge() {
-    let has_password_challenge = localStorage.getItem("app_password_challenge");
-    return has_password_challenge !== null;
+    return localStorage.getItem("app_password_challenge") !== null;
   }
 
-  /**
-   * Will reveal the notesAppPassword, if it's in a state that can be revealed,
-   * such as if the user just opened the app.
-   */
   public getNotesAppPassword(): string {
     return this.notesAppPassword;
   }
@@ -154,10 +111,6 @@ export class NotesService {
     this.LAST_ACTIVITY_TIMESTAMP = timestamp;
   }
 
-  /**
-   * Returns timestamp of when the user last was active on the app (foreground).
-   * @return number
-   */
   public getLastActivityTimestamp() {
     return this.LAST_ACTIVITY_TIMESTAMP;
   }
@@ -169,4 +122,89 @@ export class NotesService {
   setNoteIsDeletedSubjectSubject(value: boolean): void {
     this.noteIsDeletedSubject.next(value);
   }
+
+  public markPendingMutation(noteId: string, type: PendingNoteMutationType, localUpdatedAt = Date.now()): void {
+    this.pendingNoteMutations.set(noteId, { noteId, type, localUpdatedAt });
+  }
+
+  public consumePendingMutation(noteId: string): PendingNoteMutation | null {
+    const found = this.pendingNoteMutations.get(noteId) ?? null;
+    if (found) this.pendingNoteMutations.delete(noteId);
+    return found;
+  }
+
+  public clearPendingMutation(noteId: string): void {
+    this.pendingNoteMutations.delete(noteId);
+  }
+
+  public getPendingMutation(noteId: string): PendingNoteMutation | null {
+    return this.pendingNoteMutations.get(noteId) ?? null;
+  }
+
+
+
+  public dedupeByIdAndLastModified<T extends { id?: any; last_modified?: any }>(items: T[]): T[] {
+    const map = new Map<string, T>();
+
+    for (const item of Array.isArray(items) ? items : []) {
+      const id = typeof item?.id === 'string' ? item.id.trim() : String(item?.id ?? '').trim();
+      if (!id) continue;
+
+      const existing = map.get(id);
+      const currentLm = Number(item?.last_modified ?? 0);
+      const existingLm = Number((existing as any)?.last_modified ?? 0);
+
+      if (!existing || currentLm >= existingLm) {
+        map.set(id, item);
+      }
+    }
+
+    return Array.from(map.values());
+  }
+
+  public dedupeNotes(notes: any[]): any[] {
+    return this.dedupeByIdAndLastModified(Array.isArray(notes) ? notes : []);
+  }
+
+  public dedupeFolders(folders: any[]): any[] {
+    return this.dedupeByIdAndLastModified(Array.isArray(folders) ? folders : []);
+  }
+
+  public async flushPersistence(): Promise<void> {
+    return;
+  }
+
+  public resetRuntimeState(): void {
+    this.selectedNoteId = '';
+    this.currentNote = null;
+    this.isNoteTemporaryDescripted = false;
+    this.notesPasswordStored = null;
+    this.decryptedNotes = null;
+    this.notesAppPassword = '';
+    this.LAST_ACTIVITY_TIMESTAMP = 0;
+    this.pendingNoteMutations.clear();
+    this.noteIsUpdatedSubject.next(true);
+    this.noteIsDeletedSubject.next(false);
+  }
+
+  public shouldIgnoreServerNote(serverNote: any): boolean {
+    if (!serverNote?.id) return false;
+    const pending = this.getPendingMutation(serverNote.id);
+    if (!pending) return false;
+    if (pending.type === 'delete') return true;
+    const serverLastModified = Number(serverNote?.last_modified ?? 0);
+    return serverLastModified < pending.localUpdatedAt;
+  }
+
+  public reconcileServerConfirmation(serverNote: any): void {
+    if (!serverNote?.id) return;
+    const pending = this.getPendingMutation(serverNote.id);
+    if (!pending) return;
+    if (serverNote?.deleted) { this.clearPendingMutation(serverNote.id); return; }
+    const serverLastModified = Number(serverNote?.last_modified ?? 0);
+    if (serverLastModified >= pending.localUpdatedAt) {
+      this.clearPendingMutation(serverNote.id);
+    }
+  }
+
 }

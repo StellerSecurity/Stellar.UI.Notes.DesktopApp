@@ -59,6 +59,13 @@ export class CryptoKeyService {
      * Import plaintext EAK (base64). Keeps it ONLY in RAM.
      * Call this after you’ve unwrapped the EAK from the server bundle.
      */
+    clearRuntimeKeys(): void {
+        this.zeroize(this.eakBytes);
+        this.eakBytes = null;
+        this.eakB64 = null;
+        this.mkKey = null;
+    }
+
     async importEAK(eakB64: string): Promise<void> {
         if (typeof eakB64 !== 'string' || !eakB64.length) {
             throw new Error('EAK missing');
@@ -101,5 +108,21 @@ export class CryptoKeyService {
         };
     }
 
+
+
+
+    /** Decrypt a UTF-8 string with the MK. Optionally bind AAD. */
+    async decryptText(blob: CipherBlobV1, aad?: string): Promise<string> {
+        if (!this.mkKey) throw new Error('Locked');
+        const iv = this.b64d(blob.iv_b64);
+        const ct = this.b64d(blob.ct_b64);
+        const ad = aad ? TEXT.encode(aad) : (blob.aad_b64 ? this.b64d(blob.aad_b64) : undefined);
+        const pt = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv, additionalData: ad },
+            this.mkKey,
+            ct,
+        );
+        return new TextDecoder().decode(pt);
+    }
 
 }

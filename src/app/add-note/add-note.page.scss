@@ -15,10 +15,10 @@ ion-textarea {
 
 
 ion-title {
-  font-size: 18px;
+  font-size: 16px;
   font-family: 'Poppins';
-  font-weight: 400;
-  color: #0B0C19;
+  font-weight: 650;
+  color: #1d1d1f;
 }
 
 .header-md {
@@ -31,27 +31,29 @@ ion-content,
 ion-header,
 ion-footer,
 ion-toolbar {
-  --ion-background-color: rgba(246, 246, 253, 1);
+  --ion-background-color: #ffffff;
+  background: #ffffff;
 }
 
 ion-button {
-  --border-radius: 250px;
-  border-radius: 250px;
-  height: 48px;
+  --border-radius: 14px;
+  border-radius: 14px;
+  height: 44px;
+  font-weight: 600;
 }
 
 ion-button.p {
-  --background: #4364fa;
-  ;
+  --background: #e8edf8;
+  --color: #4a6094;
 }
 
 ion-input {
-  --background: #EAEAF0;
+  --background: #f1f2f6;
   --color: #62626A;
-  --padding-bottom: 16px;
-  --padding-end: 24px;
-  --padding-start: 24px;
-  --padding-top: 16px;
+  --padding-bottom: 15px;
+  --padding-end: 18px;
+  --padding-start: 18px;
+  --padding-top: 15px;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
@@ -61,7 +63,7 @@ ion-input {
 }
 
 ion-icon.lock-icon {
-  color: #425ef9;
+  color: #5b6f9f;
 }
 
 .input-group {
@@ -99,9 +101,10 @@ ion-icon.lock-icon {
 }
 .pass-info-box {
   background-color: #FFFFFF;
-  padding: 16px;
-  border-radius: 16px;
-  margin-bottom: 30px;
+  padding: 18px;
+  border-radius: 18px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(60, 60, 67, 0.08);
 }
 
 // .angular-editor-textarea {
@@ -110,15 +113,15 @@ ion-icon.lock-icon {
 // }
 
 .editable-title {
-  font-weight: 500;
+  font-weight: 600;
   padding: 8px 12px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 10px;
   transition: background-color 0.2s;
 }
 
 .editable-title:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(72, 94, 150, 0.06);
 }
 
 .editable-title-input-wrapper {
@@ -138,7 +141,165 @@ ion-icon.lock-icon {
   --padding-end: 0px;
   --background: transparent;
   --placeholder-color: #888;
-  --highlight-color-focused: #007bff;
-  --color: #333;
+  --highlight-color-focused: #5b6f9f;
+  --color: #2b3140;
   margin-bottom: 0;
+}
+
+.note-status-row { display: flex; gap: 8px; align-items: center; padding: 0 18px 12px; flex-wrap: wrap; }
+.note-status-pill { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: #edf1f8; color: #536891; font-size: 11px; font-weight: 600; }
+.note-status-pill.favorite { background: #f8eed9; color: #9b7624; }
+.note-folder-indicator { color: #7a8090; font-size: 12px; font-weight: 500; }
+
+
+.note-actions-menu-trigger ion-button {
+  --color: #4f5563;
+  --padding-start: 8px;
+  --padding-end: 8px;
+}
+
+.note-actions-menu-trigger ion-icon {
+  font-size: 20px;
+}
+
+.desktop-note-actions-list {
+  min-width: 224px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #ffffff;
+}
+
+.desktop-note-action-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #1f2430;
+  font: inherit;
+  text-align: left;
+}
+
+.desktop-note-action-item ion-icon {
+  font-size: 18px;
+  color: #5a6170;
+}
+
+.desktop-note-action-item:hover {
+  background: #f4f6fa;
+}
+
+.desktop-note-action-item.danger {
+  color: #d64545;
+}
+
+.desktop-note-action-item.danger ion-icon {
+  color: #d64545;
+}
+
+
+ion-toolbar {
+  --min-height: 44px;
+  padding: 6px 10px 2px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+}
+
+.editable-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  padding: 2px 2px 0;
+}
+
+.editable-title-input-wrapper {
+  padding: 0 8px;
+}
+
+.note-status-row {
+  gap: 8px;
+  padding: 0 18px 10px;
+  align-items: center;
+}
+
+.note-status-pill {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.note-folder-indicator {
+  color: #7c8291;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.note-actions-menu-trigger ion-button {
+  width: 32px;
+  height: 32px;
+}
+
+.desktop-note-actions-popover::part(content) {
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+}
+
+.desktop-note-actions-list {
+  min-width: 216px;
+  padding: 8px;
+  gap: 1px;
+}
+
+.desktop-note-action-item {
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.desktop-note-action-item ion-icon {
+  font-size: 16px;
+}
+
+ion-content {
+  --background: #ffffff;
+}
+
+app-rich-text-editor {
+  display: block;
+  height: 100%;
+}
+
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+ion-header {
+  border-bottom: 1px solid rgba(60, 60, 67, 0.10);
+}
+
+.note-actions-menu-trigger ion-button {
+  width: 26px;
+  height: 26px;
+  --padding-start: 0;
+  --padding-end: 0;
+  --border-radius: 10px;
+  --color: #6b6b73;
+  --background-hover: rgba(28, 28, 30, 0.06);
+}
+
+.note-actions-menu-trigger ion-icon {
+  font-size: 16px;
+}
+
+.desktop-note-actions-popover::part(content) {
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  border: 1px solid rgba(60, 60, 67, 0.12);
 }

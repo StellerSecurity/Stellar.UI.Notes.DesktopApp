@@ -37,7 +37,9 @@
                 "output": "./svg"
               }
             ],
-            "styles": ["src/theme/variables.scss", "src/global.scss",
+            "styles": [
+              "src/theme/variables.scss",
+              "src/global.scss",
               "./node_modules/froala-editor/css/froala_editor.pkgd.min.css",
               "./node_modules/froala-editor/css/froala_style.min.css"
             ],
@@ -84,10 +86,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "app:build:production"
+              "browserTarget": "StellerPhoneNotesApp:build:production"
             },
             "development": {
-              "browserTarget": "app:build:development"
+              "browserTarget": "StellerPhoneNotesApp:build:development"
             },
             "ci": {
               "progress": false
@@ -98,7 +100,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "app:build"
+            "browserTarget": "StellerPhoneNotesApp:build"
           }
         },
         "test": {
@@ -121,7 +123,10 @@
                 "output": "./svg"
               }
             ],
-            "styles": ["src/theme/variables.scss", "src/global.scss"],
+            "styles": [
+              "src/theme/variables.scss",
+              "src/global.scss"
+            ],
             "scripts": []
           },
           "configurations": {
