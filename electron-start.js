@@ -16,9 +16,22 @@ let mainFrameReloadAttempts = 0;
 // Public key only (Ed25519)
 const STELLAR_RELEASE_PUBKEY_B64 = "OGCBFiL/edNJ/hzctTN7A89YBRtBygopfmCDhLi75zs=";
 
-const UPDATE_BASE_URL =
-  "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/";
-const MANIFEST_NAMES = ["latest-linux.yml", "latest.yml"];
+const PLATFORM_UPDATE_CONFIG = {
+  linux: {
+    baseUrl: "https://desktopreleasesassetsprod.stellarsecurity.com/notes/linux/",
+    manifestNames: ["latest-linux.yml", "latest.yml"]
+  },
+  win32: {
+    baseUrl: "https://desktopreleasesassetsprod.stellarsecurity.com/notes/win/",
+    manifestNames: ["latest.yml"]
+  },
+  darwin: {
+    baseUrl: "https://desktopreleasesassetsprod.stellarsecurity.com/notes/mac/",
+    manifestNames: ["latest-mac.yml", "latest.yml"]
+  }
+};
+
+let trustedWindowsUpdateManifest = null;
 
 const APP_INDEX_PATH = path.join(
   __dirname,
@@ -446,6 +459,22 @@ function normalizeUrl(base, maybeRelative) {
   return base.replace(/\/+$/, "/") + maybeRelative.replace(/^\/+/, "");
 }
 
+function getPlatformUpdateConfig(platform = process.platform) {
+  const config = PLATFORM_UPDATE_CONFIG[platform];
+  if (!config) {
+    throw new Error(`Unsupported update platform: ${platform}`);
+  }
+  return config;
+}
+
+function getUpdateBaseUrl(platform = process.platform) {
+  return getPlatformUpdateConfig(platform).baseUrl;
+}
+
+function getManifestNames(platform = process.platform) {
+  return getPlatformUpdateConfig(platform).manifestNames;
+}
+
 /* ================= CRYPTO HELPERS ================= */
 
 function sha512Base64(filePath) {
@@ -508,11 +537,13 @@ async function verifyManifestOrThrow(manifestBytes, sigB64) {
   if (!ok) throw new Error("Manifest signature verification failed");
 }
 
-async function fetchSignedManifest(progressWin = null) {
+async function fetchSignedManifest(progressWin = null, platform = process.platform) {
   let lastErr = null;
+  const updateBaseUrl = getUpdateBaseUrl(platform);
+  const manifestNames = getManifestNames(platform);
 
-  for (const name of MANIFEST_NAMES) {
-    const manifestUrl = normalizeUrl(UPDATE_BASE_URL, name);
+  for (const name of manifestNames) {
+    const manifestUrl = normalizeUrl(updateBaseUrl, name);
     const sigUrl = manifestUrl + ".sig";
 
     try {
@@ -530,7 +561,7 @@ async function fetchSignedManifest(progressWin = null) {
       setUpdateProgress(progressWin, "Verifying manifest signature…", null, "");
       await verifyManifestOrThrow(manifestBytes, sigText);
 
-      return { manifestBytes, manifestUrl };
+      return { manifestBytes, manifestUrl, manifestName: name, updateBaseUrl };
     } catch (e) {
       lastErr = e;
       logLine("Signed manifest fetch failed", {
@@ -587,7 +618,7 @@ async function secureLinuxUpdateFlow() {
     setUpdateProgress(progressWin, "Preparing download…", null, "");
     setMainProgress(0.01);
 
-    const fullFileUrl = normalizeUrl(UPDATE_BASE_URL, fileUrl);
+    const fullFileUrl = normalizeUrl(getUpdateBaseUrl("linux"), fileUrl);
     const updatesDir = path.join(app.getPath("userData"), "updates");
     fs.mkdirSync(updatesDir, { recursive: true });
 
@@ -667,6 +698,80 @@ async function secureLinuxUpdateFlow() {
   }
 }
 
+
+/* ================= SECURE WINDOWS UPDATE PREFLIGHT ================= */
+
+async function secureWindowsUpdatePreflight() {
+  if (process.platform !== "win32") return false;
+  if (!app.isPackaged) return false;
+
+  const { manifestBytes, manifestUrl } = await fetchSignedManifest(null, "win32");
+  const manifestText = manifestBytes.toString("utf8");
+  const {
+    version: remoteVersion,
+    fileUrl,
+    sha512Base64: expectedSha512
+  } = parseElectronBuilderYaml(manifestText);
+
+  const localVersion = app.getVersion();
+
+  trustedWindowsUpdateManifest = {
+    remoteVersion,
+    localVersion,
+    fileUrl,
+    expectedSha512,
+    manifestUrl
+  };
+
+  if (compareVersions(remoteVersion, localVersion) <= 0) {
+    logLine("Windows update check: signed manifest verified, already up to date", {
+      localVersion,
+      remoteVersion,
+      manifestUrl
+    });
+    return true;
+  }
+
+  logLine("Windows update check: signed manifest verified, update available", {
+    localVersion,
+    remoteVersion,
+    fileUrl,
+    manifestUrl
+  });
+
+  return true;
+}
+
+async function verifyDownloadedWindowsUpdate(_publisherName, installerPath) {
+  if (process.platform !== "win32") return null;
+
+  if (!trustedWindowsUpdateManifest || !trustedWindowsUpdateManifest.expectedSha512) {
+    return "Stellar Windows OTA rejected: no signed update manifest was verified before download.";
+  }
+
+  if (!installerPath || !fs.existsSync(installerPath)) {
+    return "Stellar Windows OTA rejected: downloaded installer path is missing.";
+  }
+
+  try {
+    const actualSha512 = await sha512Base64(installerPath);
+
+    if (actualSha512 !== trustedWindowsUpdateManifest.expectedSha512) {
+      return "Stellar Windows OTA rejected: installer sha512 does not match the Stellar-signed manifest.";
+    }
+
+    logLine("Windows downloaded update verified against Stellar-signed manifest", {
+      installerPath,
+      remoteVersion: trustedWindowsUpdateManifest.remoteVersion,
+      fileUrl: trustedWindowsUpdateManifest.fileUrl
+    });
+
+    return null;
+  } catch (e) {
+    return `Stellar Windows OTA rejected: ${String(e && e.message ? e.message : e)}`;
+  }
+}
+
 /* ================= APP SHELL HELPERS ================= */
 
 function loadMainApp() {
@@ -710,8 +815,24 @@ function scheduleStartupUpdateCheck() {
         return;
       }
 
-      logLine("Starting macOS/Windows update check");
-      autoUpdater.checkForUpdatesAndNotify();
+      if (process.platform === "win32") {
+        logLine("Starting Windows secure update preflight");
+        autoUpdater.verifyUpdateCodeSignature = verifyDownloadedWindowsUpdate;
+        await secureWindowsUpdatePreflight();
+        logLine("Starting Windows update check after Stellar signature preflight");
+        autoUpdater.checkForUpdatesAndNotify();
+        return;
+      }
+
+      if (process.platform === "darwin") {
+        logLine("Starting macOS update check");
+        autoUpdater.checkForUpdatesAndNotify();
+        return;
+      }
+
+      logLine("No update flow configured for platform", {
+        platform: process.platform
+      });
     } catch (e) {
       logLine("Startup update check failed", {
         error: String(e && e.message ? e.message : e)

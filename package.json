@@ -25,7 +25,11 @@
     "electron:winRelease": "npm run build && electron-builder --win --publish always",
     "electron:linuxBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store",
     "electron:linuxRelease": "npm run build && electron-builder --linux AppImage --publish always --config.compression=store",
-    "electron:linuxSignedBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store && node tools/sign-manifest.js dist && node tools/verify-manifest.js dist"
+    "electron:linuxSignedBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store && node tools/sign-manifest.js dist --platform=linux && node tools/verify-manifest.js dist --platform=linux",
+    "electron:winSignedBuild": "npm run build && electron-builder --win --publish never && node tools/sign-manifest.js dist --platform=win32 && node tools/verify-manifest.js dist --platform=win32",
+    "electron:winSignedRelease": "npm run electron:winSignedBuild",
+    "electron:macSignedBuild": "npm run build && electron-builder --mac --publish never && node tools/sign-manifest.js dist --platform=darwin && node tools/verify-manifest.js dist --platform=darwin",
+    "electron:macSignedRelease": "npm run electron:macSignedBuild"
   },
   "dependencies": {
     "@angular/animations": "^16.0.0",
@@ -164,7 +168,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "icons/icons/mac/icon.icns",
+      "icon": "icons/icons/icon.icns",
       "category": "public.app-category.productivity",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "entitlements": "build/entitlements.mac.plist",
@@ -179,7 +183,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "icons/icons/win/icon.ico",
+      "icon": "icons/icons/icon.ico",
       "publish": [
         {
           "provider": "generic",
