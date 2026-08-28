@@ -70,6 +70,23 @@ export class RichTextEditorComponent implements OnDestroy {
       maxStack: 300,
       userOnly: true,
     },
+    keyboard: {
+      bindings: {
+        preserveShiftEnterLine: {
+          key: 13,
+          shiftKey: true,
+          handler: (range: { index: number; length: number }) => {
+            if (!this.quill || !range) {
+              return false;
+            }
+
+            this.quill.insertText(range.index, '\n', 'user');
+            this.quill.setSelection(range.index + 1, 0, 'silent');
+            return false;
+          },
+        },
+      },
+    },
   };
 
   onEditorCreated(quill: any): void {

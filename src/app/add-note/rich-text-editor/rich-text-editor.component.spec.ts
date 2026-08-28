@@ -40,6 +40,22 @@ describe('RichTextEditorComponent', () => {
     expect(component.quill).toBeTruthy();
   });
 
+  it('serializes Shift+Enter through Quill instead of transient DOM line breaks', () => {
+    const shiftEnter = component.quillModules.keyboard.bindings.preserveShiftEnterLine.handler;
+    let cursor = 0;
+
+    ['test', 'test', 'test', 'test'].forEach((line) => {
+      component.quill.insertText(cursor, line, 'user');
+      cursor += line.length;
+      shiftEnter({ index: cursor, length: 0 });
+      cursor += 1;
+    });
+
+    expect(component.quill.root.innerHTML).toBe(
+      '<p>test</p><p>test</p><p>test</p><p>test</p><p><br></p>'
+    );
+  });
+
   formattingFixtures.forEach((html, index) => {
     it(`keeps formatting fixture ${index + 1} idempotent across repeated editor round trips`, () => {
       component.quill.clipboard.dangerouslyPasteHTML(html, 'silent');
