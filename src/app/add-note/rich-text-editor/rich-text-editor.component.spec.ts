@@ -75,4 +75,26 @@ describe('RichTextEditorComponent', () => {
     expect(emitted).toEqual([]);
     expect(component.quill.getText()).toBe('Remote\n\nUpdate\n');
   });
+
+  [
+    'test\ntest\n\n\ntest',
+    'test\ntest<br><br><br>test',
+    '<p>test\ntest</p><p><br></p><p><br></p><p>test</p>',
+  ].forEach((legacyContent, index) => {
+    it(`preserves exact mobile line boundaries for legacy fixture ${index + 1}`, () => {
+      component.setExternalContent(legacyContent);
+
+      expect(component.quill.root.innerHTML).toBe(
+        '<p>test</p><p>test</p><p><br></p><p><br></p><p>test</p>'
+      );
+      expect(component.quill.getText()).toBe('test\ntest\n\n\ntest\n');
+    });
+  });
+
+  it('does not turn pretty-printed HTML whitespace into note lines', () => {
+    component.setExternalContent('<p>test</p>\n<p>test</p>');
+
+    expect(component.quill.root.innerHTML).toBe('<p>test</p><p>test</p>');
+    expect(component.quill.getText()).toBe('test\ntest\n');
+  });
 });

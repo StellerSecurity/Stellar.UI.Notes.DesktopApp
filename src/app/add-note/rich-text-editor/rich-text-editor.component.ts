@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
 import { AlertController } from '@ionic/angular';
+import { normalizeNoteBodyForRichTextEditor } from '../../utils/rich-text-content.util';
 
 @Component({
   selector: 'app-rich-text-editor',
@@ -7,7 +8,26 @@ import { AlertController } from '@ionic/angular';
   styleUrls: ['./rich-text-editor.component.scss'],
 })
 export class RichTextEditorComponent implements OnDestroy {
-  @Input() note_text = '';
+  private normalizedNoteText = '';
+
+  @Input()
+  get note_text(): string {
+    return this.normalizedNoteText;
+  }
+
+  set note_text(value: string) {
+    const source = typeof value === 'string' ? value : String(value ?? '');
+    const normalized = normalizeNoteBodyForRichTextEditor(source);
+    this.normalizedNoteText = normalized;
+
+    if (normalized !== source) {
+      Promise.resolve().then(() => {
+        if (this.normalizedNoteText === normalized) {
+          this.noteChange.emit(normalized);
+        }
+      });
+    }
+  }
   @Output() noteChange = new EventEmitter<string>();
   @Output() editorFocusChange = new EventEmitter<boolean>();
 
@@ -62,8 +82,10 @@ export class RichTextEditorComponent implements OnDestroy {
   }
 
   onContentChange(content: string | null): void {
-    const html = content ?? '';
-    this.note_text = html;
+    const html = typeof this.quill?.root?.innerHTML === 'string'
+      ? this.quill.root.innerHTML
+      : normalizeNoteBodyForRichTextEditor(content ?? '');
+    this.normalizedNoteText = html;
     this.noteChange.emit(html);
   }
 
@@ -80,7 +102,7 @@ export class RichTextEditorComponent implements OnDestroy {
   }
 
   setExternalContent(content: string): void {
-    const html = content ?? '';
+    const html = normalizeNoteBodyForRichTextEditor(content ?? '');
     if (this.note_text === html) {
       return;
     }
@@ -90,6 +112,7 @@ export class RichTextEditorComponent implements OnDestroy {
       // Quill's clipboard parser applies its format allow-list. `silent` avoids
       // turning a remote refresh into a local edit/autosave.
       this.quill.clipboard.dangerouslyPasteHTML(html, 'silent');
+      this.normalizedNoteText = this.quill.root.innerHTML;
     }
   }
 
