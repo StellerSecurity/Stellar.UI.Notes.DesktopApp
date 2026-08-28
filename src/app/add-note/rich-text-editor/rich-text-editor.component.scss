@@ -1,57 +1,50 @@
-.editor-container {
-  position: relative;
+:host {
+  display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
 }
 
 .editor-container {
-  background: transparent;
+  width: 100%;
+  height: 100%;
+  background: #fff;
 }
 
-:host ::ng-deep .angular-editor {
-  border: 0 !important;
-  background: transparent !important;
+:host ::ng-deep quill-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-:host ::ng-deep .angular-editor-toolbar {
-  background: #ffffff !important;
-  border: 0 !important;
-  border-bottom: 1px solid rgba(60, 60, 67, 0.10) !important;
-  padding: 6px !important;
+:host ::ng-deep .ql-toolbar.ql-snow {
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.1);
+  background: #fff;
+  padding: 8px 12px;
 }
 
-:host ::ng-deep .angular-editor-toolbar .angular-editor-toolbar-set {
-  margin-right: 6px !important;
+:host ::ng-deep .ql-container.ql-snow {
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 0;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
 }
 
-:host ::ng-deep .angular-editor-toolbar button,
-:host ::ng-deep .angular-editor-toolbar select {
-  min-height: 28px !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(60, 60, 67, 0.12) !important;
-  background: #fff !important;
-  box-shadow: none !important;
+:host ::ng-deep .ql-editor {
+  min-height: calc(100vh - 150px);
+  line-height: 1.58;
+  color: #1d1d1f;
+  padding: 16px 20px 32px;
 }
 
-:host ::ng-deep .angular-editor-textarea {
-  border: 0 !important;
-  background: #ffffff !important;
-  min-height: calc(100vh - 150px) !important;
-  font-size: 16px !important;
-  line-height: 1.58 !important;
-  color: #1d1d1f !important;
-}
-
-:host ::ng-deep .angular-editor-placeholder {
-
-}
-
-
-:host ::ng-deep .angular-editor-wrapper {
-  background: #ffffff !important;
-}
-
-:host ::ng-deep .angular-editor-toolbar .angular-editor-toolbar-set {
-  margin-right: 4px !important;
+:host ::ng-deep .ql-editor p,
+:host ::ng-deep .ql-editor h1,
+:host ::ng-deep .ql-editor h2,
+:host ::ng-deep .ql-editor h3,
+:host ::ng-deep .ql-editor h4,
+:host ::ng-deep .ql-editor h5,
+:host ::ng-deep .ql-editor h6 {
+  margin: 0;
 }

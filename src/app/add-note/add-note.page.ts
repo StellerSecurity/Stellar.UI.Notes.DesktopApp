@@ -325,7 +325,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   private placeCursorAtEnd() {
-    const editorElem = this.richTextEditorComponent?.editorComponent?.textArea?.nativeElement;
+    const editorElem = this.richTextEditorComponent?.quill?.root as HTMLElement | undefined;
     if (!editorElem) return;
 
     editorElem.focus();
@@ -758,6 +758,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
     this.currentNote = note;
     this.notesService.currentNote = this.currentNote;
+    this.notesService.markPendingMutation(note.id, 'update', note.last_modified);
     this.storeNoteInStorage(true).then(() => {});
     this.notesService.setNoteIsUpdatedSubject(true)
   }
