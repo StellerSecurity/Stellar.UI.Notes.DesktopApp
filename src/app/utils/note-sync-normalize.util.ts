@@ -2,8 +2,12 @@ import { NoteV1 } from '../models/NoteV1';
 
 export function normalizeNoteSyncFlags<T extends Partial<NoteV1>>(note: T | null | undefined): T {
   const source = (note ?? {}) as T;
+  const canonicalId = typeof (source as any).note_id === 'string' && (source as any).note_id.trim()
+    ? (source as any).note_id.trim()
+    : source.id;
   return {
     ...source,
+    id: canonicalId,
     favorite: !!source.favorite,
     pinned: !!source.pinned,
     folder: typeof source.folder === 'string' ? source.folder.trim() : (source.folder ?? ''),
