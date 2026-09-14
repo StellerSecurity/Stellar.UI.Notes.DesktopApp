@@ -1,0 +1,144 @@
+# Scan notifications v1.0.0. No checkout, external action or package install.
+name: Scan notifications
+on:
+  workflow_run:
+    workflows: [Repository source guard]
+    types: [completed]
+permissions: {}
+concurrency:
+  group: pushover-scan-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
+  cancel-in-progress: false
+jobs:
+  notify:
+    name: Send scan result to Pushover
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Send completion notification
+        env:
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+        shell: bash
+        run: |
+          python3 -I - <<'STELLAR_PUSHOVER_PY'
+          """Send scan metadata to Pushover; standard library only, no repository checkout."""
+          import http.client
+          import json
+          import os
+          import pathlib
+          import re
+          import ssl
+          import urllib.parse
+          
+          SCANNER_NAME = 'Repository source guard'
+          SCANNER_PATH = '.github/workflows/stellar-source-guard.yml'
+          HOST = 'api.pushover.net'
+          ENDPOINT = '/1/messages.json'
+          LABELS = {
+              'success': 'Bestået. Se rapporten for eventuelle advarsler.',
+              'failure': 'Ikke bestået: fund eller kørselsfejl. Se rapporten.',
+              'cancelled': 'Afbrudt. Scanningen er ikke nødvendigvis fuldført.',
+              'timed_out': 'Tidsgrænsen blev overskredet. Scanningen er ufuldstændig.',
+              'action_required': 'Scanningen kræver handling i GitHub.',
+              'startup_failure': 'Scanningen kunne ikke starte.',
+              'skipped': 'Sprunget over. Ingen fuldført scanning.',
+              'neutral': 'Afsluttet uden et bestået resultat. Se rapporten.',
+              'stale': 'Resultatet er forældet. Se rapporten.',
+          }
+          
+          
+          class NotificationError(Exception):
+              """Only constant, non-sensitive messages may reach the workflow log."""
+          
+          
+          def positive_id(value):
+              return type(value) is int and 0 < value < 10**20
+          
+          
+          def message_fields(event, repository):
+              if not re.fullmatch(r'StellerSecurity/[A-Za-z0-9_.-]{1,100}', repository):
+                  raise NotificationError('Repository outside the configured organization.')
+              run = event.get('workflow_run')
+              if not isinstance(run, dict) or event.get('action') != 'completed':
+                  raise NotificationError('Expected a completed workflow_run event.')
+              if event.get('repository', {}).get('full_name') != repository:
+                  raise NotificationError('Event repository does not match the workflow repository.')
+              if run.get('repository', {}).get('full_name') != repository:
+                  raise NotificationError('Scan repository does not match the workflow repository.')
+              if run.get('name') != SCANNER_NAME or run.get('path') != SCANNER_PATH:
+                  raise NotificationError('Event does not identify the configured scanner.')
+              if run.get('status') != 'completed' or run.get('conclusion') not in LABELS:
+                  raise NotificationError('Scan has no recognized final result.')
+              if not all(positive_id(run.get(key)) for key in ('id', 'run_number', 'run_attempt')):
+                  raise NotificationError('Scan identifiers are invalid.')
+              # Do not forward PR text, commit messages, branch names, logs, artifacts or URLs
+              # supplied in the event. In particular, pull_request_target's head_sha need not
+              # be the commit inspected by the scanner, so it is not labelled as such here.
+              return {
+                  'title': 'Stellar: scanning afsluttet',
+                  'message': '{}\n{}\nKørsel #{}, forsøg {}.'.format(
+                      repository, LABELS[run['conclusion']], run['run_number'], run['run_attempt']),
+                  'url': 'https://github.com/{}/actions/runs/{}/attempts/{}'.format(
+                      repository, run['id'], run['run_attempt']),
+                  'url_title': 'Se scanningen i GitHub',
+                  'priority': '0',
+                  'html': '0',
+              }
+          
+          
+          def send_notification(fields, token, user):
+              if not all(re.fullmatch(r'[A-Za-z0-9]{30}', value or '') for value in (token, user)):
+                  raise NotificationError('Configure PUSHOVER_APP_TOKEN and PUSHOVER_USER_KEY as GitHub Actions secrets.')
+              body = urllib.parse.urlencode(dict(fields, token=token, user=user)).encode('utf-8')
+              connection = None
+              try:
+                  # Fixed HTTPS destination, verified TLS, no proxy/environment routing and
+                  # no redirect handler. A redirect can never forward these credentials.
+                  connection = http.client.HTTPSConnection(HOST, timeout=20, context=ssl.create_default_context())
+                  connection.request('POST', ENDPOINT, body=body, headers={
+                      'Content-Type': 'application/x-www-form-urlencoded',
+                      'User-Agent': 'Stellar-Source-Guard-Notifier/1.0',
+                  })
+                  response = connection.getresponse()
+                  if response.status != 200:
+                      # Do not log response bodies, URLs, headers or exception details.
+                      raise NotificationError('Pushover rejected the notification; check configuration or account quota.')
+                  data = response.read(65537)
+                  if len(data) > 65536:
+                      raise NotificationError('Pushover response exceeded the permitted size.')
+                  result = json.loads(data)
+                  if not isinstance(result, dict) or type(result.get('status')) is not int or result['status'] != 1:
+                      raise NotificationError('Pushover did not confirm acceptance of the notification.')
+              except NotificationError:
+                  raise
+              except Exception:
+                  # A timeout can occur after the service accepted the POST. Retrying
+                  # automatically could send duplicates; report uncertain delivery instead.
+                  raise NotificationError('Notification delivery could not be confirmed. No automatic retry was made.') from None
+              finally:
+                  if connection is not None:
+                      try:
+                          connection.close()
+                      except Exception:
+                          pass
+          
+          
+          def main():
+              try:
+                  if os.environ.get('GITHUB_EVENT_NAME') != 'workflow_run':
+                      raise NotificationError('This notifier only accepts workflow_run events.')
+                  event = json.loads(pathlib.Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+                  fields = message_fields(event, os.environ['GITHUB_REPOSITORY'])
+                  send_notification(fields, os.environ.get('PUSHOVER_APP_TOKEN', ''), os.environ.get('PUSHOVER_USER_KEY', ''))
+              except NotificationError as exc:
+                  print('::error::' + str(exc))
+                  raise SystemExit(1) from None
+              except Exception:
+                  print('::error::The notification event could not be processed safely.')
+                  raise SystemExit(1) from None
+              print('Pushover accepted the scan notification. Device delivery is not independently verified.')
+          
+          
+          if __name__ == '__main__':
+              main()
+          STELLAR_PUSHOVER_PY
