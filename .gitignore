@@ -67,3 +67,6 @@ testem.log
 .DS_Store
 Thumbs.db
 config.bat
+
+# Markdown documentation stays local and must not be committed to GitHub.
+*.[mM][dD]
