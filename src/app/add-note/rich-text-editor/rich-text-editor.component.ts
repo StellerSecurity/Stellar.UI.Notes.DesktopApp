@@ -8,7 +8,11 @@ import {
   ChangeDetectorRef,
   AfterViewInit,
   Renderer2,
+  SecurityContext,
+  OnChanges,
+  OnDestroy,
 } from "@angular/core";
+import { DomSanitizer } from "@angular/platform-browser";
 import {
   AngularEditorComponent,
   AngularEditorConfig,
@@ -21,7 +25,7 @@ import { AlertController } from "@ionic/angular";
   templateUrl: "./rich-text-editor.component.html",
   styleUrls: ["./rich-text-editor.component.scss"],
 })
-export class RichTextEditorComponent implements AfterViewInit {
+export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDestroy {
   @ViewChild("editorRef") editorComponent!: AngularEditorComponent;
   @ViewChild("editorWrapper") editorWrapper!: ElementRef;
   @Input() note_text: string = "";
@@ -30,6 +34,40 @@ export class RichTextEditorComponent implements AfterViewInit {
   updateNote: any = "";
 
   private savedSelection: Range[] = [];
+  private active = true;
+  private toolbarInitialized = false;
+  private linkInitialized = false;
+  private destroyed = false;
+  private timers = new Set<ReturnType<typeof setTimeout>>();
+  private unlisten: Array<() => void> = [];
+
+  private schedule(action: () => void, delay: number): void {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      if (!this.destroyed && this.active) action();
+    }, delay);
+    this.timers.add(timer);
+  }
+
+  private safeHtml(content: string): string {
+    return this.sanitizer.sanitize(SecurityContext.HTML, content ?? '') ?? '';
+  }
+
+  ngOnChanges(): void { this.note_text = this.safeHtml(this.note_text); }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.onLeave();
+    this.unlisten.forEach(remove => remove());
+    this.unlisten = [];
+  }
+
+  public onEnter(): void {
+    this.active = true;
+    this.initializeEditorToolbar();
+    this.setupLinkButtonOverride();
+  }
+
 
   public editorConfig: AngularEditorConfig = {
     editable: true,
@@ -87,23 +125,38 @@ export class RichTextEditorComponent implements AfterViewInit {
     private renderer: Renderer2,
     private cdr: ChangeDetectorRef,
     private noteService: NotesService,
-    private alertCtrl: AlertController
+    private alertCtrl: AlertController,
+    private sanitizer: DomSanitizer
   ) {
     this.updateNote = JSON.parse(JSON.stringify(this.note_text));
   }
 
   ngAfterViewInit() {
+    const root = this.getEditorElement();
+    if (root) {
+      const paste = (event: ClipboardEvent) => {
+        const html = event.clipboardData?.getData('text/html');
+        if (!html) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        document.execCommand('insertHTML', false, this.safeHtml(html));
+        this.onContentChange(root.innerHTML);
+      };
+      root.addEventListener('paste', paste, true);
+      this.unlisten.push(() => root.removeEventListener('paste', paste, true));
+    }
     this.initializeEditorToolbar();
     this.setupLinkButtonOverride();
     this.interceptEditorLinks();
   
     // 🔥 Auto focus editor
-    setTimeout(() => {
+    this.schedule(() => {
       const editorDiv: HTMLElement | null =
         this.editorWrapper.nativeElement.querySelector(".angular-editor-textarea");
   
-      if (editorDiv) {
-        editorDiv.focus();
+      if (editorDiv && !(editorDiv.textContent ?? '').trim() && !editorDiv.querySelector('img') &&
+          (document.activeElement === document.body || document.activeElement === editorDiv)) {
+        editorDiv.focus({ preventScroll: true });
   
         // optional: place caret at end of existing content
         const range = document.createRange();
@@ -127,7 +180,7 @@ export class RichTextEditorComponent implements AfterViewInit {
   }
 
   public setExternalContent(content: string): void {
-    const normalized = content ?? "";
+    const normalized = this.safeHtml(content);
     if (this.note_text === normalized) {
       return;
     }
@@ -155,7 +208,7 @@ export class RichTextEditorComponent implements AfterViewInit {
   }
 
   public onEditorFocusOut(): void {
-    setTimeout(() => {
+    this.schedule(() => {
       this.editorFocusChange.emit(this.isEditorFocused());
     }, 0);
   }
@@ -168,17 +221,19 @@ export class RichTextEditorComponent implements AfterViewInit {
   // Toolbar setup
   // ---------------------------
   private initializeEditorToolbar(): void {
-    setTimeout(() => {
-      document.querySelectorAll(".ae-picker-label").forEach((label) => {
-        this.renderer.listen(label, "click", () => {
+    this.schedule(() => {
+      if (this.toolbarInitialized) return;
+      this.toolbarInitialized = true;
+      (this.editorWrapper.nativeElement as HTMLElement).querySelectorAll(".ae-picker-label").forEach((label) => {
+        this.unlisten.push(this.renderer.listen(label, "click", () => {
           const dropdown = label.nextElementSibling as HTMLElement;
           if (dropdown?.classList.contains("ae-picker-options")) {
             this.positionDropdown(label, dropdown);
           }
-        });
+        }));
       });
 
-      document.querySelectorAll(".ae-button").forEach((button) => {
+      (this.editorWrapper.nativeElement as HTMLElement).querySelectorAll(".ae-button").forEach((button) => {
         button.removeAttribute("disabled");
         this.setupButtonEvents(button);
       });
@@ -203,7 +258,7 @@ export class RichTextEditorComponent implements AfterViewInit {
   private setupButtonEvents(button: Element): void {
     this.renderer.listen(button, "mousedown", (event) => {
       event.preventDefault();
-      (button as HTMLElement).click();
+      // Keep the selection; let the single native click execute the command.
     });
 
     this.renderer.listen(button, "click", (event) => {
@@ -238,9 +293,11 @@ export class RichTextEditorComponent implements AfterViewInit {
   // Override link button
   // ---------------------------
   private setupLinkButtonOverride(): void {
-    setTimeout(() => {
-      const linkBtn = document.querySelector("#link-") as HTMLButtonElement | null;
+    this.schedule(() => {
+      if (this.linkInitialized) return;
+      const linkBtn = this.editorWrapper.nativeElement.querySelector("#link-") as HTMLButtonElement | null;
       if (!linkBtn) return;
+      this.linkInitialized = true;
 
       // Replace button to override default prompt()
       const cloned = linkBtn.cloneNode(true) as HTMLButtonElement;
@@ -287,7 +344,7 @@ export class RichTextEditorComponent implements AfterViewInit {
     await alert.present();
   
     // Wait a tick so DOM is ready
-    setTimeout(() => {
+    this.schedule(() => {
       const input = alert.querySelector("input");
       if (input) {
         // 1) Auto focus
@@ -318,16 +375,16 @@ export class RichTextEditorComponent implements AfterViewInit {
 
   private insertLink(url: string) {
     const editorDiv: HTMLElement | null =
-      document.querySelector(".angular-editor-textarea");
+      this.getEditorElement();
     if (!editorDiv) return;
 
     this.restoreSelection(); // ✅ restore user’s text selection
-    editorDiv.focus();
+    editorDiv.focus({ preventScroll: true });
 
     document.execCommand("createLink", false, url);
 
     // update model
-    setTimeout(() => {
+    this.schedule(() => {
       const html = editorDiv.innerHTML;
       this.note_text = html;
       this.noteChange.emit(html);
@@ -342,21 +399,23 @@ export class RichTextEditorComponent implements AfterViewInit {
   // External link interception
   // ---------------------------
   private interceptEditorLinks(): void {
-    setTimeout(() => {
+    this.schedule(() => {
       const editorDiv: HTMLElement | null =
-        document.querySelector(".angular-editor-textarea");
+        this.getEditorElement();
       if (!editorDiv) return;
 
       editorDiv.querySelectorAll("a").forEach((link: HTMLAnchorElement) => {
         link.setAttribute("target", "_blank");
+        link.setAttribute("rel", "noopener noreferrer");
         if (!(link as any)._bound) {
           link.addEventListener("click", (event) => {
             event.preventDefault();
             const href = link.href;
+            if (!/^(https?:|mailto:|tel:)/i.test(href)) return;
             if ((window as any).electronAPI?.openExternal) {
               (window as any).electronAPI.openExternal(href);
             } else {
-              window.open(href, "_blank");
+              window.open(href, "_blank", "noopener,noreferrer");
             }
           });
           (link as any)._bound = true;
@@ -369,18 +428,22 @@ export class RichTextEditorComponent implements AfterViewInit {
   // Change detection
   // ---------------------------
   onContentChange(content: string): void {
-    this.note_text = content;
-    this.noteChange.emit(content);
+    const safeContent = this.safeHtml(content);
+    this.note_text = safeContent;
+    this.noteChange.emit(safeContent);
     this.noteService.setNoteIsUpdatedSubject(true);
   }
 
   onClickEditor(): void {
-    setTimeout(() => {
+    this.schedule(() => {
       this.cdr.detectChanges();
     }, 100);
   }
 
   onLeave() {
-    // optional cleanup
+    this.active = false;
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+    this.savedSelection = [];
   }
 }

@@ -6,6 +6,7 @@ import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
+import { PsmZxcvbnService } from './services/psm-zxcvbn.service';
 import { PasswordStrengthMeterModule } from 'angular-password-strength-meter';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
@@ -43,7 +44,7 @@ export function initSodium() {
       positionClass: 'toast-bottom-center',
       preventDuplicates: true,
     }),
-    PasswordStrengthMeterModule.forRoot(),
+    PasswordStrengthMeterModule.forRoot({ serviceClass: PsmZxcvbnService }),
     IonicModule.forRoot({ innerHTMLTemplatesEnabled: true }),
     AppRoutingModule,
     CommonModule,

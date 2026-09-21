@@ -44,6 +44,12 @@ export class RemoteDownloadSyncService {
       window.addEventListener('offline', this.handleOffline);
     }
 
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) void this.requestImmediateSync('resume');
+      });
+    }
+
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         void this.requestImmediateSync('resume');
@@ -164,6 +170,7 @@ export class RemoteDownloadSyncService {
       return false;
     }
 
+    const sessionToken = await this.secureStorage.getItem("ssToken");
     const mkRaw = await this.getMkRaw();
     if (!mkRaw) {
       this.dataService.setForceDownloadOnHome(true);
@@ -214,9 +221,8 @@ export class RemoteDownloadSyncService {
         const local = map.get(s.id);
 
         if (s.deleted) {
-          if (!local || (s.last_modified ?? 0) >= (local?.last_modified ?? 0)) {
-            map.delete(s.id);
-          }
+          // A server tombstone is terminal regardless of this device's clock.
+          map.delete(s.id);
           this.notesService.reconcileServerConfirmation(s);
           continue;
         }
@@ -253,7 +259,7 @@ export class RemoteDownloadSyncService {
           title: decryptedTitle,
           favorite: !!(s.favorite ?? local?.favorite),
           pinned: !!(s.pinned ?? local?.pinned),
-          folder: (resolvedFolderName ?? '').trim(),
+          folder: (resolvedFolderName || s.folder || '').trim(),
           folder_id: noteFolderId,
         };
 
@@ -287,11 +293,29 @@ export class RemoteDownloadSyncService {
         }
       }
 
+      if (!this.authService.isLoggedIn || !sessionToken ||
+          sessionToken !== await this.secureStorage.getItem('ssToken') || this.notesService.shouldAskForPassword()) return false;
+
+      // Merge edits made during asynchronous decryption against the latest local state.
+      const currentNotes = this.getStoredNotes(appPassword);
+      const finalNotes = new Map(mergedNotes.map(note => [note.id, note]));
+      const remoteDeleted = new Map(serverNotes.filter(note => note.deleted).map(note => [note.id, Number(note.last_modified ?? 0)]));
+      for (const current of currentNotes) {
+        if (remoteDeleted.has(current.id)) continue;
+        const merged = finalNotes.get(current.id);
+        if (!merged || Number(current.last_modified ?? 0) > Number(merged.last_modified ?? 0)) finalNotes.set(current.id, current);
+      }
+      const safeNotes = Array.from(finalNotes.values()).filter(note => !note.deleted && this.notesService.getPendingMutation(note.id)?.type !== 'delete');
+      for (const current of this.getStoredFolders(appPassword)) {
+        const key = this.normalizeFolderId(current.id) ?? `name:${(current.name ?? '').trim().toLowerCase()}`;
+        const merged = folderMap.get(key);
+        if (!merged || Number(current.last_modified ?? 0) > Number(merged.last_modified ?? 0)) folderMap.set(key, current);
+      }
       if (this.notesService.appHasPasswordChallenge()) {
-        this.notesService.setNotes(this.cryptoService.encrypt(JSON.stringify(mergedNotes), appPassword));
+        this.notesService.setNotes(this.cryptoService.encrypt(JSON.stringify(safeNotes), appPassword));
         this.notesService.setFolders(this.cryptoService.encrypt(JSON.stringify(this.notesService.dedupeFolders(Array.from(folderMap.values()))), appPassword));
       } else {
-        this.notesService.setNotes(JSON.stringify(mergedNotes));
+        this.notesService.setNotes(JSON.stringify(safeNotes));
         this.notesService.setFolders(JSON.stringify(this.notesService.dedupeFolders(Array.from(folderMap.values()))));
       }
 

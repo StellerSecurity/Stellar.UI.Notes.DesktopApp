@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.spec.json","files":["src/test.ts","src/polyfills.ts"],"include":["src/app/desktop-parity.spec.ts","src/app/utils/note-search.spec.ts","src/**/*.d.ts"]}

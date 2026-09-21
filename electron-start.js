@@ -9,6 +9,12 @@ const yaml = require("js-yaml");
 const sodium = require("libsodium-wrappers-sumo");
 const { spawn } = require("child_process");
 
+function isSafeExternalUrl(value) {
+  if (typeof value !== 'string') return false;
+  try { return ['https:', 'http:', 'mailto:', 'tel:'].includes(new URL(value).protocol); }
+  catch { return false; }
+}
+
 let mainWindow;
 let startupUpdateCheckScheduled = false;
 let mainFrameReloadAttempts = 0;
@@ -866,6 +872,11 @@ function installNavigationGuards() {
     try {
       const parsed = new URL(navigationUrl);
 
+      if (parsed.protocol !== "file:") {
+        event.preventDefault();
+        if (isSafeExternalUrl(navigationUrl)) void shell.openExternal(navigationUrl).catch(() => {});
+        return;
+      }
       if (parsed.protocol === "file:") {
         const targetPath = normalizeLocalPathname(parsed.pathname);
 
@@ -980,7 +991,7 @@ function createWindow() {
   loadMainApp();
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) void shell.openExternal(url).catch(() => {});
     return { action: "deny" };
   });
 
@@ -1050,7 +1061,7 @@ if (process.platform !== "linux") {
 ipcMain.handle("app-version", () => app.getVersion());
 
 ipcMain.on("open-external", (_event, urlToOpen) => {
-  if (urlToOpen) {
+  if (isSafeExternalUrl(urlToOpen)) {
     shell.openExternal(urlToOpen).catch((err) => {
       logLine("Failed to open external URL", {
         error: String(err && err.message ? err.message : err),
