@@ -1,3 +1,5 @@
+import { OutboxStorage } from '../services/outbox-storage.service';
+import { NotesService } from '../services/notes.service';
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
@@ -15,6 +17,8 @@ export class ProfileComponent implements OnInit {
   isLoggedIn = false;
 
   constructor(
+    private outbox: OutboxStorage,
+    private notesState: NotesService,
     private router: Router,
     private alertController: AlertController,
     private secureStorageService: SecureStorageService,
@@ -68,6 +72,15 @@ export class ProfileComponent implements OnInit {
   }
 
   private async logout() {
+    if (this.notesState.hasPendingMutations() || (await this.outbox.getAll()).length > 0) {
+      const alert = await this.alertController.create({
+        header: 'Notes not synced',
+        message: 'Your notes are still saved on this device. Let syncing finish before logging out.',
+        buttons: ['OK'],
+      });
+      await alert.present();
+      return;
+    }
     await this.dataService.logoutAndResetApp('/profile/login');
   }
 }

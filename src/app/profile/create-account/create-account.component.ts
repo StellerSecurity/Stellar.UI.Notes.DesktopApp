@@ -152,8 +152,8 @@ export class CreateAccountComponent implements OnInit {
 
         // optional app-locker layer
         if (this.notesService.appHasPasswordChallenge()) {
-          this.cryptoService.encrypt(eakB64, this.notesService.getNotesAppPassword());
-          await this.secureStorageService.setItem('ssEakB64_Encrypted', eakB64);
+          const wrappedEak = this.cryptoService.encrypt(eakB64, this.notesService.getNotesAppPassword());
+          await this.secureStorageService.setItem('ssEakB64_Encrypted', wrappedEak);
         } else {
           await this.secureStorageService.setItem('ssEakB64', eakB64);
         }

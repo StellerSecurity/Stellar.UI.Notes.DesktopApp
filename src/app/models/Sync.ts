@@ -20,6 +20,7 @@ export interface DeletePayload {
 export type AnyPayload = UploadPayload | DeletePayload;
 
 export interface OutboxOp {
+  conflict?: boolean;
   opId: string;         // mirrors payload.op_id
   type: OutboxOpType;   // 'upload' | 'delete'
   payload: AnyPayload;  // raw payload sent to API

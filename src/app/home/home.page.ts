@@ -1,3 +1,7 @@
+import { nextNoteVersion } from '../utils/note-version';
+import { readUnlockedAppKey } from '../utils/legacy-app-key';
+import { NoteV1 } from '../models/NoteV1';
+import { matchesNoteSearch, noteSearchText } from '../utils/note-search';
 import {
   AfterViewInit,
   ChangeDetectorRef,
@@ -138,6 +142,8 @@ export class HomePage implements AfterViewInit {
   public renamingFolderName = '';
   public draggingNoteId: string | null = null;
   public draggingFolderTarget: string | null = null;
+
+  private readonly realtimeHint = () => { void this.syncFromServer().catch(() => {}); };
 
   constructor(
     private cryptoService: CryptoService,
@@ -472,6 +478,7 @@ export class HomePage implements AfterViewInit {
   // Lifecycle
   // --------------------------------------------------
   async ionViewWillEnter() {
+    window.addEventListener('stellar:notes-changed', this.realtimeHint);
     if (this.pauseSync) this.pauseSync = false;
 
     // read hide_ids from query param (from main branch)
@@ -528,6 +535,7 @@ export class HomePage implements AfterViewInit {
   }
 
   ionViewWillLeave() {
+    window.removeEventListener('stellar:notes-changed', this.realtimeHint);
     this.persistUiState();
     this.exitSearchMode();
 
@@ -609,7 +617,7 @@ export class HomePage implements AfterViewInit {
   }
 
   searchOld() {
-    if (this.search_query.length == 0) {
+    if (!this.search_query.trim()) {
       this.isSearching = false;
       this.filteredResults = this.notes;
       this.pauseSync = false; // if nothing to search, don't pause sync
@@ -693,32 +701,17 @@ export class HomePage implements AfterViewInit {
   }
 
   search() {
-    if (this.search_query.length == 0) {
+    if (!this.search_query.trim()) {
       this.isSearching = false;
       this.filteredResults = this.notes;
       return;
     }
 
-    const normalizedQuery = normalize(this.search_query);
-    const filteredNewResults: any[] = [];
-
-    for (let i = 0; this.notes.length > i; i++) {
-      const normalizedText = normalize(this.notes[i]?.text);
-      const result = normalizedText.includes(normalizedQuery);
-
-      let titleExists = false;
-      if (this.notes[i].title !== undefined) {
-        const normalizedTitle = normalize(this.notes[i]?.title);
-        titleExists = normalizedTitle.includes(normalizedQuery);
-      }
-
-      // dont search in locked notes.
-      if (result && !this.notes[i].protected) {
-        filteredNewResults.push(this.notes[i]);
-      } else if (titleExists) {
-        filteredNewResults.push(this.notes[i]);
-      }
-    }
+    const terms = normalize(this.search_query).split(' ').filter(Boolean);
+    const filteredNewResults = this.notes.filter((note: NoteV1) => matchesNoteSearch(
+      terms, normalize(note.title), normalize(note.folder),
+      note.protected ? '' : noteSearchText(note.text ?? ''), !!note.protected
+    ));
 
     this.isSearching = true;
     this.pauseSync = true;
@@ -929,11 +922,14 @@ export class HomePage implements AfterViewInit {
           "ssEakB64_Encrypted"
         );
         if (eakB64) {
-          // decrypt stored MK using app-lock password
-          eakB64 = this.cryptoService.decrypt(
-            eakB64,
-            this.input_password_app_unlock
-          ) as string;
+          // Password validation above must succeed before legacy key migration.
+          const unlocked = readUnlockedAppKey(eakB64, this.input_password_app_unlock,
+            (value, password) => this.cryptoService.decrypt(value, password));
+          if (unlocked.needsWrapping) {
+            await this.secureStorageService.setItem('ssEakB64_Encrypted',
+              this.cryptoService.encrypt(unlocked.key, this.input_password_app_unlock));
+          }
+          eakB64 = unlocked.key;
           this.mkRaw = this.b64ToBytes(eakB64);
 
           // Import into crypto vault (keeps MK in RAM, used for AES-GCM note encryption)
@@ -1081,7 +1077,7 @@ export class HomePage implements AfterViewInit {
       return;
     }
 
-    const now = Date.now();
+    const now = nextNoteVersion(this.notes ?? []);
     this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, folder: nextFolderName, folder_id: folderId, last_modified: now } : note);
     this.noteService.markPendingMutation(noteId, 'move', now);
     this.rebuildFolders();
@@ -1175,11 +1171,9 @@ export class HomePage implements AfterViewInit {
       if (this.activeFolderName !== '__all__' && (note?.folder ?? '') !== this.activeFolderName) return false;
       if (this.activeFilter === 'favorites' && !note?.favorite) return false;
       if (this.search_query && this.search_query.trim().length > 0) {
-        const q = this.search_query.toLowerCase();
-        const title = String(note?.title ?? '').toLowerCase();
-        const body = String(note?.text ?? '').toLowerCase();
-        const folder = String(note?.folder ?? '').toLowerCase();
-        return title.includes(q) || body.includes(q) || folder.includes(q);
+        return matchesNoteSearch(normalize(this.search_query).split(' ').filter(Boolean),
+          normalize(note.title), normalize(note.folder),
+          note.protected ? '' : noteSearchText(note.text ?? ''), !!note.protected);
       }
       return true;
     }).sort((a: any, b: any) => {
@@ -1279,7 +1273,7 @@ export class HomePage implements AfterViewInit {
       return;
     }
 
-    const now = Date.now();
+    const now = nextNoteVersion(this.notes ?? []);
     this.folders = this.folders
       .map((item) => item.id === folder.id ? { ...item, name: nextName, last_modified: now } : item)
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -1328,7 +1322,7 @@ export class HomePage implements AfterViewInit {
               this.selectFolder(this.folders.find((folder) => folder.name.toLowerCase() === name.toLowerCase())?.name ?? '__all__');
               return true;
             }
-            const now = Date.now();
+            const now = nextNoteVersion(this.notes ?? []);
             const storedFolders = this.getStoredFolders(this.noteService.getNotesAppPassword());
             const existing = storedFolders.find((folder) => (folder.name ?? '').toLowerCase() === name.toLowerCase());
             const folder = existing
@@ -1362,7 +1356,7 @@ export class HomePage implements AfterViewInit {
           text: 'Delete',
           role: 'destructive',
           handler: async () => {
-            const now = Date.now();
+            const now = nextNoteVersion(this.notes ?? []);
             this.notes = (this.notes ?? []).map((note: any) => (note?.folder === folderName ? { ...note, folder: '', folder_id: null, last_modified: now } : note));
             const storedFolders = this.getStoredFolders(this.noteService.getNotesAppPassword()).filter((folder) => (folder.name ?? '').toLowerCase() !== folderName.toLowerCase());
             const targetFolder = this.folders.find((folder) => String(folder?.name ?? '').trim().toLowerCase() === folderName.trim().toLowerCase());
@@ -1387,7 +1381,7 @@ export class HomePage implements AfterViewInit {
 
   public async togglePinnedFromHome(event: Event, noteId: string): Promise<void> {
     event.stopPropagation();
-    const now = Date.now();
+    const now = nextNoteVersion(this.notes ?? []);
     this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, pinned: !note?.pinned, last_modified: now } : note);
     this.noteService.markPendingMutation(noteId, 'pin', now);
     this.persistNotes();
@@ -1395,7 +1389,7 @@ export class HomePage implements AfterViewInit {
 
   public async toggleFavoriteFromHome(event: Event, noteId: string): Promise<void> {
     event.stopPropagation();
-    const now = Date.now();
+    const now = nextNoteVersion(this.notes ?? []);
     this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, favorite: !note?.favorite, last_modified: now } : note);
     this.noteService.markPendingMutation(noteId, 'favorite', now);
     this.persistNotes();

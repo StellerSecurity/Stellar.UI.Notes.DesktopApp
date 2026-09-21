@@ -1,0 +1,10 @@
+const {readFileSync} = require('node:fs');
+const {runInNewContext} = require('node:vm');
+const assert = require('node:assert/strict');
+const source = readFileSync(require('node:path').join(__dirname, '../electron-start.js'), 'utf8');
+const start = source.indexOf('function isSafeExternalUrl(');
+const end = source.indexOf('\nlet mainWindow;', start);
+const safe = runInNewContext(source.slice(start,end) + '; isSafeExternalUrl', {URL});
+for (const url of ['https://example.com','http://example.com','mailto:fixture@example.com','tel:+4512345678']) assert.equal(safe(url),true);
+for (const url of ['javascript:alert(1)','file:///tmp/example','data:text/html,test','powershell:test','ms-msdt:test','not a URL',null,{}]) assert.equal(safe(url),false);
+console.log('PASS: 12 Electron external URL cases');
