@@ -1,7 +1,7 @@
 <div class="editor-container" #editorWrapper (focusin)="onEditorFocusIn()" (focusout)="onEditorFocusOut()">
   <quill-editor [(ngModel)]="note_text" (ngModelChange)="onContentChange($event)"
     [modules]="quillModules" [sanitize]="true" [compareValues]="true" [valueSetter]="editorValueSetter" [defaultEmptyValue]="''"
-    (onEditorCreated)="onEditorCreated($event)" placeholder="{{ 'enterYourNoteHere' | translate }}">
+    (onEditorCreated)="onEditorCreated($event)" [placeholder]="editorPlaceholder('enterYourNoteHere' | translate)">
     <div quill-editor-toolbar class="desktop-editor-toolbar" #toolbar>
       <button type="button" title="Undo" aria-label="Undo" (mousedown)="$event.preventDefault()" (click)="undo()"><img src="assets/editor-icon/undo-icon.png" alt=""></button>
       <button type="button" title="Redo" aria-label="Redo" (mousedown)="$event.preventDefault()" (click)="redo()"><img class="redo-icon" src="assets/editor-icon/undo-icon.png" alt=""></button>

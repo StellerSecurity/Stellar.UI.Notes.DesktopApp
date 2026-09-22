@@ -16,7 +16,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:parity": "ng test --watch=false --browsers=ChromeHeadless --ts-config=tsconfig.desktop-parity.json --include=src/app/desktop-parity.spec.ts --include=src/app/editor-performance.spec.ts --include=src/app/editor-parity.spec.ts --include=src/app/metadata-sync.spec.ts --include=src/app/adversarial-sync.spec.ts --include=src/app/editor-stress.spec.ts --include=src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts --include=src/app/utils/note-search.spec.ts && node tools/desktop-url-contract.cjs && node tools/desktop-realtime-contract.cjs",
+    "test:parity": "ng test --watch=false --browsers=ChromeHeadless --ts-config=tsconfig.desktop-parity.json --include=src/app/desktop-parity.spec.ts --include=src/app/editor-performance.spec.ts --include=src/app/editor-parity.spec.ts --include=src/app/metadata-sync.spec.ts --include=src/app/adversarial-sync.spec.ts --include=src/app/editor-stress.spec.ts --include=src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts --include=src/app/utils/note-search.spec.ts && node tools/desktop-url-contract.cjs && node tools/desktop-realtime-contract.cjs && node tools/desktop-localization-contract.cjs",
     "lint": "ng lint",
     "electron": "electron .",
     "generate-icons": "electron-icon-builder --input=icons/icon.png --output=icons --flatten",

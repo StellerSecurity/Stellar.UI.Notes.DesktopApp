@@ -1,4 +1,5 @@
 {
+  "enterYourNoteHere": "Indtast din note her..",
     "lockNoteWithPassword": "Lås note med adgangskode",
     "pleaseEnterYourPasswordToConfirm": "For at deaktivere adgangskoden til noter‑appen skal du indtaste din adgangskode for at bekræfte.",
     "passwordWarningMsg": "Advarsel, dette efterlader dine noter i dekrypteret tilstand. Du kan altid tilføje en adgangskode igen.",

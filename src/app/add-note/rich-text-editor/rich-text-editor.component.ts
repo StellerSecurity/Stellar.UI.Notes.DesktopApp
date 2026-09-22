@@ -54,6 +54,11 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     private sanitizer: DomSanitizer,
   ) {}
 
+  editorPlaceholder(translation: string): string {
+    return translation?.trim() && translation !== 'enterYourNoteHere'
+      ? translation : 'Enter your note here..';
+  }
+
   private schedule(action: () => void, delay: number): void {
     const generation = this.generation;
     const timer = setTimeout(() => {

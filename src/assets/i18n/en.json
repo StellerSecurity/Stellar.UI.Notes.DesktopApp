@@ -1,4 +1,5 @@
 {
+  "enterYourNoteHere": "Enter your note here..",
   "lockNoteWithPassword": "Lock Note with password",
   "pleaseEnterYourPasswordToConfirm": "To disable the notes app password, please enter your password to confirm.",
   "passwordWarningMsg": "Warning, this will leave your notes in a decrypted state. You can always add a password again.",
