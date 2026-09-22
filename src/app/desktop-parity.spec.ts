@@ -139,7 +139,7 @@ describe('Desktop HTML editor parity',()=>{
  function editor() {
   const host=document.createElement('div');host.innerHTML='<div class="angular-editor-textarea" contenteditable="true"></div>';document.body.append(host);
   const renderer={listen:(el:HTMLElement,event:string,fn:any)=>{el.addEventListener(event,fn);return()=>el.removeEventListener(event,fn);}};
-  const c=new RichTextEditorComponent(renderer as any,{detectChanges:()=>{}} as any,{setNoteIsUpdatedSubject:()=>{}} as any,{} as any,TestBed.inject(DomSanitizer));
+  const c=new RichTextEditorComponent(renderer as any,{detectChanges:()=>{}} as any,{} as any,TestBed.inject(DomSanitizer));
   c.editorWrapper=new ElementRef(host);return {c,host,root:host.firstElementChild as HTMLElement};
  }
  it('sanitizes initial and remotely downloaded HTML before insertion',fakeAsync(()=>{

@@ -760,7 +760,6 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   // should be called on key enter.
   save(ev: any) {
-    console.log('save');
     if (this.notes_id === null) return;
     if (this.note_locked) return;
 

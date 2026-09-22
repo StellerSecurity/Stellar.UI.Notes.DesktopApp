@@ -35,7 +35,7 @@ import { search } from "ionicons/icons";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UserMenuComponent } from "../user-menu/user-menu.component";
-import { Subscription, filter } from "rxjs";
+import { Subscription, auditTime, filter } from "rxjs";
 
 // 🔐 from main branch
 import { NotesApiV1Service } from "../services/notes-api-v1.service";
@@ -116,6 +116,12 @@ export class HomePage implements AfterViewInit {
   private hiddenId: string | null = null;
   public isSyncing = false;
   public waitForSync = false;
+  public manualSyncRequests = 0;
+
+  private previewSource?: any[];
+  private previewSelectedId: string | null = null;
+  private previewPassword: string | null = null;
+  private previewNotes: any[] = [];
 
   // 🔐 MK kept in RAM (EAK already resolved to plaintext MK elsewhere)
   private mkRaw: Uint8Array | null = null;
@@ -143,7 +149,7 @@ export class HomePage implements AfterViewInit {
   public draggingNoteId: string | null = null;
   public draggingFolderTarget: string | null = null;
 
-  private readonly realtimeHint = () => { void this.syncFromServer().catch(() => {}); };
+  private readonly realtimeHint = () => { void this.syncFromServer('resume').catch(() => {}); };
 
   constructor(
     private cryptoService: CryptoService,
@@ -303,16 +309,21 @@ export class HomePage implements AfterViewInit {
     this.isSyncing = true;
     this.dataService.setForceDownloadOnHome(true);
 
-    const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'manual' ? 'manual' : (reason === 'online' ? 'online' : 'resume'));
+    if (reason === 'manual') this.manualSyncRequests++;
+    try {
+      const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'manual' ? 'manual' : (reason === 'online' ? 'online' : 'resume'));
 
-    if (didSync) {
-      this.setData(this.noteService.getNotesAppPassword());
-      this.restoreUiState();
-      this.clearSyncUiState({ clearForceDownload: true });
-      return;
+      if (didSync) {
+        this.setData(this.noteService.getNotesAppPassword());
+        this.restoreUiState();
+        this.clearSyncUiState({ clearForceDownload: true });
+        return;
+      }
+
+      this.clearSyncUiState({ clearForceDownload: !this.authService.isLoggedIn });
+    } finally {
+      if (reason === 'manual') this.manualSyncRequests--;
     }
-
-    this.clearSyncUiState({ clearForceDownload: !this.authService.isLoggedIn });
   }
 
   private registerNetworkListeners(): void {
@@ -580,14 +591,10 @@ export class HomePage implements AfterViewInit {
 
   subscribeNoteUpdated(): void {
     this.subscriptions.push(
-      this.noteService.noteIsUpdated$.subscribe((value) => {
+      // Only batch sidebar rendering. The editor still persists every edit immediately.
+      this.noteService.noteIsUpdated$.pipe(auditTime(100)).subscribe((value) => {
         if (value) {
           this.setData(this.noteService.getNotesAppPassword());
-
-          setTimeout(() => {
-            this.initializePressGesture();
-            this.cdr.detectChanges();
-          }, 300);
         }
       })
     );
@@ -701,25 +708,9 @@ export class HomePage implements AfterViewInit {
   }
 
   search() {
-    if (!this.search_query.trim()) {
-      this.isSearching = false;
-      this.filteredResults = this.notes;
-      return;
-    }
-
-    const terms = normalize(this.search_query).split(' ').filter(Boolean);
-    const filteredNewResults = this.notes.filter((note: NoteV1) => matchesNoteSearch(
-      terms, normalize(note.title), normalize(note.folder),
-      note.protected ? '' : noteSearchText(note.text ?? ''), !!note.protected
-    ));
-
-    this.isSearching = true;
-    this.pauseSync = true;
-    this.filteredResults = filteredNewResults;
-    this.persistUiState();
-
-    this.initializePressGesture();
-    setTimeout(() => this.cdr.detectChanges(), HomePage.DETECT_CHANGES_DELAY_MS);
+    this.isSearching = !!this.search_query.trim();
+    this.pauseSync = this.isSearching;
+    this.applyFilters();
   }
 
   // --------------------------------------------------
@@ -869,7 +860,7 @@ export class HomePage implements AfterViewInit {
     void this.requestImmediateSync('manual');
   }
 
-  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual') {
+  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' = 'resume') {
     await this.requestImmediateSync(reason);
   }
 
@@ -973,55 +964,32 @@ export class HomePage implements AfterViewInit {
     return true;
   }
 
-  /**
-   * Will get the decrypted notes (if there is any),
-   * and sort them by last modified.
-   */
+  /** Filtering and sorting run on data/filter changes, never during rendering. */
   getNotes() {
-    if (this.filteredResults === undefined || this.filteredResults === null) {
-      return [];
+    const source = this.filteredResults;
+    if (!Array.isArray(source)) return [];
+    const selectedId = this.noteService.isNoteTemporaryDescripted ? this.noteService.selectedNoteId : null;
+    const password = selectedId ? this.noteService.notesPasswordStored : null;
+    if (source === this.previewSource && selectedId === this.previewSelectedId && password === this.previewPassword) {
+      return this.previewNotes;
     }
-
-    this.applyFilters();
-
-    // descript current note on unlock temporary
-    if (Array.isArray(this.filteredResults) && this.filteredResults.length) {
-      this.filteredResults = this.filteredResults.map((note: any) => {
-
-        if (
-          note?.id === this.noteService.selectedNoteId &&
-          this.noteService.isNoteTemporaryDescripted &&
-          this.noteService.notesPasswordStored
-        ) {
-          try {
-            if(note?.isDescripted == true) {
-              return note
-            } else {
-            return {
-              ...note,
-              title: this.cryptoService.decrypt(
-                note.title,
-                this.noteService.notesPasswordStored
-              ),
-              text: this.cryptoService.decrypt(
-                note.text,
-                this.noteService.notesPasswordStored
-              ),
-              isDescripted: true,
-            }
-          };
-          } catch (error) {
-            console.error('Decryption failed:', error);
-            return note; // fallback safely
-          }
-        }
-
+    this.previewSource = source;
+    this.previewSelectedId = selectedId;
+    this.previewPassword = password;
+    // Never replace the encrypted source records with a temporary display preview.
+    this.previewNotes = password ? source.map((note: any) => {
+      if (note?.id !== selectedId || !note?.protected) return note;
+      try {
+        return {...note, title: this.cryptoService.decrypt(note.title, password),
+          text: this.cryptoService.decrypt(note.text, password), isDescripted: true};
+      } catch {
         return note;
-      });
-    }
-
-    return this.filteredResults;
+      }
+    }) : source;
+    return this.previewNotes;
   }
+
+  public trackNoteById(_index: number, note: NoteV1): string { return note.id; }
 
   // --------------------------------------------------
   // Navigation
@@ -1166,12 +1134,13 @@ export class HomePage implements AfterViewInit {
 
   public applyFilters(): void {
     const base = Array.isArray(this.notes) ? [...this.notes] : [];
+    const terms = normalize(this.search_query ?? '').split(' ').filter(Boolean);
     const scoped = base.filter((note: any) => {
       if (note?.deleted) return false;
       if (this.activeFolderName !== '__all__' && (note?.folder ?? '') !== this.activeFolderName) return false;
       if (this.activeFilter === 'favorites' && !note?.favorite) return false;
-      if (this.search_query && this.search_query.trim().length > 0) {
-        return matchesNoteSearch(normalize(this.search_query).split(' ').filter(Boolean),
+      if (terms.length > 0) {
+        return matchesNoteSearch(terms,
           normalize(note.title), normalize(note.folder),
           note.protected ? '' : noteSearchText(note.text ?? ''), !!note.protected);
       }

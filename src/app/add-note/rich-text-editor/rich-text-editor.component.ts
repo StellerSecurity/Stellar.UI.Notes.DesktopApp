@@ -17,7 +17,6 @@ import {
   AngularEditorComponent,
   AngularEditorConfig,
 } from "@wfpena/angular-wysiwyg";
-import { NotesService } from "src/app/services/notes.service";
 import { AlertController } from "@ionic/angular";
 
 @Component({
@@ -40,6 +39,8 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDest
   private destroyed = false;
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private unlisten: Array<() => void> = [];
+  private sanitizedContent?: string;
+  private publishedContent?: string;
 
   private schedule(action: () => void, delay: number): void {
     const timer = setTimeout(() => {
@@ -50,10 +51,17 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private safeHtml(content: string): string {
-    return this.sanitizer.sanitize(SecurityContext.HTML, content ?? '') ?? '';
+    const html = content ?? '';
+    if (html === this.sanitizedContent) return html;
+    const safe = this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+    this.sanitizedContent = safe;
+    return safe;
   }
 
-  ngOnChanges(): void { this.note_text = this.safeHtml(this.note_text); }
+  ngOnChanges(): void {
+    this.note_text = this.safeHtml(this.note_text);
+    this.publishedContent = this.note_text;
+  }
 
   ngOnDestroy(): void {
     this.destroyed = true;
@@ -124,7 +132,6 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDest
   constructor(
     private renderer: Renderer2,
     private cdr: ChangeDetectorRef,
-    private noteService: NotesService,
     private alertCtrl: AlertController,
     private sanitizer: DomSanitizer
   ) {
@@ -181,6 +188,7 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDest
 
   public setExternalContent(content: string): void {
     const normalized = this.safeHtml(content);
+    this.publishedContent = normalized;
     if (this.note_text === normalized) {
       return;
     }
@@ -386,10 +394,7 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDest
     // update model
     this.schedule(() => {
       const html = editorDiv.innerHTML;
-      this.note_text = html;
-      this.noteChange.emit(html);
-      this.noteService.setNoteIsUpdatedSubject(true);
-      this.cdr.detectChanges();
+      this.onContentChange(html);
     }, 50);
 
     this.interceptEditorLinks();
@@ -430,14 +435,10 @@ export class RichTextEditorComponent implements AfterViewInit, OnChanges, OnDest
   onContentChange(content: string): void {
     const safeContent = this.safeHtml(content);
     this.note_text = safeContent;
+    // The underlying editor also reports unchanged content on click and blur.
+    if (safeContent === this.publishedContent) return;
+    this.publishedContent = safeContent;
     this.noteChange.emit(safeContent);
-    this.noteService.setNoteIsUpdatedSubject(true);
-  }
-
-  onClickEditor(): void {
-    this.schedule(() => {
-      this.cdr.detectChanges();
-    }, 100);
   }
 
   onLeave() {
