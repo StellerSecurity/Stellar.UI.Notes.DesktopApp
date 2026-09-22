@@ -43,6 +43,7 @@ import { SecureStorageService } from "../services/secure-storage.service";
 import { DataService } from "../services/data.service";
 import { AuthService } from "../services/auth.service";
 import { RemoteDownloadSyncService } from "../services/remote-download-sync.service";
+import { SyncWorkerService } from '../services/sync-worker.service';
 import { CryptoKeyService } from "../services/crypto-key.service";
 import {
   decryptTextWithMK,
@@ -149,7 +150,7 @@ export class HomePage implements AfterViewInit {
   public draggingNoteId: string | null = null;
   public draggingFolderTarget: string | null = null;
 
-  private readonly realtimeHint = () => { void this.syncFromServer('resume').catch(() => {}); };
+  private readonly realtimeHint = () => { void this.syncFromServer('realtime').catch(() => {}); };
 
   constructor(
     private cryptoService: CryptoService,
@@ -176,6 +177,7 @@ export class HomePage implements AfterViewInit {
     private authService: AuthService,
     private crypto: CryptoKeyService,
     private remoteDownloadSync: RemoteDownloadSyncService,
+    private syncWorker: SyncWorkerService,
   ) {
     // for make selected note on sidebar
     const urlParts = this.router.url.split("/");
@@ -285,7 +287,7 @@ export class HomePage implements AfterViewInit {
     }
   }
 
-  private async requestImmediateSync(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual'): Promise<void> {
+  private async requestImmediateSync(reason: 'enter' | 'resume' | 'online' | 'manual' | 'realtime' = 'manual'): Promise<void> {
     if (!this.authService.isLoggedIn) {
       this.clearSyncUiState();
       return;
@@ -311,7 +313,7 @@ export class HomePage implements AfterViewInit {
 
     if (reason === 'manual') this.manualSyncRequests++;
     try {
-      const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'manual' ? 'manual' : (reason === 'online' ? 'online' : 'resume'));
+      const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'enter' ? 'resume' : reason);
 
       if (didSync) {
         this.setData(this.noteService.getNotesAppPassword());
@@ -860,7 +862,7 @@ export class HomePage implements AfterViewInit {
     void this.requestImmediateSync('manual');
   }
 
-  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' = 'resume') {
+  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' | 'realtime' = 'resume') {
     await this.requestImmediateSync(reason);
   }
 
@@ -1350,18 +1352,44 @@ export class HomePage implements AfterViewInit {
 
   public async togglePinnedFromHome(event: Event, noteId: string): Promise<void> {
     event.stopPropagation();
-    const now = nextNoteVersion(this.notes ?? []);
-    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, pinned: !note?.pinned, last_modified: now } : note);
-    this.noteService.markPendingMutation(noteId, 'pin', now);
-    this.persistNotes();
+    await this.toggleNoteFlag(noteId, 'pinned');
   }
 
   public async toggleFavoriteFromHome(event: Event, noteId: string): Promise<void> {
     event.stopPropagation();
-    const now = nextNoteVersion(this.notes ?? []);
-    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, favorite: !note?.favorite, last_modified: now } : note);
-    this.noteService.markPendingMutation(noteId, 'favorite', now);
-    this.persistNotes();
+    await this.toggleNoteFlag(noteId, 'favorite');
+  }
+
+  private async toggleNoteFlag(noteId: string, flag: 'favorite' | 'pinned'): Promise<void> {
+    try {
+      // The sidebar can lag behind the open editor. Always mutate the durable note,
+      // retaining its current text, protection and other metadata.
+      const stored = this.noteService.getNotes();
+      const raw = this.noteService.appHasPasswordChallenge()
+        ? this.cryptoService.decrypt(stored, this.noteService.getNotesAppPassword()) : stored;
+      const notes = JSON.parse(raw || '[]');
+      if (!Array.isArray(notes)) throw new Error('Invalid notes storage');
+      const current = notes.find((note: any) => note.id === noteId && !note.deleted);
+      if (!current) return;
+      const changed = { ...current, [flag]: !current[flag], last_modified: nextNoteVersion(notes) };
+      this.notes = notes.map((note: any) => note.id === noteId ? changed : note);
+      this.noteService.markPendingMutation(noteId, flag === 'pinned' ? 'pin' : 'favorite', changed.last_modified);
+      this.persistNotes();
+      // The open editor shares this object; its next keystroke must retain the flag.
+      if (this.noteService.currentNote?.id === noteId) {
+        Object.assign(this.noteService.currentNote, { [flag]: changed[flag], last_modified: changed.last_modified });
+      }
+      if (this.authService.isLoggedIn) {
+        await this.notesApiServiceV1.upload(0, [changed], undefined, [], true, true);
+        await this.syncWorker.trySync();
+      }
+    } catch {
+      this.noteService.syncNeedsAttention$.next(true);
+      const toast = await this.toastController.create({
+        message: 'The change could not be synced. Please try again.', duration: 5000, color: 'danger',
+      });
+      await toast.present();
+    }
   }
 
   public async moveNoteToFolderFromHome(event: Event, noteId: string): Promise<void> {

@@ -5,7 +5,11 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { DomSanitizer } from '@angular/platform-browser';
 import { AlertController } from '@ionic/angular';
-import { AngularEditorModule } from '@wfpena/angular-wysiwyg';
+import { QuillModule } from 'ngx-quill';
+import Quill from 'quill';
+import { QuillService } from 'ngx-quill';
+import { TranslateModule } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { BehaviorSubject } from 'rxjs';
 import { RichTextEditorComponent } from './add-note/rich-text-editor/rich-text-editor.component';
 import { AddNotePage } from './add-note/add-note.page';
@@ -37,8 +41,8 @@ class SidebarFixture { page = sidebar(); }
 describe('Desktop typing and sidebar rendering', () => {
   beforeEach(() => TestBed.configureTestingModule({
     declarations: [EditorFixture, SidebarFixture, RichTextEditorComponent],
-    imports: [CommonModule, FormsModule, HttpClientTestingModule, AngularEditorModule],
-    providers: [{provide: AlertController, useValue: {}}],
+    imports: [CommonModule, FormsModule, HttpClientTestingModule, QuillModule.forRoot(), TranslateModule.forRoot()],
+    providers: [{provide: AlertController, useValue: {}}, {provide: QuillService, useValue: { config: {}, getQuill: () => of(Quill), registerCustomModules: () => Promise.resolve() }}],
   }));
 
   it('does not filter, sort, or write storage during repeated sidebar rendering', () => {
@@ -109,23 +113,26 @@ describe('Desktop typing and sidebar rendering', () => {
     const fixture = TestBed.createComponent(EditorFixture);
     const host = fixture.componentInstance;
     host.text = '<p>test æøå</p>'.repeat(2000);
-    fixture.detectChanges(); tick(600); fixture.detectChanges();
-    const root: HTMLElement = fixture.nativeElement.querySelector('.angular-editor-textarea');
+    fixture.detectChanges(); tick(600); fixture.detectChanges(); tick();
+    const root: HTMLElement = fixture.nativeElement.querySelector('.ql-editor');
+    const quill = fixture.debugElement.children[0].componentInstance.quill;
     const line = root.firstElementChild!;
     const text = line.firstChild as Text;
     root.focus({preventScroll:true}); tick(100);
     const range = document.createRange(); range.setStart(text, 2); range.collapse(true);
     window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(range);
     host.changes = [];
-    const started = performance.now();
+    const writes = spyOn(quill, 'setContents').and.callThrough();
     for (let i = 0; i < 30; i++) {
       text.insertData(2 + i, 'x');
       range.setStart(text, 3 + i); range.collapse(true);
       root.dispatchEvent(new InputEvent('input', {bubbles:true,inputType:'insertText',data:'x'}));
+      // Drain Quill's MutationObserver synchronously inside fakeAsync.
+      quill.update('user');
       fixture.detectChanges(); tick(1);
     }
-    console.info('EDITOR_PERFORMANCE_2000_LINES_30_INPUTS_MS', Math.round(performance.now()-started));
     expect(host.changes.length).toBe(30);
+    expect(writes).not.toHaveBeenCalled();
     expect(root.firstElementChild).toBe(line);
     expect(window.getSelection()!.anchorNode).toBe(text);
     expect(root.querySelectorAll('p').length).toBe(2000);
@@ -142,7 +149,9 @@ describe('Desktop typing and sidebar rendering', () => {
     fixture.detectChanges(); tick();
     expect(fixture.componentInstance.text).not.toContain('onerror');
     expect(fixture.componentInstance.text).not.toContain('<script');
-    expect(sanitizer.calls.count()).toBe(1);
+    const calls = sanitizer.calls.count();
+    fixture.detectChanges(); tick();
+    expect(sanitizer.calls.count()).toBe(calls);
     c.onContentChange(fixture.componentInstance.text);
     expect(fixture.componentInstance.changes.length).toBe(1);
     fixture.destroy(); tick(1000);

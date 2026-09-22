@@ -13,7 +13,7 @@ import {StriphtmlPipe} from "../striphtml.pipe";
 import { ClickOutsideDirective } from '../directives/click-outside.directive';
 import { AddNotePage } from '../add-note/add-note.page';
 import { PasswordStrengthMeterModule } from 'angular-password-strength-meter';
-import { AngularEditorModule } from '@wfpena/angular-wysiwyg';
+import { QuillModule } from 'ngx-quill';
 import { NoteLockedModalModule } from '../note-locked-modal/note-locked-modal.module';
 import { RichTextEditorComponent } from '../add-note/rich-text-editor/rich-text-editor.component';
 import { InitialComponent } from '../initial/initial.component';
@@ -27,7 +27,7 @@ import { NoteContextMenuComponent } from './note-context-menu/note-context-menu.
         HomePageRoutingModule,
         PasswordStrengthMeterModule,
         NoteLockedModalModule,
-        AngularEditorModule,
+        QuillModule,
         DeleteNoteModalModule,
         RestPassModalModule,
         TranslateModule

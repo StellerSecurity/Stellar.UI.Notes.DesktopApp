@@ -1,1 +1,16 @@
-{"extends":"./tsconfig.spec.json","files":["src/test.ts","src/polyfills.ts"],"include":["src/app/desktop-parity.spec.ts","src/app/editor-performance.spec.ts","src/app/utils/note-search.spec.ts","src/**/*.d.ts"]}
+{
+  "extends": "./tsconfig.spec.json",
+  "files": [
+    "src/test.ts",
+    "src/polyfills.ts"
+  ],
+  "include": [
+    "src/app/desktop-parity.spec.ts",
+    "src/app/editor-performance.spec.ts",
+    "src/app/utils/note-search.spec.ts",
+    "src/**/*.d.ts",
+    "src/app/editor-parity.spec.ts",
+    "src/app/metadata-sync.spec.ts",
+    "src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts"
+  ]
+}

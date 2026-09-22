@@ -70,7 +70,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   public actionsPopoverOpen = false;
   public actionsPopoverEvent: any = null;
 
-  private notes_id: string | null = null;
+  public notes_id: string | null = null;
   private notes: NoteV1[] = [];
   private currentNote: NoteV1 | null = null;
 
@@ -382,20 +382,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   private placeCursorAtEnd() {
-    const editorElem = this.richTextEditorComponent?.editorComponent?.textArea?.nativeElement;
-    if (!editorElem) return;
-
-    editorElem.focus({ preventScroll: true });
-    const selection = window.getSelection();
-    const range = document.createRange();
-    const lastChild = editorElem.lastChild;
-
-    if (selection && range && lastChild) {
-      range.selectNodeContents(editorElem);
-      range.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+    this.richTextEditorComponent?.focusEmptyEditor();
   }
 
 
@@ -734,7 +721,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
     this.currentNote.pinned = !this.currentNote.pinned;
     this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
-    this.save(null);
+    this.save(null, true);
   }
 
   public async toggleFavorite(): Promise<void> {
@@ -743,7 +730,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
     this.currentNote.favorite = !this.currentNote.favorite;
     this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
-    this.save(null);
+    this.save(null, true);
   }
 
   public isPinned(): boolean {
@@ -759,7 +746,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   // should be called on key enter.
-  save(ev: any) {
+  save(ev: any, immediateSync = false) {
     if (this.notes_id === null) return;
     if (this.note_locked) return;
 
@@ -834,14 +821,14 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.notesService.markPendingMutation(note.id, 'update', Number(note.last_modified));
     this.currentNote = note;
     this.notesService.currentNote = this.currentNote;
-    this.storeNoteInStorage(true).catch(async () => {
+    this.storeNoteInStorage(true, false, immediateSync).catch(async () => {
       const toast = await this.toastController.create({message: 'The note could not be saved. Keep this window open and try again.', duration: 5000, color: 'danger'});
       await toast.present();
     });
     this.notesService.setNoteIsUpdatedSubject(true)
   }
 
-  async storeNoteInStorage(serverSync = true, forceDownloadOnHome = false) {
+  async storeNoteInStorage(serverSync = true, forceDownloadOnHome = false, immediateSync = false) {
     if (this.notesService.appHasPasswordChallenge()) {
       const encryptedNotesSave = this.cryptoService.encrypt(
         JSON.stringify(this.notes),
@@ -859,9 +846,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     const notesToSend = this.notes.filter(note => note.id === this.notes_id).map(note => ({ ...note }));
 
     if (serverSync && this.authService.isLoggedIn && notesToSend.length) {
-      await this.notesApiV1Service.upload(0, notesToSend, undefined, [], true);
+      await this.notesApiV1Service.upload(0, notesToSend, undefined, [], true, immediateSync);
       clearTimeout(this.saveTimeout);
-      this.saveTimeout = window.setTimeout(() => { void this.syncWorker.trySync(); }, 500);
+      if (immediateSync) await this.syncWorker.trySync();
+      else this.saveTimeout = window.setTimeout(() => { void this.syncWorker.trySync(); }, 500);
       if (this.viewActive && this.liveNoteTimer == null) this.startLiveNotePolling();
     }
   }

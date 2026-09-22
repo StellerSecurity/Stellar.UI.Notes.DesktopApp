@@ -50,7 +50,6 @@ import { HttpHeaders } from '@angular/common/http';
 import { NotesApiV1Service } from './services/notes-api-v1.service';
 import { CryptoKeyService } from './services/crypto-key.service';
 import { confirmUpload } from './services/upload-confirmation';
-import { RichTextEditorComponent } from './add-note/rich-text-editor/rich-text-editor.component';
 import { NoteLockedModalComponent } from './note-locked-modal/note-locked-modal.component';
 import { RemoteDownloadSyncService } from './services/remote-download-sync.service';
 import { nextNoteVersion } from './utils/note-version';
@@ -136,27 +135,6 @@ describe('Desktop legacy API contracts', () => {
 });
 
 describe('Desktop HTML editor parity',()=>{
- function editor() {
-  const host=document.createElement('div');host.innerHTML='<div class="angular-editor-textarea" contenteditable="true"></div>';document.body.append(host);
-  const renderer={listen:(el:HTMLElement,event:string,fn:any)=>{el.addEventListener(event,fn);return()=>el.removeEventListener(event,fn);}};
-  const c=new RichTextEditorComponent(renderer as any,{detectChanges:()=>{}} as any,{} as any,TestBed.inject(DomSanitizer));
-  c.editorWrapper=new ElementRef(host);return {c,host,root:host.firstElementChild as HTMLElement};
- }
- it('sanitizes initial and remotely downloaded HTML before insertion',fakeAsync(()=>{
-  const {c,host,root}=editor();c.note_text='<img src=x onerror="alert(1)"><script>alert(2)</script><p>line 1</p><p>line 2</p>';
-  c.ngOnChanges();expect(c.note_text).not.toContain('onerror');expect(c.note_text).not.toContain('<script');
-  c.setExternalContent('<h1>Heading</h1><p>test</p><p>test</p><a href="javascript:alert(1)">link</a>');tick(350);
-  expect(root.querySelectorAll('p').length).toBe(2);expect(root.querySelector('h1')?.textContent).toBe('Heading');
-  expect(root.querySelector('a')?.getAttribute('href')).not.toBe('javascript:alert(1)');c.ngOnDestroy();host.remove();
- }));
- it('does not autofocus the end of a long existing note',fakeAsync(()=>{
-  const {c,host,root}=editor();root.textContent='Existing long note';const focus=spyOn(root,'focus');c.ngAfterViewInit();tick(600);
-  expect(focus).not.toHaveBeenCalled();c.ngOnDestroy();host.remove();
- }));
- it('cancels delayed focus after leaving a blank note',fakeAsync(()=>{
-  const {c,host,root}=editor();const focus=spyOn(root,'focus');c.ngAfterViewInit();c.onLeave();tick(600);
-  expect(focus).not.toHaveBeenCalled();c.ngOnDestroy();host.remove();
- }));
  it('cancels password modal focus on dismissal',fakeAsync(()=>{
   const c=new NoteLockedModalComponent({dismiss:()=>{}} as any);const focus=jasmine.createSpy('focus');c.passwordInput={value:'',setFocus:focus} as any;
   c.ionViewDidEnter();c.dismiss(false);tick(500);expect(focus).not.toHaveBeenCalled();

@@ -38,7 +38,7 @@ export class OutboxStorage {
   }
 
   /** Add a new operation to the queue (FIFO). */
-  async enqueue(op: OutboxOp, coalesce = false) {
+  async enqueue(op: OutboxOp, coalesce = false, immediate = false) {
     return this.exclusive(async () => {
       let items = await this.read();
       // Only compact complete single-note snapshots, never folder/batch/delete operations.
@@ -52,7 +52,7 @@ export class OutboxStorage {
         if (previous.some(item => Number(item.payload.notes[0].last_modified) >= Number(note.last_modified))) return;
         const now = Date.now();
         op = { ...op, createdAt: Math.min(now, ...previous.map(item => item.createdAt ?? now)) };
-        op.nextAt = Math.min(now + 500, op.createdAt! + 5000);
+        op.nextAt = immediate ? now : Math.min(now + 500, op.createdAt! + 5000);
         const superseded = new Set(previous.map(item => item.opId));
         items = items.filter(item => !superseded.has(item.opId));
       }

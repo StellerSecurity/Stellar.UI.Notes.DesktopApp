@@ -19,6 +19,7 @@ export class RemoteDownloadSyncService {
   private started = false;
   private pollTimer: any = null;
   private inFlight: Promise<boolean> | null = null;
+  private realtimeRequested = false;
   private syncAppliedSubject = new BehaviorSubject<number>(0);
   public readonly syncApplied$ = this.syncAppliedSubject.asObservable();
 
@@ -60,14 +61,21 @@ export class RemoteDownloadSyncService {
     void this.requestImmediateSync('startup');
   }
 
-  async requestImmediateSync(reason: 'startup' | 'resume' | 'online' | 'manual' = 'manual'): Promise<boolean> {
-    void reason;
-
+  async requestImmediateSync(reason: 'startup' | 'resume' | 'online' | 'manual' | 'realtime' = 'manual'): Promise<boolean> {
     if (this.inFlight) {
+      if (reason === 'realtime') this.realtimeRequested = true;
       return this.inFlight;
     }
 
-    this.inFlight = this.performSync().finally(() => {
+    this.inFlight = (async () => {
+      let applied = false;
+      do {
+        this.realtimeRequested = false;
+        applied = await this.performSync() || applied;
+        // A hint received during the request may describe a newer server snapshot.
+      } while (this.realtimeRequested);
+      return applied;
+    })().finally(() => {
       this.inFlight = null;
     });
 

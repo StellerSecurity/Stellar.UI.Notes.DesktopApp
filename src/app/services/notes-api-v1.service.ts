@@ -95,7 +95,8 @@ export class NotesApiV1Service {
     notes: ReadonlyArray<NoteV1>,
     opId?: string,
     folders: ReadonlyArray<Folder> = [],
-    queueOnly = false
+    queueOnly = false,
+    immediate = false
   ): Promise<object> {
     const TOKEN = await this.secureStorageService.getItem("ssToken");
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
@@ -174,7 +175,7 @@ export class NotesApiV1Service {
     } as any;
 
     // Retain the existing encrypted payload until the server confirms its contents.
-    await this.outbox.enqueue(<OutboxOp>{ opId: payload.op_id, type: 'upload', payload, attempt: 0, nextAt: Date.now() }, queueOnly);
+    await this.outbox.enqueue(<OutboxOp>{ opId: payload.op_id, type: 'upload', payload, attempt: 0, nextAt: Date.now() }, queueOnly, immediate);
     if (queueOnly) return { queued: true, reason: 'durable' };
     if (!navigator.onLine) return { queued: true, reason: 'offline' };
     try {

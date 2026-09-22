@@ -1,9 +1,25 @@
-<div class="editor-container" #editorWrapper style="overflow-y: hidden;">
-  <angular-editor #editorRef
-    [config]="editorConfig"
-    [(ngModel)]="note_text"
-    (ngModelChange)="onContentChange($event)"
-    (focusin)="onEditorFocusIn()"
-    (focusout)="onEditorFocusOut()">
-  </angular-editor>
+<div class="editor-container" #editorWrapper (focusin)="onEditorFocusIn()" (focusout)="onEditorFocusOut()">
+  <quill-editor [(ngModel)]="note_text" (ngModelChange)="onContentChange($event)"
+    [modules]="quillModules" [sanitize]="true" [compareValues]="true" [valueSetter]="editorValueSetter" [defaultEmptyValue]="''"
+    (onEditorCreated)="onEditorCreated($event)" placeholder="{{ 'enterYourNoteHere' | translate }}">
+    <div quill-editor-toolbar class="desktop-editor-toolbar" #toolbar>
+      <button type="button" title="Undo" aria-label="Undo" (mousedown)="$event.preventDefault()" (click)="undo()"><img src="assets/editor-icon/undo-icon.png" alt=""></button>
+      <button type="button" title="Redo" aria-label="Redo" (mousedown)="$event.preventDefault()" (click)="redo()"><img class="redo-icon" src="assets/editor-icon/undo-icon.png" alt=""></button>
+      <span class="divider"></span>
+      <button type="button" class="ql-bold" title="Bold" aria-label="Bold"></button>
+      <button type="button" class="ql-strike" title="Strikethrough" aria-label="Strikethrough"></button>
+      <span class="list-group">
+        <button type="button" class="ql-list" value="bullet" title="Bulleted list" aria-label="Bulleted list"></button>
+        <button type="button" class="ql-list" value="ordered" title="Numbered list" aria-label="Numbered list"></button>
+      </span>
+      <select class="ql-header" aria-label="Heading">
+        <option selected value="">Standard</option>
+        <option value="1">Heading 1</option><option value="2">Heading 2</option>
+        <option value="3">Heading 3</option><option value="4">Heading 4</option>
+        <option value="5">Heading 5</option><option value="6">Heading 6</option>
+      </select>
+      <button type="button" class="ql-link" title="Insert link" aria-label="Insert link"></button>
+      <button type="button" class="ql-image" title="Insert image" aria-label="Insert image"></button>
+    </div>
+  </quill-editor>
 </div>
