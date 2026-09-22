@@ -7,7 +7,7 @@ import { QuillModule, QuillService } from 'ngx-quill';
 import Quill from 'quill';
 import { of } from 'rxjs';
 import { RichTextEditorComponent } from './add-note/rich-text-editor/rich-text-editor.component';
-import { preserveNoteLineBreaks } from './add-note/rich-text-editor/preserve-note-line-breaks';
+import { preserveNoteLineBreaks, preserveNoteSpaces } from './add-note/rich-text-editor/preserve-note-line-breaks';
 
 @Component({template: '<app-rich-text-editor [note_text]="html" [noteId]="id" (noteChange)="save($event)"></app-rich-text-editor>'})
 class EditorHost {
@@ -48,7 +48,7 @@ describe('Desktop Quill / mobile HTML compatibility', () => {
     const text = quill.getText(); const contents = quill.getContents();
     if (index < 4) expect(text).toBe('test\ntest\ntest\n');
     const node = document.createElement('div'); document.body.append(node);
-    const mobile: any = new Quill(node, {modules:{toolbar:false,clipboard:{matchVisual:false,matchers:[[1,preserveNoteLineBreaks]]}}});
+    const mobile: any = new Quill(node, {modules:{toolbar:false,clipboard:{matchVisual:false,matchers:[[3,preserveNoteSpaces],[1,preserveNoteLineBreaks]]}}});
     mobile.setContents(mobile.clipboard.convert(quill.root.innerHTML), 'silent');
     expect(mobile.getText()).toBe(text);
     expect(mobile.getContents()).toEqual(contents);

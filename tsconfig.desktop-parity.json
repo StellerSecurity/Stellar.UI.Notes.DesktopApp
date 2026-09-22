@@ -11,6 +11,8 @@
     "src/**/*.d.ts",
     "src/app/editor-parity.spec.ts",
     "src/app/metadata-sync.spec.ts",
-    "src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts"
+    "src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts",
+    "src/app/adversarial-sync.spec.ts",
+    "src/app/editor-stress.spec.ts"
   ]
 }

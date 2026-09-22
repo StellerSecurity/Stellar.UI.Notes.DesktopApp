@@ -9,6 +9,8 @@ const OUTBOX_KEY = 'notes.sync.outbox.v1';
 export class OutboxStorage {
   private ready: Promise<void>;
   private serial: Promise<unknown> = Promise.resolve();
+  private sessionGeneration = 0;
+  get generation(): number { return this.sessionGeneration; }
   private exclusive<T>(action: () => Promise<T>): Promise<T> {
     const result = this.serial.then(() => this.ready).then(action);
     this.serial = result.catch(() => undefined);
@@ -38,9 +40,10 @@ export class OutboxStorage {
   }
 
   /** Add a new operation to the queue (FIFO). */
-  async enqueue(op: OutboxOp, coalesce = false, immediate = false) {
+  async enqueue(op: OutboxOp, coalesce = false, immediate = false, generation = this.generation) {
     return this.exclusive(async () => {
       let items = await this.read();
+      if (generation !== this.generation) throw new Error('Note session changed');
       // Only compact complete single-note snapshots, never folder/batch/delete operations.
       const single = (item: OutboxOp) => item.type === 'upload' && item.payload.notes?.length === 1
         && !(item.payload as any).folders?.length && !item.payload.deleted_ids?.length;
@@ -112,6 +115,7 @@ export class OutboxStorage {
 
   /** Optional: clear everything (use with care). */
   async clear(): Promise<void> {
+    this.sessionGeneration++;
     await this.exclusive(() => this.write([]));
   }
 }

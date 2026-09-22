@@ -127,7 +127,7 @@ describe('Desktop legacy API contracts', () => {
   const http={post:(_url:string,_body:any,_options:any)=>of({notes:[],ok:true})};
   const post=spyOn(http,'post').and.callFake(()=>of({notes:[],ok:true}));
   const enqueue=spyOn(q,'enqueue').and.callThrough();
-  const api=new NotesApiV1Service(http as any,{getItem:async()=>null} as any,{encryptText:async()=>({v:1,iv_b64:btoa('123456789012'),ct_b64:btoa('ciphertext123456789')})} as any,q,new NotesService());
+  const api=new NotesApiV1Service(http as any,{getItem:async(key:string)=>key==='ssToken'?'synthetic-token':null} as any,{encryptText:async()=>({v:1,iv_b64:btoa('123456789012'),ct_b64:btoa('ciphertext123456789')})} as any,q,new NotesService());
   const result:any=await api.upload(0,[note]);
   expect(enqueue).toHaveBeenCalledBefore(post);expect(result.queued).toBeTrue();expect((await q.getAll()).length).toBe(1);
   expect(post.calls.allArgs().every(args=>!String(args[0]).includes('controller//'))).toBeTrue();
@@ -197,7 +197,7 @@ describe('Desktop and mobile encrypted note compatibility',()=>{
  });
  it('queues without contacting the server when a save is being debounced',async()=>{
   const q=queue();const http={post:jasmine.createSpy('post')};
-  const api=new NotesApiV1Service(http as any,{getItem:async()=>null} as any,{encryptText:async()=>({v:1,iv_b64:btoa('123456789012'),ct_b64:btoa('ciphertext123456789')})} as any,q,new NotesService());
+  const api=new NotesApiV1Service(http as any,{getItem:async(key:string)=>key==='ssToken'?'synthetic-token':null} as any,{encryptText:async()=>({v:1,iv_b64:btoa('123456789012'),ct_b64:btoa('ciphertext123456789')})} as any,q,new NotesService());
   await api.upload(0,[{id:'fixture',text:'test',last_modified:1}],undefined,[],true);
   expect(http.post).not.toHaveBeenCalled();expect((await q.getAll()).length).toBe(1);
  });

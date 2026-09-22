@@ -68,9 +68,15 @@ export class SyncWorkerService {
     };
   }
 
+  private async isCurrentSession(headers: HttpHeaders, generation: number): Promise<boolean> {
+    const token = await this.secure.getItem('ssToken');
+    return !!token && headers.get('Authorization') === `Bearer ${token}` && generation === this.outbox.generation;
+  }
+
   async trySync(): Promise<void> {
     if (this.syncing) return;
     this.syncing = true;
+    const generation = this.outbox.generation;
     try {
       if (!(await this.isOnline())) return;
       const token = await this.secure.getItem('ssToken');
@@ -81,6 +87,7 @@ export class SyncWorkerService {
       for (let count = 0; count < 50; count++) {
         const op = (await this.outbox.peekBatch(50, Date.now())).find(item => !item.conflict && !attempted.has(item.opId));
         if (!op) break;
+        if (!await this.isCurrentSession(headers, generation)) return;
         attempted.add(op.opId);
         try {
           if (op.type === 'upload') {
@@ -92,6 +99,7 @@ export class SyncWorkerService {
           } else {
             throw new Error('Unknown queued operation');
           }
+          if (!await this.isCurrentSession(headers, generation)) return;
           await this.outbox.drop([op.opId]);
           for (const note of op.payload.notes ?? []) {
             const pending = this.notesService.getPendingMutation(note.id);
@@ -99,6 +107,7 @@ export class SyncWorkerService {
           }
           if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
         } catch (error: any) {
+          if (!await this.isCurrentSession(headers, generation)) return;
           this.notesService.syncNeedsAttention$.next(true);
           await this.outbox.update(op.opId, item => {
             const attempt = (item.attempt ?? 0) + 1;

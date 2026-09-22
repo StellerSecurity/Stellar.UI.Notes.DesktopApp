@@ -34,6 +34,13 @@ export class NotesApiV1Service {
   ) {}
 
 
+  private async assertCurrentSession(token: string | null, generation: number): Promise<void> {
+    const current = await this.secureStorageService.getItem('ssToken');
+    if (!token || current !== token || generation !== this.outbox.generation) {
+      throw new Error('Note session changed');
+    }
+  }
+
   private normalizeFolderId(folderId: any): string | null {
     return typeof folderId === 'string' && folderId.trim().length > 0 ? folderId.trim() : null;
   }
@@ -98,7 +105,9 @@ export class NotesApiV1Service {
     queueOnly = false,
     immediate = false
   ): Promise<object> {
+    const generation = this.outbox.generation;
     const TOKEN = await this.secureStorageService.getItem("ssToken");
+    await this.assertCurrentSession(TOKEN, generation);
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
 
     // 1) Load EAK → MK into CryptoKeyService (RAM) if we have it
@@ -175,12 +184,15 @@ export class NotesApiV1Service {
     } as any;
 
     // Retain the existing encrypted payload until the server confirms its contents.
-    await this.outbox.enqueue(<OutboxOp>{ opId: payload.op_id, type: 'upload', payload, attempt: 0, nextAt: Date.now() }, queueOnly, immediate);
+    await this.assertCurrentSession(TOKEN, generation);
+    await this.outbox.enqueue(<OutboxOp>{ opId: payload.op_id, type: 'upload', payload, attempt: 0, nextAt: Date.now() }, queueOnly, immediate, generation);
+    await this.assertCurrentSession(TOKEN, generation);
     if (queueOnly) return { queued: true, reason: 'durable' };
     if (!navigator.onLine) return { queued: true, reason: 'offline' };
     try {
       const res = await firstValueFrom(this.http.post<object>(`${this.base}upload`, payload, { headers }).pipe(timeout(15000)));
       await confirmUpload(this.http, this.base, headers, payload, res);
+      await this.assertCurrentSession(TOKEN, generation);
       await this.outbox.drop([payload.op_id]);
       for (const note of encryptedNotes) {
         const pending = this.notesService.getPendingMutation(note.id);
@@ -189,6 +201,7 @@ export class NotesApiV1Service {
       if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
       return res;
     } catch (error: any) {
+      await this.assertCurrentSession(TOKEN, generation);
       if (error?.status === 409 || error?.message === 'Note upload was not confirmed') {
         await this.outbox.update(payload.op_id, item => ({ ...item, conflict: true }));
       }
@@ -290,7 +303,9 @@ export class NotesApiV1Service {
   // PUBLIC: deleteNotes
   // --------------------------------------------------
   async deleteNotes(deletedIds: string[]) {
+    const generation = this.outbox.generation;
     const TOKEN = await this.secureStorageService.getItem("ssToken");
+    await this.assertCurrentSession(TOKEN, generation);
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
 
     const payload = {
@@ -300,33 +315,32 @@ export class NotesApiV1Service {
       deleted_ids: deletedIds ?? [],
     } as any;
 
+    await this.outbox.enqueue(<OutboxOp>{
+      opId: payload.op_id,
+      type: 'delete',
+      payload,
+      attempt: 0,
+      nextAt: Date.now(),
+    }, false, false, generation);
+
+    await this.assertCurrentSession(TOKEN, generation);
     if (!navigator.onLine) {
-      await this.outbox.enqueue(<OutboxOp>{
-        opId: payload.op_id,
-        type: 'delete',
-        payload,
-        attempt: 0,
-        nextAt: Date.now(),
-      });
       return { queued: true, reason: 'offline' } as any;
     }
 
     try {
-      return await firstValueFrom(
+      const response = await firstValueFrom(
         this.http.post(
           `${this.base}sync-plan`,
           { deleted_ids: deletedIds, notes: [] },
           { headers }
-        )
+        ).pipe(timeout(15000))
       );
+      await this.assertCurrentSession(TOKEN, generation);
+      await this.outbox.drop([payload.op_id]);
+      return response;
     } catch (e: any) {
-      await this.outbox.enqueue(<OutboxOp>{
-        opId: payload.op_id,
-        type: 'delete',
-        payload,
-        attempt: 0,
-        nextAt: Date.now(),
-      });
+      await this.assertCurrentSession(TOKEN, generation);
       return { queued: true, reason: 'network_error' } as any;
     }
   }

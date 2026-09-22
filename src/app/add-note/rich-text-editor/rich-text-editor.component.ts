@@ -5,7 +5,7 @@ import {
 import { DomSanitizer } from '@angular/platform-browser';
 import { AlertController } from '@ionic/angular';
 import { bindSafeNotePaste } from './safe-note-paste';
-import { preserveNoteLineBreaks } from './preserve-note-line-breaks';
+import { preserveNoteLineBreaks, preserveNoteSpaces } from './preserve-note-line-breaks';
 import { bindEditorScroll } from './editor-scroll';
 
 @Component({
@@ -43,7 +43,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
 
   // Same importer and undo policy as mobile. HTML remains the wire format.
   readonly quillModules = {
-    clipboard: { matchVisual: false, matchers: [[1, preserveNoteLineBreaks]] },
+    clipboard: { matchVisual: false, matchers: [[3, preserveNoteSpaces], [1, preserveNoteLineBreaks]] },
     history: { delay: 0, maxStack: 300, userOnly: true },
   };
 

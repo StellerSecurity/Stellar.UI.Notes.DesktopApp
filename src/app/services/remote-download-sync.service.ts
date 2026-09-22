@@ -187,6 +187,7 @@ export class RemoteDownloadSyncService {
     }
 
     try {
+      const confirmations: any[] = [];
       const res = await this.notesApi.download(0);
       const serverNotes = this.notesService.dedupeNotes(Array.isArray((res as any)?.notes) ? (res as any).notes : []);
       const serverFolders = this.notesService.dedupeFolders(Array.isArray((res as any)?.folders) ? (res as any).folders : []);
@@ -232,7 +233,7 @@ export class RemoteDownloadSyncService {
         if (s.deleted) {
           // A server tombstone is terminal regardless of this device's clock.
           map.delete(s.id);
-          this.notesService.reconcileServerConfirmation(s);
+          confirmations.push(s);
           continue;
         }
 
@@ -276,7 +277,7 @@ export class RemoteDownloadSyncService {
           map.set(normalizedServerNote.id, { ...local, ...normalizedServerNote });
         }
 
-        this.notesService.reconcileServerConfirmation(normalizedServerNote);
+        confirmations.push(normalizedServerNote);
       }
 
       const mergedNotes = this.notesService.dedupeNotes(Array.from(map.values()).filter((n: any) => !n?.deleted));
@@ -304,6 +305,12 @@ export class RemoteDownloadSyncService {
 
       if (!this.authService.isLoggedIn || !sessionToken ||
           sessionToken !== await this.secureStorage.getItem('ssToken') || this.notesService.shouldAskForPassword()) return false;
+
+      for (const confirmation of confirmations) {
+        if (!this.notesService.getPendingMutation(confirmation.id) || confirmation.deleted) {
+          this.notesService.reconcileServerConfirmation(confirmation);
+        }
+      }
 
       // Merge edits made during asynchronous decryption against the latest local state.
       const currentNotes = this.getStoredNotes(appPassword);
