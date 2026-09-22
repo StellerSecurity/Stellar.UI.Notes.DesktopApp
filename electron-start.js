@@ -1,4 +1,8 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol } = require("electron");
+const { registerRealtimeProtocol, redactRealtimeSecrets } = require('./desktop-realtime-protocol.cjs');
+protocol.registerSchemesAsPrivileged([{ scheme: 'stellar-notes', privileges: {
+  standard: true, secure: true, supportFetchAPI: true, corsEnabled: true
+} }]);
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
@@ -47,7 +51,7 @@ const APP_INDEX_PATH = path.join(
 /* ================= LOGGING ================= */
 
 function logLine(...args) {
-  const line =
+  const line = redactRealtimeSecrets(
     `[${new Date().toISOString()}] ` +
     args
       .map((arg) => {
@@ -58,7 +62,7 @@ function logLine(...args) {
           return String(arg);
         }
       })
-      .join(" ");
+      .join(" "));
 
   console.log(line);
 
@@ -1072,6 +1076,7 @@ ipcMain.on("open-external", (_event, urlToOpen) => {
 });
 
 app.whenReady().then(() => {
+  registerRealtimeProtocol(protocol);
   logLine("App ready", {
     version: app.getVersion(),
     platform: process.platform,

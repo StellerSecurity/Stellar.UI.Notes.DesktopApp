@@ -4,6 +4,7 @@ import { firstValueFrom, timeout } from 'rxjs';
 import { AuthService } from './auth.service';
 import { SecureStorageService } from './secure-storage.service';
 import { baseUrl } from '../constants/api/product.api';
+import { desktopRealtimeGrant } from './desktop-realtime-grant';
 
 export function validRealtimeGrant(value: any, now = Date.now()): boolean {
   try {
@@ -60,7 +61,7 @@ export class RealtimeNotesService {
     try {
       const token = await this.secure.getItem('ssToken');
       if (!token || generation !== this.generation || !this.auth.isLoggedIn) return;
-      const grant = await firstValueFrom(this.http.post<any>(baseUrl + 'api/v1/notescontroller/realtime', {}, {
+      const grant = window.location.protocol === 'file:' ? await desktopRealtimeGrant(token) : await firstValueFrom(this.http.post<any>(baseUrl + 'api/v1/notescontroller/realtime', {}, {
         headers: new HttpHeaders().set('Authorization', `Bearer ${token}`)
       }).pipe(timeout(8000)));
       if (generation !== this.generation || await this.secure.getItem('ssToken') !== token) return;

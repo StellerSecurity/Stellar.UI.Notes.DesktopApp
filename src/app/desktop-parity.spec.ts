@@ -1,5 +1,6 @@
 import { NoteConflictService, conflictPreview } from './services/note-conflict.service';
 import { RealtimeNotesService, validRealtimeGrant } from './services/realtime-notes.service';
+import { desktopRealtimeGrant } from './services/desktop-realtime-grant';
 import { readUnlockedAppKey } from './utils/legacy-app-key';
 import { HomePage } from './home/home.page';
 import { FormBuilder } from '@angular/forms';
@@ -9,6 +10,41 @@ import { CryptoService } from './services/crypto.service';
 import { createVault, exportServerBundleFromHeader, encryptTextWithMK, decryptTextWithMK, packCipherBlob, unpackCipherBlob } from '@stellarsecurity/stellar-crypto';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { DomSanitizer } from '@angular/platform-browser';
+
+describe('Isolated desktop realtime negotiation', () => {
+ function frameFixture() {
+  const postMessage = jasmine.createSpy('postMessage');
+  const frame: any = { setAttribute: jasmine.createSpy('setAttribute'), remove: jasmine.createSpy('remove'), contentWindow: { postMessage } };
+  const create = document.createElement.bind(document);
+  spyOn(document, 'createElement').and.callFake((tag: any, options?: any) => tag === 'iframe' ? frame : create(tag, options));
+  const append = spyOn(document.body, 'appendChild').and.returnValue(frame);
+  return { frame, postMessage, append };
+ }
+ it('passes the token only through a dedicated channel to the exact helper origin', async () => {
+  const f = frameFixture(); const pending = desktopRealtimeGrant('synthetic');
+  expect(f.frame.src).toBe('stellar-notes://realtime/');
+  expect(f.frame.src).not.toContain('synthetic');
+  f.frame.onload();
+  const [request, origin, ports] = f.postMessage.calls.mostRecent().args;
+  expect(request.token).toBe('synthetic'); expect(origin).toBe('stellar-notes://realtime');
+  ports[0].postMessage({ok:true, grant:{enabled:false}});
+  expect(await pending).toEqual({enabled:false}); expect(f.frame.remove).toHaveBeenCalled();
+ });
+ it('cleans up a failed helper request and returns only a generic error', async () => {
+  const f=frameFixture(); const pending=desktopRealtimeGrant('synthetic'); f.frame.onload();
+  f.postMessage.calls.mostRecent().args[2][0].postMessage({ok:false,error:'private upstream data'});
+  await expectAsync(pending).toBeRejectedWithError('Realtime unavailable'); expect(f.frame.remove).toHaveBeenCalled();
+ });
+ it('times out an unavailable protocol so ordinary polling can continue', fakeAsync(() => {
+  const f=frameFixture(); let failed=false; desktopRealtimeGrant('synthetic').catch(()=>failed=true);
+  tick(7500); expect(failed).toBeTrue(); expect(f.frame.remove).toHaveBeenCalled();
+ }));
+ it('cleans up when the frame cannot be attached', async () => {
+  const f=frameFixture(); f.append.and.throwError('unavailable');
+  await expectAsync(desktopRealtimeGrant('synthetic')).toBeRejectedWithError('Realtime unavailable');
+  expect(f.frame.remove).toHaveBeenCalled();
+ });
+});
 import { ElementRef } from '@angular/core';
 import { HttpHeaders } from '@angular/common/http';
 import { NotesApiV1Service } from './services/notes-api-v1.service';
