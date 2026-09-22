@@ -40,8 +40,6 @@
             "styles": [
               "src/theme/variables.scss",
               "src/global.scss",
-              "./node_modules/froala-editor/css/froala_editor.pkgd.min.css",
-              "./node_modules/froala-editor/css/froala_style.min.css",
               "node_modules/quill/dist/quill.snow.css"
             ],
             "scripts": []
