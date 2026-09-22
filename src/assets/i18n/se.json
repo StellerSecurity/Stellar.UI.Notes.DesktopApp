@@ -1,4 +1,5 @@
 {
+  "enterYourNoteHere": "Skriv din anteckning här..",
     "lockNoteWithPassword": "Lås anteckning med lösenord",
     "pleaseEnterYourPasswordToConfirm": "För att inaktivera lösenordet för antecknings‑appen, ange ditt lösenord för att bekräfta.",
     "passwordWarningMsg": "Varning, det här lämnar dina anteckningar dekrypterade. Du kan alltid lägga till ett lösenord igen.",

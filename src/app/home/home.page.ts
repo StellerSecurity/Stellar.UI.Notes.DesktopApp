@@ -1,3 +1,7 @@
+import { nextNoteVersion } from '../utils/note-version';
+import { unwrapLocalAppKey, wrapLocalAppKey, isModernLocalAppKey } from '../utils/local-app-key';
+import { NoteV1 } from '../models/NoteV1';
+import { matchesNoteSearch, noteSearchText } from '../utils/note-search';
 import {
   AfterViewInit,
   ChangeDetectorRef,
@@ -31,7 +35,7 @@ import { search } from "ionicons/icons";
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UserMenuComponent } from "../user-menu/user-menu.component";
-import { Subscription, filter } from "rxjs";
+import { Subscription, auditTime, filter } from "rxjs";
 
 // 🔐 from main branch
 import { NotesApiV1Service } from "../services/notes-api-v1.service";
@@ -39,6 +43,7 @@ import { SecureStorageService } from "../services/secure-storage.service";
 import { DataService } from "../services/data.service";
 import { AuthService } from "../services/auth.service";
 import { RemoteDownloadSyncService } from "../services/remote-download-sync.service";
+import { SyncWorkerService } from '../services/sync-worker.service';
 import { CryptoKeyService } from "../services/crypto-key.service";
 import {
   decryptTextWithMK,
@@ -112,6 +117,12 @@ export class HomePage implements AfterViewInit {
   private hiddenId: string | null = null;
   public isSyncing = false;
   public waitForSync = false;
+  public manualSyncRequests = 0;
+
+  private previewSource?: any[];
+  private previewSelectedId: string | null = null;
+  private previewPassword: string | null = null;
+  private previewNotes: any[] = [];
 
   // 🔐 MK kept in RAM (EAK already resolved to plaintext MK elsewhere)
   private mkRaw: Uint8Array | null = null;
@@ -139,6 +150,8 @@ export class HomePage implements AfterViewInit {
   public draggingNoteId: string | null = null;
   public draggingFolderTarget: string | null = null;
 
+  private readonly realtimeHint = () => { void this.syncFromServer('realtime').catch(() => {}); };
+
   constructor(
     private cryptoService: CryptoService,
     private alertCtrl: AlertController,
@@ -164,6 +177,7 @@ export class HomePage implements AfterViewInit {
     private authService: AuthService,
     private crypto: CryptoKeyService,
     private remoteDownloadSync: RemoteDownloadSyncService,
+    private syncWorker: SyncWorkerService,
   ) {
     // for make selected note on sidebar
     const urlParts = this.router.url.split("/");
@@ -273,7 +287,7 @@ export class HomePage implements AfterViewInit {
     }
   }
 
-  private async requestImmediateSync(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual'): Promise<void> {
+  private async requestImmediateSync(reason: 'enter' | 'resume' | 'online' | 'manual' | 'realtime' = 'manual'): Promise<void> {
     if (!this.authService.isLoggedIn) {
       this.clearSyncUiState();
       return;
@@ -297,16 +311,21 @@ export class HomePage implements AfterViewInit {
     this.isSyncing = true;
     this.dataService.setForceDownloadOnHome(true);
 
-    const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'manual' ? 'manual' : (reason === 'online' ? 'online' : 'resume'));
+    if (reason === 'manual') this.manualSyncRequests++;
+    try {
+      const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'enter' ? 'resume' : reason);
 
-    if (didSync) {
-      this.setData(this.noteService.getNotesAppPassword());
-      this.restoreUiState();
-      this.clearSyncUiState({ clearForceDownload: true });
-      return;
+      if (didSync) {
+        this.setData(this.noteService.getNotesAppPassword());
+        this.restoreUiState();
+        this.clearSyncUiState({ clearForceDownload: true });
+        return;
+      }
+
+      this.clearSyncUiState({ clearForceDownload: !this.authService.isLoggedIn });
+    } finally {
+      if (reason === 'manual') this.manualSyncRequests--;
     }
-
-    this.clearSyncUiState({ clearForceDownload: !this.authService.isLoggedIn });
   }
 
   private registerNetworkListeners(): void {
@@ -472,6 +491,7 @@ export class HomePage implements AfterViewInit {
   // Lifecycle
   // --------------------------------------------------
   async ionViewWillEnter() {
+    window.addEventListener('stellar:notes-changed', this.realtimeHint);
     if (this.pauseSync) this.pauseSync = false;
 
     // read hide_ids from query param (from main branch)
@@ -528,6 +548,7 @@ export class HomePage implements AfterViewInit {
   }
 
   ionViewWillLeave() {
+    window.removeEventListener('stellar:notes-changed', this.realtimeHint);
     this.persistUiState();
     this.exitSearchMode();
 
@@ -572,14 +593,10 @@ export class HomePage implements AfterViewInit {
 
   subscribeNoteUpdated(): void {
     this.subscriptions.push(
-      this.noteService.noteIsUpdated$.subscribe((value) => {
+      // Only batch sidebar rendering. The editor still persists every edit immediately.
+      this.noteService.noteIsUpdated$.pipe(auditTime(100)).subscribe((value) => {
         if (value) {
           this.setData(this.noteService.getNotesAppPassword());
-
-          setTimeout(() => {
-            this.initializePressGesture();
-            this.cdr.detectChanges();
-          }, 300);
         }
       })
     );
@@ -609,7 +626,7 @@ export class HomePage implements AfterViewInit {
   }
 
   searchOld() {
-    if (this.search_query.length == 0) {
+    if (!this.search_query.trim()) {
       this.isSearching = false;
       this.filteredResults = this.notes;
       this.pauseSync = false; // if nothing to search, don't pause sync
@@ -693,40 +710,9 @@ export class HomePage implements AfterViewInit {
   }
 
   search() {
-    if (this.search_query.length == 0) {
-      this.isSearching = false;
-      this.filteredResults = this.notes;
-      return;
-    }
-
-    const normalizedQuery = normalize(this.search_query);
-    const filteredNewResults: any[] = [];
-
-    for (let i = 0; this.notes.length > i; i++) {
-      const normalizedText = normalize(this.notes[i]?.text);
-      const result = normalizedText.includes(normalizedQuery);
-
-      let titleExists = false;
-      if (this.notes[i].title !== undefined) {
-        const normalizedTitle = normalize(this.notes[i]?.title);
-        titleExists = normalizedTitle.includes(normalizedQuery);
-      }
-
-      // dont search in locked notes.
-      if (result && !this.notes[i].protected) {
-        filteredNewResults.push(this.notes[i]);
-      } else if (titleExists) {
-        filteredNewResults.push(this.notes[i]);
-      }
-    }
-
-    this.isSearching = true;
-    this.pauseSync = true;
-    this.filteredResults = filteredNewResults;
-    this.persistUiState();
-
-    this.initializePressGesture();
-    setTimeout(() => this.cdr.detectChanges(), HomePage.DETECT_CHANGES_DELAY_MS);
+    this.isSearching = !!this.search_query.trim();
+    this.pauseSync = this.isSearching;
+    this.applyFilters();
   }
 
   // --------------------------------------------------
@@ -876,7 +862,7 @@ export class HomePage implements AfterViewInit {
     void this.requestImmediateSync('manual');
   }
 
-  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' = 'manual') {
+  async syncFromServer(reason: 'enter' | 'resume' | 'online' | 'manual' | 'realtime' = 'resume') {
     await this.requestImmediateSync(reason);
   }
 
@@ -929,11 +915,14 @@ export class HomePage implements AfterViewInit {
           "ssEakB64_Encrypted"
         );
         if (eakB64) {
-          // decrypt stored MK using app-lock password
-          eakB64 = this.cryptoService.decrypt(
-            eakB64,
-            this.input_password_app_unlock
-          ) as string;
+          // Password validation above must succeed before legacy key migration.
+          const unlocked = await unwrapLocalAppKey(eakB64, this.input_password_app_unlock,
+            (value, password) => this.cryptoService.decrypt(value, password));
+          if (!isModernLocalAppKey(eakB64)) {
+            await this.secureStorageService.setItem('ssEakB64_Encrypted',
+              await wrapLocalAppKey(unlocked, this.input_password_app_unlock));
+          }
+          eakB64 = unlocked;
           this.mkRaw = this.b64ToBytes(eakB64);
 
           // Import into crypto vault (keeps MK in RAM, used for AES-GCM note encryption)
@@ -977,55 +966,32 @@ export class HomePage implements AfterViewInit {
     return true;
   }
 
-  /**
-   * Will get the decrypted notes (if there is any),
-   * and sort them by last modified.
-   */
+  /** Filtering and sorting run on data/filter changes, never during rendering. */
   getNotes() {
-    if (this.filteredResults === undefined || this.filteredResults === null) {
-      return [];
+    const source = this.filteredResults;
+    if (!Array.isArray(source)) return [];
+    const selectedId = this.noteService.isNoteTemporaryDescripted ? this.noteService.selectedNoteId : null;
+    const password = selectedId ? this.noteService.notesPasswordStored : null;
+    if (source === this.previewSource && selectedId === this.previewSelectedId && password === this.previewPassword) {
+      return this.previewNotes;
     }
-
-    this.applyFilters();
-
-    // descript current note on unlock temporary
-    if (Array.isArray(this.filteredResults) && this.filteredResults.length) {
-      this.filteredResults = this.filteredResults.map((note: any) => {
-
-        if (
-          note?.id === this.noteService.selectedNoteId &&
-          this.noteService.isNoteTemporaryDescripted &&
-          this.noteService.notesPasswordStored
-        ) {
-          try {
-            if(note?.isDescripted == true) {
-              return note
-            } else {
-            return {
-              ...note,
-              title: this.cryptoService.decrypt(
-                note.title,
-                this.noteService.notesPasswordStored
-              ),
-              text: this.cryptoService.decrypt(
-                note.text,
-                this.noteService.notesPasswordStored
-              ),
-              isDescripted: true,
-            }
-          };
-          } catch (error) {
-            console.error('Decryption failed:', error);
-            return note; // fallback safely
-          }
-        }
-
+    this.previewSource = source;
+    this.previewSelectedId = selectedId;
+    this.previewPassword = password;
+    // Never replace the encrypted source records with a temporary display preview.
+    this.previewNotes = password ? source.map((note: any) => {
+      if (note?.id !== selectedId || !note?.protected) return note;
+      try {
+        return {...note, title: this.cryptoService.decrypt(note.title, password),
+          text: this.cryptoService.decrypt(note.text, password), isDescripted: true};
+      } catch {
         return note;
-      });
-    }
-
-    return this.filteredResults;
+      }
+    }) : source;
+    return this.previewNotes;
   }
+
+  public trackNoteById(_index: number, note: NoteV1): string { return note.id; }
 
   // --------------------------------------------------
   // Navigation
@@ -1081,7 +1047,7 @@ export class HomePage implements AfterViewInit {
       return;
     }
 
-    const now = Date.now();
+    const now = nextNoteVersion(this.notes ?? []);
     this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, folder: nextFolderName, folder_id: folderId, last_modified: now } : note);
     this.noteService.markPendingMutation(noteId, 'move', now);
     this.rebuildFolders();
@@ -1170,16 +1136,15 @@ export class HomePage implements AfterViewInit {
 
   public applyFilters(): void {
     const base = Array.isArray(this.notes) ? [...this.notes] : [];
+    const terms = normalize(this.search_query ?? '').split(' ').filter(Boolean);
     const scoped = base.filter((note: any) => {
       if (note?.deleted) return false;
       if (this.activeFolderName !== '__all__' && (note?.folder ?? '') !== this.activeFolderName) return false;
       if (this.activeFilter === 'favorites' && !note?.favorite) return false;
-      if (this.search_query && this.search_query.trim().length > 0) {
-        const q = this.search_query.toLowerCase();
-        const title = String(note?.title ?? '').toLowerCase();
-        const body = String(note?.text ?? '').toLowerCase();
-        const folder = String(note?.folder ?? '').toLowerCase();
-        return title.includes(q) || body.includes(q) || folder.includes(q);
+      if (terms.length > 0) {
+        return matchesNoteSearch(terms,
+          normalize(note.title), normalize(note.folder),
+          note.protected ? '' : noteSearchText(note.text ?? ''), !!note.protected);
       }
       return true;
     }).sort((a: any, b: any) => {
@@ -1279,7 +1244,7 @@ export class HomePage implements AfterViewInit {
       return;
     }
 
-    const now = Date.now();
+    const now = nextNoteVersion(this.notes ?? []);
     this.folders = this.folders
       .map((item) => item.id === folder.id ? { ...item, name: nextName, last_modified: now } : item)
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -1328,7 +1293,7 @@ export class HomePage implements AfterViewInit {
               this.selectFolder(this.folders.find((folder) => folder.name.toLowerCase() === name.toLowerCase())?.name ?? '__all__');
               return true;
             }
-            const now = Date.now();
+            const now = nextNoteVersion(this.notes ?? []);
             const storedFolders = this.getStoredFolders(this.noteService.getNotesAppPassword());
             const existing = storedFolders.find((folder) => (folder.name ?? '').toLowerCase() === name.toLowerCase());
             const folder = existing
@@ -1362,7 +1327,7 @@ export class HomePage implements AfterViewInit {
           text: 'Delete',
           role: 'destructive',
           handler: async () => {
-            const now = Date.now();
+            const now = nextNoteVersion(this.notes ?? []);
             this.notes = (this.notes ?? []).map((note: any) => (note?.folder === folderName ? { ...note, folder: '', folder_id: null, last_modified: now } : note));
             const storedFolders = this.getStoredFolders(this.noteService.getNotesAppPassword()).filter((folder) => (folder.name ?? '').toLowerCase() !== folderName.toLowerCase());
             const targetFolder = this.folders.find((folder) => String(folder?.name ?? '').trim().toLowerCase() === folderName.trim().toLowerCase());
@@ -1387,18 +1352,44 @@ export class HomePage implements AfterViewInit {
 
   public async togglePinnedFromHome(event: Event, noteId: string): Promise<void> {
     event.stopPropagation();
-    const now = Date.now();
-    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, pinned: !note?.pinned, last_modified: now } : note);
-    this.noteService.markPendingMutation(noteId, 'pin', now);
-    this.persistNotes();
+    await this.toggleNoteFlag(noteId, 'pinned');
   }
 
   public async toggleFavoriteFromHome(event: Event, noteId: string): Promise<void> {
     event.stopPropagation();
-    const now = Date.now();
-    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, favorite: !note?.favorite, last_modified: now } : note);
-    this.noteService.markPendingMutation(noteId, 'favorite', now);
-    this.persistNotes();
+    await this.toggleNoteFlag(noteId, 'favorite');
+  }
+
+  private async toggleNoteFlag(noteId: string, flag: 'favorite' | 'pinned'): Promise<void> {
+    try {
+      // The sidebar can lag behind the open editor. Always mutate the durable note,
+      // retaining its current text, protection and other metadata.
+      const stored = this.noteService.getNotes();
+      const raw = this.noteService.appHasPasswordChallenge()
+        ? this.cryptoService.decrypt(stored, this.noteService.getNotesAppPassword()) : stored;
+      const notes = JSON.parse(raw || '[]');
+      if (!Array.isArray(notes)) throw new Error('Invalid notes storage');
+      const current = notes.find((note: any) => note.id === noteId && !note.deleted);
+      if (!current) return;
+      const changed = { ...current, [flag]: !current[flag], last_modified: nextNoteVersion(notes) };
+      this.notes = notes.map((note: any) => note.id === noteId ? changed : note);
+      this.noteService.markPendingMutation(noteId, flag === 'pinned' ? 'pin' : 'favorite', changed.last_modified);
+      this.persistNotes();
+      // The open editor shares this object; its next keystroke must retain the flag.
+      if (this.noteService.currentNote?.id === noteId) {
+        Object.assign(this.noteService.currentNote, { [flag]: changed[flag], last_modified: changed.last_modified });
+      }
+      if (this.authService.isLoggedIn) {
+        await this.notesApiServiceV1.upload(0, [changed], undefined, [], true, true);
+        await this.syncWorker.trySync();
+      }
+    } catch {
+      this.noteService.syncNeedsAttention$.next(true);
+      const toast = await this.toastController.create({
+        message: 'The change could not be synced. Please try again.', duration: 5000, color: 'danger',
+      });
+      await toast.present();
+    }
   }
 
   public async moveNoteToFolderFromHome(event: Event, noteId: string): Promise<void> {

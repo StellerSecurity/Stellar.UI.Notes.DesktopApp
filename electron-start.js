@@ -1,4 +1,8 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol } = require("electron");
+const { registerRealtimeProtocol, redactRealtimeSecrets } = require('./desktop-realtime-protocol.cjs');
+protocol.registerSchemesAsPrivileged([{ scheme: 'stellar-notes', privileges: {
+  standard: true, secure: true, supportFetchAPI: true, corsEnabled: true
+} }]);
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
@@ -8,6 +12,12 @@ const crypto = require("crypto");
 const yaml = require("js-yaml");
 const sodium = require("libsodium-wrappers-sumo");
 const { spawn } = require("child_process");
+
+function isSafeExternalUrl(value) {
+  if (typeof value !== 'string') return false;
+  try { return ['https:', 'http:', 'mailto:', 'tel:'].includes(new URL(value).protocol); }
+  catch { return false; }
+}
 
 let mainWindow;
 let startupUpdateCheckScheduled = false;
@@ -41,7 +51,7 @@ const APP_INDEX_PATH = path.join(
 /* ================= LOGGING ================= */
 
 function logLine(...args) {
-  const line =
+  const line = redactRealtimeSecrets(
     `[${new Date().toISOString()}] ` +
     args
       .map((arg) => {
@@ -52,7 +62,7 @@ function logLine(...args) {
           return String(arg);
         }
       })
-      .join(" ");
+      .join(" "));
 
   console.log(line);
 
@@ -866,6 +876,11 @@ function installNavigationGuards() {
     try {
       const parsed = new URL(navigationUrl);
 
+      if (parsed.protocol !== "file:") {
+        event.preventDefault();
+        if (isSafeExternalUrl(navigationUrl)) void shell.openExternal(navigationUrl).catch(() => {});
+        return;
+      }
       if (parsed.protocol === "file:") {
         const targetPath = normalizeLocalPathname(parsed.pathname);
 
@@ -980,7 +995,7 @@ function createWindow() {
   loadMainApp();
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) void shell.openExternal(url).catch(() => {});
     return { action: "deny" };
   });
 
@@ -1050,7 +1065,7 @@ if (process.platform !== "linux") {
 ipcMain.handle("app-version", () => app.getVersion());
 
 ipcMain.on("open-external", (_event, urlToOpen) => {
-  if (urlToOpen) {
+  if (isSafeExternalUrl(urlToOpen)) {
     shell.openExternal(urlToOpen).catch((err) => {
       logLine("Failed to open external URL", {
         error: String(err && err.message ? err.message : err),
@@ -1061,6 +1076,7 @@ ipcMain.on("open-external", (_event, urlToOpen) => {
 });
 
 app.whenReady().then(() => {
+  registerRealtimeProtocol(protocol);
   logLine("App ready", {
     version: app.getVersion(),
     platform: process.platform,

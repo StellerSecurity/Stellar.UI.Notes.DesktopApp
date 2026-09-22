@@ -7,19 +7,22 @@ import { IonInput, ModalController } from '@ionic/angular';
   styleUrls: ['./note-locked-modal.component.scss'],
 })
 export class NoteLockedModalComponent {
+  private focusTimer?: ReturnType<typeof setTimeout>;
+  ngOnDestroy(): void { clearTimeout(this.focusTimer); }
   public showPassword: boolean = false;
   @ViewChild('passwordInput', { static: false }) passwordInput!: IonInput;
 
   constructor(private modalCtrl: ModalController) { }
 
   ionViewDidEnter() {
-    setTimeout(() => {
+    this.focusTimer = setTimeout(() => {
       this.passwordInput?.setFocus();
     }, 300); 
   }
 
   // Dismiss the modal with the confirmation result
   public dismiss(confirm: boolean): void {
+    this.ngOnDestroy();
     // Get the input value before dismissing the modal
     const inputValue = this.passwordInput.value;
     this.modalCtrl.dismiss({ confirm, inputValue });

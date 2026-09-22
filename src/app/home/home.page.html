@@ -176,7 +176,7 @@
       </div>
     </div>
 
-    <ion-progress-bar *ngIf="waitForSync" type="indeterminate" color="primary" class="header-progress"></ion-progress-bar>
+    <ion-progress-bar *ngIf="waitForSync && manualSyncRequests > 0" type="indeterminate" color="primary" class="header-progress"></ion-progress-bar>
 
     <div class="notes-empty-state" *ngIf="filteredResults !== null && filteredResults.length == 0 && isSearching">
       <span class="empty-icon-wrap">
@@ -190,7 +190,7 @@
       <ion-list>
         <ion-item
           lines="none"
-          *ngFor="let note of getNotes()"
+          *ngFor="let note of getNotes(); trackBy: trackNoteById"
           (click)="$event.stopPropagation(); openOrCheckbox(note.id); setSelectedNoteId(note.id)"
           (contextmenu)="openContextMenu($event, note)"
           [detail]="false"

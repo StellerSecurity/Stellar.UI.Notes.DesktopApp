@@ -5,7 +5,8 @@ export function normalize(input: any): string {
 
   try {
     const ta = document.createElement('textarea');
-    ta.innerHTML = s;
+    // Decode character references as text without allowing HTML elements.
+    ta.innerHTML = s.replace(/</g, '&lt;');
     s = ta.value;
   } catch { /* SSR/defensive */ }
 

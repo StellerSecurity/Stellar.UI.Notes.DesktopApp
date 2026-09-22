@@ -1,3 +1,4 @@
+import { wrapLocalAppKey, unwrapLocalAppKey } from '../utils/local-app-key';
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import {
   AlertController,
@@ -182,10 +183,7 @@ export class AppSettingsPage implements AfterViewInit {
 
       const existingEak = await this.secureStorageService.getItem("ssEakB64");
       if (existingEak != null) {
-        const wrappedEak = this.cryptoService.encrypt(
-          existingEak,
-          this.notesAppPassword
-        );
+        const wrappedEak = await wrapLocalAppKey(existingEak, this.notesAppPassword);
 
         await this.secureStorageService.setItem(
           "ssEakB64_Encrypted",
@@ -324,7 +322,7 @@ export class AppSettingsPage implements AfterViewInit {
         );
 
         if (encEak != null) {
-          const plainEak = this.cryptoService.decrypt(encEak, inputValue);
+          const plainEak = await unwrapLocalAppKey(encEak, inputValue, (v,p) => this.cryptoService.decrypt(v,p));
 
           await this.secureStorageService.setItem("ssEakB64", plainEak);
           await this.secureStorageService.removeItem("ssEakB64_Encrypted");

@@ -1,5 +1,7 @@
 export interface NoteV1 {
   id: string;
+  /** Last server version this local edit is based on. */
+  base_version?: number;
   title?: string;
   text: string;
   protected?: boolean;

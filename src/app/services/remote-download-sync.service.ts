@@ -1,3 +1,4 @@
+import { unwrapLocalAppKey } from '../utils/local-app-key';
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { App } from '@capacitor/app';
@@ -18,6 +19,7 @@ export class RemoteDownloadSyncService {
   private started = false;
   private pollTimer: any = null;
   private inFlight: Promise<boolean> | null = null;
+  private realtimeRequested = false;
   private syncAppliedSubject = new BehaviorSubject<number>(0);
   public readonly syncApplied$ = this.syncAppliedSubject.asObservable();
 
@@ -44,6 +46,12 @@ export class RemoteDownloadSyncService {
       window.addEventListener('offline', this.handleOffline);
     }
 
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) void this.requestImmediateSync('resume');
+      });
+    }
+
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         void this.requestImmediateSync('resume');
@@ -53,14 +61,21 @@ export class RemoteDownloadSyncService {
     void this.requestImmediateSync('startup');
   }
 
-  async requestImmediateSync(reason: 'startup' | 'resume' | 'online' | 'manual' = 'manual'): Promise<boolean> {
-    void reason;
-
+  async requestImmediateSync(reason: 'startup' | 'resume' | 'online' | 'manual' | 'realtime' = 'manual'): Promise<boolean> {
     if (this.inFlight) {
+      if (reason === 'realtime') this.realtimeRequested = true;
       return this.inFlight;
     }
 
-    this.inFlight = this.performSync().finally(() => {
+    this.inFlight = (async () => {
+      let applied = false;
+      do {
+        this.realtimeRequested = false;
+        applied = await this.performSync() || applied;
+        // A hint received during the request may describe a newer server snapshot.
+      } while (this.realtimeRequested);
+      return applied;
+    })().finally(() => {
       this.inFlight = null;
     });
 
@@ -115,7 +130,7 @@ export class RemoteDownloadSyncService {
         return null;
       }
 
-      const decrypted = this.cryptoService.decrypt(enc, appPass) as string;
+      const decrypted = await unwrapLocalAppKey(enc, appPass, (v,p) => this.cryptoService.decrypt(v,p));
       return decrypted ? this.b64ToBytes(decrypted) : null;
     } catch {
       return null;
@@ -164,6 +179,7 @@ export class RemoteDownloadSyncService {
       return false;
     }
 
+    const sessionToken = await this.secureStorage.getItem("ssToken");
     const mkRaw = await this.getMkRaw();
     if (!mkRaw) {
       this.dataService.setForceDownloadOnHome(true);
@@ -171,6 +187,7 @@ export class RemoteDownloadSyncService {
     }
 
     try {
+      const confirmations: any[] = [];
       const res = await this.notesApi.download(0);
       const serverNotes = this.notesService.dedupeNotes(Array.isArray((res as any)?.notes) ? (res as any).notes : []);
       const serverFolders = this.notesService.dedupeFolders(Array.isArray((res as any)?.folders) ? (res as any).folders : []);
@@ -214,10 +231,9 @@ export class RemoteDownloadSyncService {
         const local = map.get(s.id);
 
         if (s.deleted) {
-          if (!local || (s.last_modified ?? 0) >= (local?.last_modified ?? 0)) {
-            map.delete(s.id);
-          }
-          this.notesService.reconcileServerConfirmation(s);
+          // A server tombstone is terminal regardless of this device's clock.
+          map.delete(s.id);
+          confirmations.push(s);
           continue;
         }
 
@@ -253,7 +269,7 @@ export class RemoteDownloadSyncService {
           title: decryptedTitle,
           favorite: !!(s.favorite ?? local?.favorite),
           pinned: !!(s.pinned ?? local?.pinned),
-          folder: (resolvedFolderName ?? '').trim(),
+          folder: (resolvedFolderName || s.folder || '').trim(),
           folder_id: noteFolderId,
         };
 
@@ -261,7 +277,7 @@ export class RemoteDownloadSyncService {
           map.set(normalizedServerNote.id, { ...local, ...normalizedServerNote });
         }
 
-        this.notesService.reconcileServerConfirmation(normalizedServerNote);
+        confirmations.push(normalizedServerNote);
       }
 
       const mergedNotes = this.notesService.dedupeNotes(Array.from(map.values()).filter((n: any) => !n?.deleted));
@@ -287,11 +303,35 @@ export class RemoteDownloadSyncService {
         }
       }
 
+      if (!this.authService.isLoggedIn || !sessionToken ||
+          sessionToken !== await this.secureStorage.getItem('ssToken') || this.notesService.shouldAskForPassword()) return false;
+
+      for (const confirmation of confirmations) {
+        if (!this.notesService.getPendingMutation(confirmation.id) || confirmation.deleted) {
+          this.notesService.reconcileServerConfirmation(confirmation);
+        }
+      }
+
+      // Merge edits made during asynchronous decryption against the latest local state.
+      const currentNotes = this.getStoredNotes(appPassword);
+      const finalNotes = new Map(mergedNotes.map(note => [note.id, note]));
+      const remoteDeleted = new Map(serverNotes.filter(note => note.deleted).map(note => [note.id, Number(note.last_modified ?? 0)]));
+      for (const current of currentNotes) {
+        if (remoteDeleted.has(current.id)) continue;
+        const merged = finalNotes.get(current.id);
+        if (!merged || Number(current.last_modified ?? 0) > Number(merged.last_modified ?? 0)) finalNotes.set(current.id, current);
+      }
+      const safeNotes = Array.from(finalNotes.values()).filter(note => !note.deleted && this.notesService.getPendingMutation(note.id)?.type !== 'delete');
+      for (const current of this.getStoredFolders(appPassword)) {
+        const key = this.normalizeFolderId(current.id) ?? `name:${(current.name ?? '').trim().toLowerCase()}`;
+        const merged = folderMap.get(key);
+        if (!merged || Number(current.last_modified ?? 0) > Number(merged.last_modified ?? 0)) folderMap.set(key, current);
+      }
       if (this.notesService.appHasPasswordChallenge()) {
-        this.notesService.setNotes(this.cryptoService.encrypt(JSON.stringify(mergedNotes), appPassword));
+        this.notesService.setNotes(this.cryptoService.encrypt(JSON.stringify(safeNotes), appPassword));
         this.notesService.setFolders(this.cryptoService.encrypt(JSON.stringify(this.notesService.dedupeFolders(Array.from(folderMap.values()))), appPassword));
       } else {
-        this.notesService.setNotes(JSON.stringify(mergedNotes));
+        this.notesService.setNotes(JSON.stringify(safeNotes));
         this.notesService.setFolders(JSON.stringify(this.notesService.dedupeFolders(Array.from(folderMap.values()))));
       }
 

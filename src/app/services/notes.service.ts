@@ -20,6 +20,8 @@ export interface PendingNoteMutation {
   providedIn: "root",
 })
 export class NotesService {
+  public readonly syncNeedsAttention$ = new BehaviorSubject<boolean>(false);
+  public hasPendingMutations(): boolean { return this.pendingNoteMutations.size > 0; }
   selectedNoteId: any = "";
   private noteIsUpdatedSubject = new BehaviorSubject<boolean>(true);
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();

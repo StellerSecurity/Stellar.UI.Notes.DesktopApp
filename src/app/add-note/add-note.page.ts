@@ -1,3 +1,6 @@
+import { unwrapLocalAppKey } from '../utils/local-app-key';
+import { SyncWorkerService } from '../services/sync-worker.service';
+import { nextNoteVersion } from '../utils/note-version';
 import { Component, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import {
@@ -67,7 +70,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   public actionsPopoverOpen = false;
   public actionsPopoverEvent: any = null;
 
-  private notes_id: string | null = null;
+  public notes_id: string | null = null;
   private notes: NoteV1[] = [];
   private currentNote: NoteV1 | null = null;
 
@@ -83,6 +86,23 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   private routeSub?: Subscription;
   private editorFocused = false;
   private pendingLiveNote: any | null = null;
+  private viewActive = true;
+  private titleFocusTimer?: ReturnType<typeof setTimeout>;
+  private readonly onVisibilityChange = () => {
+    if (document.hidden) this.relockProtectedNote();
+  };
+
+  private relockProtectedNote(): void {
+    if (!this.currentNote?.protected) return;
+    this.note_locked = true;
+    this.note_text = '';
+    this.note_title = '';
+    this.notes_password_stored = '';
+    this.notes_password_input = '';
+    this.notes_password_confirm = '';
+    this.notesService.notesPasswordStored = null;
+    this.pendingLiveNote = null;
+  }
 
   // 🔐 Master key held in RAM (derived from EAK)
   private mkRaw: Uint8Array | null = null;
@@ -137,6 +157,11 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     return this.findFolderByName(name)?.id ?? null;
   }
 
+  private readonly conflictResolved = (event: Event) => {
+    if ((event as CustomEvent).detail?.ids?.includes(this.notes_id)) void this.navController.navigateRoot('/');
+  };
+  private readonly realtimeHint = () => { void this.fetchLiveNote().catch(() => {}); };
+
   constructor(
     private cryptoService: CryptoService,
     public activatedRoute: ActivatedRoute,
@@ -149,11 +174,28 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     private alertCtrl: AlertController,
     private notesApiV1Service: NotesApiV1Service,
     private translatorService: TranslatorService,
-    private authService: AuthService
+    private authService: AuthService,
+    private syncWorker: SyncWorkerService
   ) {
     this.routeSub = this.activatedRoute.paramMap.subscribe(async (params: ParamMap) => {
-      const decrypted = this.notesService.getDecryptedNotes();
-      const parsedNotes = decrypted ? (JSON.parse(decrypted) as NoteV1[]) : [];
+      if (this.notesService.shouldAskForPassword()) {
+        this.note_locked = true;
+        await this.navController.navigateRoot('/home');
+        return;
+      }
+      const stored = this.notesService.getNotes();
+      const decrypted = this.notesService.appHasPasswordChallenge()
+        ? this.cryptoService.decrypt(stored, this.notesService.getNotesAppPassword()) : stored;
+      let parsedNotes: NoteV1[];
+      try {
+        parsedNotes = JSON.parse(decrypted || '[]');
+        if (!Array.isArray(parsedNotes)) throw new Error('Invalid notes storage');
+      } catch {
+        this.note_locked = true;
+        const toast = await this.toastController.create({message: 'Saved notes could not be read. Please unlock the app and try again.', duration: 5000, color: 'danger'});
+        await toast.present();
+        return;
+      }
       this.notes = (parsedNotes ?? []).map((note: any) => ({
         ...note,
         favorite: !!note?.favorite,
@@ -170,7 +212,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         this.notes_id = uuidv4();
         const requestedFolder = (this.activatedRoute.snapshot.queryParamMap.get("folder") ?? "").trim();
         if (requestedFolder) {
-          this.currentNote = { id: this.notes_id as string, text: "", title: "Untitled", favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
+          this.currentNote = { id: this.notes_id as string, base_version: 0, text: "", title: "Untitled", favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
         }
         return;
       }
@@ -179,13 +221,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.notesService.currentNote = this.currentNote;
 
       if (!this.currentNote) {
-        // defensive: if note not found, treat as new
-        this.newlyCreatedNote = true;
-        this.notes_id = uuidv4();
-        const requestedFolder = (this.activatedRoute.snapshot.queryParamMap.get("folder") ?? "").trim();
-        if (requestedFolder) {
-          this.currentNote = { id: this.notes_id as string, text: "", title: "Untitled", favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
-        }
+        this.note_locked = true;
+        await this.navController.navigateRoot('/home');
+        const toast = await this.toastController.create({message: 'This note is no longer available on this device.', duration: 3500});
+        await toast.present();
         return;
       }
 
@@ -207,6 +246,12 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('stellar:notes-changed', this.realtimeHint);
+    window.removeEventListener('stellar:note-conflict-resolved', this.conflictResolved);
+    this.viewActive = false;
+    clearTimeout(this.titleFocusTimer);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.relockProtectedNote();
     this.routeSub?.unsubscribe();
     this.stopLiveNotePolling();
   }
@@ -218,6 +263,9 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   ionViewDidEnter() {
+    this.viewActive = true;
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    this.richTextEditorComponent?.onEnter();
     this.passwordStrengthHelperText = this.allTranslations?.passwordAtLeastLength ?? '';
     if (this.note_text.length === 0) {
       setTimeout(() => this.placeCursorAtEnd(), 100);
@@ -248,7 +296,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         const enc = await this.secureStorageService.getItem('ssEakB64_Encrypted');
         const appPass = this.notesService.getNotesAppPassword();
         if (enc && appPass) {
-          const decrypted = this.cryptoService.decrypt(enc, appPass) as string;
+          const decrypted = await unwrapLocalAppKey(enc, appPass, (v,p) => this.cryptoService.decrypt(v,p));
           if (decrypted) {
             this.mkRaw = this.b64ToBytes(decrypted);
             return true;
@@ -263,11 +311,19 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   async ionViewWillEnter(): Promise<void> {
+    window.addEventListener('stellar:notes-changed', this.realtimeHint);
+    window.addEventListener('stellar:note-conflict-resolved', this.conflictResolved);
     this.allTranslations = this.translatorService.allTranslations;
     await this.ensureMkLoaded();
   }
 
   ionViewWillLeave() {
+    window.removeEventListener('stellar:notes-changed', this.realtimeHint);
+    window.removeEventListener('stellar:note-conflict-resolved', this.conflictResolved);
+    this.viewActive = false;
+    clearTimeout(this.titleFocusTimer);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.relockProtectedNote();
     this.stopLiveNotePolling();
     if (this.richTextEditorComponent?.onLeave) {
       this.richTextEditorComponent.onLeave();
@@ -284,6 +340,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.currentNote.favorite = !!note.favorite;
     this.currentNote.pinned = !!note.pinned;
     this.currentNote.last_modified = note.last_modified;
+    this.currentNote.base_version = note.base_version;
     this.currentNote.title = note.title;
     this.currentNote.folder = (note.folder ?? '').trim();
     this.currentNote.folder_id = this.normalizeFolderId((note as any).folder_id);
@@ -325,20 +382,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   private placeCursorAtEnd() {
-    const editorElem = this.richTextEditorComponent?.editorComponent?.textArea?.nativeElement;
-    if (!editorElem) return;
-
-    editorElem.focus();
-    const selection = window.getSelection();
-    const range = document.createRange();
-    const lastChild = editorElem.lastChild;
-
-    if (selection && range && lastChild) {
-      range.selectNodeContents(editorElem);
-      range.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+    this.richTextEditorComponent?.focusEmptyEditor();
   }
 
 
@@ -407,11 +451,15 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   enableEditingTitle() {
     this.isEditingTitle = true;
-    setTimeout(() => this.titleInputRef?.setFocus(), 100);
+    clearTimeout(this.titleFocusTimer);
+    this.titleFocusTimer = setTimeout(async () => {
+      const input = await this.titleInputRef?.getInputElement();
+      if (this.viewActive && this.isEditingTitle) input?.focus({ preventScroll: true });
+    }, 100);
   }
 
   public noteTitleChange(event: any) {
-    const newTitle = (event?.detail?.value ?? '').trim();
+    const newTitle = event?.detail?.value ?? '';
     this.note_title = newTitle;
 
     for (let i = 0; i < this.notes.length; i++) {
@@ -455,6 +503,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   private stopLiveNotePolling() {
     this.stopSyncing = true;
     if (this.liveNoteTimer) clearInterval(this.liveNoteTimer);
+    this.liveNoteTimer = undefined;
     window.removeEventListener('focus', this.fetchLiveNoteBound);
     window.removeEventListener('online', this.fetchLiveNoteBound);
   }
@@ -606,7 +655,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             } else {
               this.currentNote.folder = target;
               this.currentNote.folder_id = folderId;
-              this.currentNote.last_modified = Date.now();
+              this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
             }
             this.syncFoldersManifest();
             this.save(null);
@@ -651,7 +700,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             } else {
               this.currentNote.folder = name;
               this.currentNote.folder_id = folder.id;
-              this.currentNote.last_modified = Date.now();
+              this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
             }
             this.save(null);
             return true;
@@ -671,8 +720,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
     }
     this.currentNote.pinned = !this.currentNote.pinned;
-    this.currentNote.last_modified = Date.now();
-    this.save(null);
+    this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
+    this.save(null, true);
   }
 
   public async toggleFavorite(): Promise<void> {
@@ -680,8 +729,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
     }
     this.currentNote.favorite = !this.currentNote.favorite;
-    this.currentNote.last_modified = Date.now();
-    this.save(null);
+    this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
+    this.save(null, true);
   }
 
   public isPinned(): boolean {
@@ -697,8 +746,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   // should be called on key enter.
-  save(ev: any) {
-    console.log('save');
+  save(ev: any, immediateSync = false) {
     if (this.notes_id === null) return;
     if (this.note_locked) return;
 
@@ -730,17 +778,31 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     const formattedDate = `${datePart} at ${timePart}`;
 
     const note: NoteV1 = {
+      base_version: this.currentNote?.base_version,
       id: this.notes_id,
       title: encryptedTitle && encryptedTitle.length ? encryptedTitle : formattedDate,
-      last_modified: Date.now(),
+      last_modified: nextNoteVersion(this.currentNote ? [this.currentNote] : []),
       text: encryptedText,
       protected: protectedNote,
-      auto_wipe: true,
+      auto_wipe: this.currentNote?.auto_wipe ?? true,
       favorite: !!this.currentNote?.favorite,
       pinned: !!this.currentNote?.pinned,
       folder: (this.currentNote?.folder ?? '').trim(),
       folder_id: this.currentNote?.folder_id ?? null,
     };
+
+    // Read current local state so saving this editor cannot erase notes synced in another view.
+    try {
+      const stored = this.notesService.getNotes();
+      const plain = this.notesService.appHasPasswordChallenge()
+        ? this.cryptoService.decrypt(stored, this.notesService.getNotesAppPassword()) : stored;
+      const current = JSON.parse(plain || '[]');
+      if (!Array.isArray(current)) throw new Error('Invalid notes storage');
+      this.notes = current;
+    } catch {
+      void this.toastController.create({message: 'Saved notes could not be read. Keep this window open and try again.', duration: 5000, color: 'danger'}).then(toast => toast.present());
+      return;
+    }
 
     if (this.notes === null) {
       this.notes = [note];
@@ -756,13 +818,17 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       if (!found) this.notes.push(note);
     }
 
+    this.notesService.markPendingMutation(note.id, 'update', Number(note.last_modified));
     this.currentNote = note;
     this.notesService.currentNote = this.currentNote;
-    this.storeNoteInStorage(true).then(() => {});
+    this.storeNoteInStorage(true, false, immediateSync).catch(async () => {
+      const toast = await this.toastController.create({message: 'The note could not be saved. Keep this window open and try again.', duration: 5000, color: 'danger'});
+      await toast.present();
+    });
     this.notesService.setNoteIsUpdatedSubject(true)
   }
 
-  async storeNoteInStorage(serverSync = true, forceDownloadOnHome = false) {
+  async storeNoteInStorage(serverSync = true, forceDownloadOnHome = false, immediateSync = false) {
     if (this.notesService.appHasPasswordChallenge()) {
       const encryptedNotesSave = this.cryptoService.encrypt(
         JSON.stringify(this.notes),
@@ -777,18 +843,15 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.dataService.setForceDownloadOnHome(true);
     }
 
-    const notesToSend = this.notes;
+    const notesToSend = this.notes.filter(note => note.id === this.notes_id).map(note => ({ ...note }));
 
-    this.saveTimeout = window.setTimeout(() => {
-      (async () => {
-        if (serverSync && this.authService.isLoggedIn) {
-          this.notesApiV1Service.upload(0, notesToSend).then(() => {});
-          if (this.liveNoteTimer == null) {
-            this.startLiveNotePolling();
-          }
-        }
-      })();
-    }, 500);
+    if (serverSync && this.authService.isLoggedIn && notesToSend.length) {
+      await this.notesApiV1Service.upload(0, notesToSend, undefined, [], true, immediateSync);
+      clearTimeout(this.saveTimeout);
+      if (immediateSync) await this.syncWorker.trySync();
+      else this.saveTimeout = window.setTimeout(() => { void this.syncWorker.trySync(); }, 500);
+      if (this.viewActive && this.liveNoteTimer == null) this.startLiveNotePolling();
+    }
   }
 
   public back() {
@@ -860,10 +923,6 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       // title may be empty or fail silently
     }
 
-    if (this.currentNote) {
-      this.currentNote.text = decryptedText;
-      this.currentNote.title = decryptedTitle;
-    }
     this.note_text = decryptedText;
     this.note_title = decryptedTitle;
     this.note_locked = false;
@@ -1002,7 +1061,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
               if (this.notes[i].id === this.notes_id) {
                 this.notes[i].text = this.note_text;
                 this.notes[i].title = this.note_title;
-                this.notes[i].last_modified = Date.now();
+                this.notes[i].last_modified = nextNoteVersion([this.notes[i]]);
                 this.notes[i].protected = false;
                 this.currentNote = this.notes[i];
                 this.notes_password_stored = '';
@@ -1078,6 +1137,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
 
     this.typing = true;
+    clearTimeout(this.typingTimeout);
     this.typingTimeout = setTimeout(() => (this.typing = false), 10_000);
 
     clearTimeout(this.saveTimeout);

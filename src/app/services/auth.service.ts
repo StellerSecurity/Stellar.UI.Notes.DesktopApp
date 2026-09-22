@@ -11,6 +11,8 @@ import { SecureStorageService } from './secure-storage.service';
 export class AuthService {
   private loggedInSubject = new BehaviorSubject<boolean>(false);
 
+  public readonly loginState$ = this.loggedInSubject.asObservable();
+
   constructor(private http: HttpClient, private secureStorageService: SecureStorageService) {
     this.initializeAuthState();
   }

@@ -1,7 +1,8 @@
 // services/notes-api-v1.service.ts — OFFLINE-FIRST (keeps your public methods)
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
+import { confirmUpload } from './upload-confirmation';
 import { NoteV1 } from "../models/NoteV1";
 import { Folder } from "../models/Folder";
 
@@ -18,6 +19,7 @@ import { NotesService } from './notes.service';
 
 @Injectable({ providedIn: 'root' })
 export class NotesApiV1Service {
+  private readonly editSession = globalThis.crypto.randomUUID();
   private base = buildApiUrl(notes.controller);
 
   // legacy key (bruges kun af private helpers, hvis du stadig vil have dem)
@@ -32,12 +34,20 @@ export class NotesApiV1Service {
   ) {}
 
 
+  private async assertCurrentSession(token: string | null, generation: number): Promise<void> {
+    const current = await this.secureStorageService.getItem('ssToken');
+    if (!token || current !== token || generation !== this.outbox.generation) {
+      throw new Error('Note session changed');
+    }
+  }
+
   private normalizeFolderId(folderId: any): string | null {
     return typeof folderId === 'string' && folderId.trim().length > 0 ? folderId.trim() : null;
   }
 
   private isCipherBlobString(value: any): boolean {
-    return typeof value === 'string' && value.includes(':') && value.split(':').length >= 3;
+    if (typeof value !== 'string') return false;
+    try { unpackCipherBlob(value); return true; } catch { return false; }
   }
 
   private async encryptFolderName(folderName: string, folderId: string): Promise<string> {
@@ -91,9 +101,13 @@ export class NotesApiV1Service {
     sinceMs: number,
     notes: ReadonlyArray<NoteV1>,
     opId?: string,
-    folders: ReadonlyArray<Folder> = []
+    folders: ReadonlyArray<Folder> = [],
+    queueOnly = false,
+    immediate = false
   ): Promise<object> {
+    const generation = this.outbox.generation;
     const TOKEN = await this.secureStorageService.getItem("ssToken");
+    await this.assertCurrentSession(TOKEN, generation);
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
 
     // 1) Load EAK → MK into CryptoKeyService (RAM) if we have it
@@ -139,7 +153,7 @@ export class NotesApiV1Service {
     }
 
     // 2) Encrypt each note body + title + folder metadata via CryptoKeyService (MK in RAM)
-    const encryptedNotes: NoteV1[] = [];
+    const encryptedNotes: any[] = [];
     for (const rawNote of this.notesService.dedupeNotes(normalizeNoteSyncFlagsList(notes) as any[])) {
       const n = normalizeNoteSyncFlags(rawNote);
       const encText  = await this.crypto.encryptText(n.text  ?? '', n.id);
@@ -148,8 +162,10 @@ export class NotesApiV1Service {
       const normalizedFolderId = this.normalizeFolderId((n as any)?.folder_id)
         ?? (normalizedFolderName ? (folderIdByName.get(normalizedFolderName.toLowerCase()) ?? null) : null);
 
+      const { checksum_hmac: _previousChecksum, ...wireNote } = n as NoteV1 & { checksum_hmac?: string };
       encryptedNotes.push({
-        ...n,
+        ...wireNote,
+        edit_session: this.editSession,
         text: packCipherBlob(encText),
         title: packCipherBlob(encTitle),
         folder: normalizedFolderName && normalizedFolderId
@@ -162,35 +178,34 @@ export class NotesApiV1Service {
     const payload = {
       op_id: opId ?? crypto?.randomUUID?.() ?? String(Date.now()),
       since: sinceMs || 0,
+      require_note_ack: true,
       notes: encryptedNotes,
       folders: encryptedFolders,
     } as any;
 
-    // Offline → queue i Outbox
-    if (!navigator.onLine) {
-      await this.outbox.enqueue(<OutboxOp><unknown>{
-        opId: payload.op_id,
-        type: 'upload',
-        payload,
-        attempt: 0,
-        nextAt: Date.now(),
-      });
-      return { queued: true, reason: 'offline' };
-    }
-
+    // Retain the existing encrypted payload until the server confirms its contents.
+    await this.assertCurrentSession(TOKEN, generation);
+    await this.outbox.enqueue(<OutboxOp>{ opId: payload.op_id, type: 'upload', payload, attempt: 0, nextAt: Date.now() }, queueOnly, immediate, generation);
+    await this.assertCurrentSession(TOKEN, generation);
+    if (queueOnly) return { queued: true, reason: 'durable' };
+    if (!navigator.onLine) return { queued: true, reason: 'offline' };
     try {
-      const res = await firstValueFrom(
-        this.http.post<object>(`${this.base}upload`, payload, { headers })
-      );
+      const res = await firstValueFrom(this.http.post<object>(`${this.base}upload`, payload, { headers }).pipe(timeout(15000)));
+      await confirmUpload(this.http, this.base, headers, payload, res);
+      await this.assertCurrentSession(TOKEN, generation);
+      await this.outbox.drop([payload.op_id]);
+      for (const note of encryptedNotes) {
+        const pending = this.notesService.getPendingMutation(note.id);
+        if (pending && pending.type !== 'delete' && pending.localUpdatedAt <= Number(note.last_modified)) this.notesService.clearPendingMutation(note.id);
+      }
+      if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
       return res;
-    } catch (e) {
-      await this.outbox.enqueue(<OutboxOp>{
-        opId: payload.op_id,
-        type: 'upload',
-        payload,
-        attempt: 0,
-        nextAt: Date.now(),
-      });
+    } catch (error: any) {
+      await this.assertCurrentSession(TOKEN, generation);
+      if (error?.status === 409 || error?.message === 'Note upload was not confirmed') {
+        await this.outbox.update(payload.op_id, item => ({ ...item, conflict: true }));
+      }
+      this.notesService.syncNeedsAttention$.next(true);
       return { queued: true, reason: 'network_error' };
     }
   }
@@ -211,10 +226,10 @@ export class NotesApiV1Service {
 
     const response = await firstValueFrom(
       this.http.post<{ notes: NoteV1[]; folders?: Folder[]; has_more?: boolean; watermark?: number }>(
-        `${this.base}/download`,
+        `${this.base}download`,
         { since: sinceMs || 0, limit },
         { headers }
-      )
+      ).pipe(timeout(15000))
     );
 
     const decryptedFolders: Folder[] = [];
@@ -253,6 +268,7 @@ export class NotesApiV1Service {
 
       decryptedNotes.push({
         ...note,
+        base_version: Number(note.last_modified ?? 0),
         folder: decryptedFolderName || resolvedFolderName || '',
         folder_id: noteFolderId,
       });
@@ -277,17 +293,19 @@ export class NotesApiV1Service {
     }
 
     const note = await firstValueFrom(
-      this.http.post<NoteV1>(`${this.base}/find`, { id }, { headers })
+      this.http.post<NoteV1>(`${this.base}find`, { id }, { headers })
     );
 
-    return normalizeNoteSyncFlags(note);
+    return note ? normalizeNoteSyncFlags({ ...note, base_version: Number(note.last_modified ?? 0) }) : note;
   }
 
   // --------------------------------------------------
   // PUBLIC: deleteNotes
   // --------------------------------------------------
   async deleteNotes(deletedIds: string[]) {
+    const generation = this.outbox.generation;
     const TOKEN = await this.secureStorageService.getItem("ssToken");
+    await this.assertCurrentSession(TOKEN, generation);
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
 
     const payload = {
@@ -297,33 +315,32 @@ export class NotesApiV1Service {
       deleted_ids: deletedIds ?? [],
     } as any;
 
+    await this.outbox.enqueue(<OutboxOp>{
+      opId: payload.op_id,
+      type: 'delete',
+      payload,
+      attempt: 0,
+      nextAt: Date.now(),
+    }, false, false, generation);
+
+    await this.assertCurrentSession(TOKEN, generation);
     if (!navigator.onLine) {
-      await this.outbox.enqueue(<OutboxOp>{
-        opId: payload.op_id,
-        type: 'delete',
-        payload,
-        attempt: 0,
-        nextAt: Date.now(),
-      });
       return { queued: true, reason: 'offline' } as any;
     }
 
     try {
-      return await firstValueFrom(
+      const response = await firstValueFrom(
         this.http.post(
           `${this.base}sync-plan`,
           { deleted_ids: deletedIds, notes: [] },
           { headers }
-        )
+        ).pipe(timeout(15000))
       );
-    } catch (e) {
-      await this.outbox.enqueue(<OutboxOp>{
-        opId: payload.op_id,
-        type: 'delete',
-        payload,
-        attempt: 0,
-        nextAt: Date.now(),
-      });
+      await this.assertCurrentSession(TOKEN, generation);
+      await this.outbox.drop([payload.op_id]);
+      return response;
+    } catch (e: any) {
+      await this.assertCurrentSession(TOKEN, generation);
       return { queued: true, reason: 'network_error' } as any;
     }
   }
@@ -355,14 +372,14 @@ export class NotesApiV1Service {
         if (isDeleteOnly) {
           await firstValueFrom(
             this.http.post(
-              `${this.base}/sync-plan`,
+              `${this.base}sync-plan`,
               { deleted_ids: payload.deleted_ids, notes: [] },
               { headers }
             )
           );
         } else {
           await firstValueFrom(
-            this.http.post(`${this.base}/upload`, payload, { headers })
+            this.http.post(`${this.base}upload`, payload, { headers })
           );
         }
       } catch {

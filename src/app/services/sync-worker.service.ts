@@ -5,6 +5,9 @@ import { App } from '@capacitor/app';
 import { OutboxStorage } from './outbox-storage.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import {SecureStorageService} from "./secure-storage.service";
+import { firstValueFrom, timeout } from 'rxjs';
+import { confirmUpload } from './upload-confirmation';
+import { buildApiUrl, notes } from '../constants/api/product.api';
 import { NotesService } from "./notes.service";
 
 const MAX_ATTEMPT = 8;
@@ -12,8 +15,9 @@ const MAX_ATTEMPT = 8;
 @Injectable({ providedIn: 'root' })
 export class SyncWorkerService {
   private syncing = false;
+  private started = false;
 
-  private base = 'https://stellarprivatenotesuiappapiprod-dmefgreabahpcsbm.swedencentral-01.azurewebsites.net/api/v1/notescontroller/';
+  private base = buildApiUrl(notes.controller);
 
   constructor(
     private http: HttpClient,
@@ -24,9 +28,10 @@ export class SyncWorkerService {
   ) {}
 
   init() {
-    console.log('SyncWorkerService initialized');
-    // Run every 10s (tweak as needed)
-    setInterval(() => this.trySync(), 10_000);
+    if (this.started) return;
+    this.started = true;
+    // Check the durable queue locally; no HTTP call when no upload is due.
+    setInterval(() => this.trySync(), 1_000);
 
     Network.addListener('networkStatusChange', () => this.trySync());
     App.addListener('appStateChange', (s) => { if (s.isActive) this.trySync(); });
@@ -63,97 +68,55 @@ export class SyncWorkerService {
     };
   }
 
-  async trySync() {
+  private async isCurrentSession(headers: HttpHeaders, generation: number): Promise<boolean> {
+    const token = await this.secure.getItem('ssToken');
+    return !!token && headers.get('Authorization') === `Bearer ${token}` && generation === this.outbox.generation;
+  }
 
-    if (this.syncing) {
-      console.log('Already syncing...');
-      return;
-    }
-    if (!(await this.isOnline())) {
-      console.log('Skip sync: offline');
-      return;
-    }
-
+  async trySync(): Promise<void> {
+    if (this.syncing) return;
     this.syncing = true;
+    const generation = this.outbox.generation;
     try {
-      const now = Date.now();
-      const batch = await this.outbox.peekBatch(50, now);
-
-      if (batch.length === 0) {
-        return;
-      }
-
-      const body = {
-        ops: batch.map((o:any) => ({
-          opId: o.opId,
-          type: o.type,
-          payload: o.type === 'upload' ? this.sanitizeUploadPayload(o.payload) : o.payload,
-        })),
-      };
-
-      const headers = await this.authHeaders();
-
-      const res = await this.http.post(`${this.base}/sync-plan`, body, { headers }).toPromise();
-
-      // Assume success returns list of applied opIds (or simply 200 OK = all applied)
-      const appliedOpIds: string[] = Array.isArray((res as any)?.applied)
-        ? (res as any).applied
-        : batch.map((b: any) => b.opId);
-
-      // Drop applied
-      await this.outbox.drop(appliedOpIds);
-
-      // For any not-applied (partial failures), update attempts + nextAt
-      const remaining = await this.outbox.getAll();
-      const remainingById = new Map(remaining.map((i:any) => [i.opId, i]));
-      for (const op of batch) {
+      if (!(await this.isOnline())) return;
+      const token = await this.secure.getItem('ssToken');
+      if (!token) return;
+      const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+      const attempted = new Set<string>();
+      // Read again after every request: queued snapshots may have been superseded.
+      for (let count = 0; count < 50; count++) {
+        const op = (await this.outbox.peekBatch(50, Date.now())).find(item => !item.conflict && !attempted.has(item.opId));
+        if (!op) break;
+        if (!await this.isCurrentSession(headers, generation)) return;
+        attempted.add(op.opId);
         try {
           if (op.type === 'upload') {
-            // Payload already has: { op_id, since, notes, deleted_ids? }
-            await this.http.post(`${this.base}upload`, this.sanitizeUploadPayload(op.payload), { headers }).toPromise();
-            await this.outbox.drop([op.opId]);
+            const payload = { ...this.sanitizeUploadPayload(op.payload), require_note_ack: true };
+            const response = await firstValueFrom(this.http.post(`${this.base}upload`, payload, { headers }).pipe(timeout(15000)));
+            await confirmUpload(this.http, this.base, headers, payload, response);
           } else if (op.type === 'delete') {
-            // Server wants: { deleted_ids, notes: [] }
-            const body = { deleted_ids: op.payload.deleted_ids ?? [], notes: [] };
-            await this.http.post(`${this.base}sync-plan`, body, { headers }).toPromise();
-            await this.outbox.drop([op.opId]);
+            await firstValueFrom(this.http.post(`${this.base}sync-plan`, { deleted_ids: op.payload.deleted_ids ?? [], notes: [] }, { headers }).pipe(timeout(15000)));
           } else {
-            console.warn('Unknown op type, dropping', op.type, op.opId);
-            await this.outbox.drop([op.opId]);
+            throw new Error('Unknown queued operation');
           }
-        } catch (e) {
-          console.error('Sync send failed for', op.opId, e);
-          // backoff this op, leave others to try
-          const all = await this.outbox.getAll();
-          const item = all.find(a => a.opId === op.opId);
-          if (item) {
-            item.attempt = (item.attempt ?? 0) + 1;
-            if (item.attempt > MAX_ATTEMPT) {
-              // dead-letter: drop it (or move to separate key if you want)
-              await this.outbox.drop([item.opId]);
-            } else {
-              item.nextAt = Date.now() + this.backoffMs(item.attempt);
-              await this.outbox.replace(all);
-            }
+          if (!await this.isCurrentSession(headers, generation)) return;
+          await this.outbox.drop([op.opId]);
+          for (const note of op.payload.notes ?? []) {
+            const pending = this.notesService.getPendingMutation(note.id);
+            if (pending && pending.type !== 'delete' && pending.localUpdatedAt <= Number(note.last_modified)) this.notesService.clearPendingMutation(note.id);
           }
+          if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
+        } catch (error: any) {
+          if (!await this.isCurrentSession(headers, generation)) return;
+          this.notesService.syncNeedsAttention$.next(true);
+          await this.outbox.update(op.opId, item => {
+            const attempt = (item.attempt ?? 0) + 1;
+            return { ...item, conflict: item.conflict || error?.status === 409 || error?.message === 'Note upload was not confirmed', attempt, nextAt: Date.now() + (attempt > MAX_ATTEMPT ? 300000 : this.backoffMs(attempt)) };
+          });
         }
       }
-      await this.outbox.replace(Array.from(remainingById.values()));
-    } catch (e) {
-      console.log('Error..?');
-      console.error(e);
-      console.log(e);
-      // Network/API error: push back whole batch
-      const all = await this.outbox.getAll();
-      const ids = new Set(all.map((a:any) => a.opId));
-      const now = Date.now();
-      for (const op of all) {
-        if (ids.has(op.opId)) {
-          op.attempt = (op.attempt ?? 0) + 1;
-          op.nextAt = now + this.backoffMs(op.attempt);
-        }
-      }
-      await this.outbox.replace(all);
+    } catch {
+      // Storage/network failures leave the durable queue intact for the next run.
     } finally {
       this.syncing = false;
     }

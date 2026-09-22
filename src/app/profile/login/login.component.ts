@@ -1,3 +1,4 @@
+import { wrapLocalAppKey } from '../../utils/local-app-key';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -97,10 +98,13 @@ export class LoginComponent {
       password: this.loginForm.get('password')?.value,
     };
 
+    let issuedToken: string | null = null;
+    let loginCompleted = false;
     try {
       let response: any = await firstValueFrom(this.authService.loginHandling(loginObj));
 
       if (response.response_code === 200) {
+        issuedToken = response.token;
         await this.secureStorageService.setItem('ssToken', response.token);
 
         // the user does not have any eak.. kdf etc, can be for several reasons:
@@ -144,8 +148,8 @@ export class LoginComponent {
 
         // optional app-locker layer
         if (this.notesService.appHasPasswordChallenge()) {
-          this.cryptoService.encrypt(eakB64, this.notesService.getNotesAppPassword());
-          await this.secureStorageService.setItem('ssEakB64_Encrypted', eakB64);
+          const wrappedEak = await wrapLocalAppKey(eakB64, this.notesService.getNotesAppPassword());
+          await this.secureStorageService.setItem('ssEakB64_Encrypted', wrappedEak);
         } else {
           await this.secureStorageService.setItem('ssEakB64', eakB64);
         }
@@ -157,6 +161,8 @@ export class LoginComponent {
           notes = this.notesService.getDecryptedNotes();
         }
 
+        loginCompleted = true;
+        this.authService.setLoggedInState(true);
         this.dataService.setForceDownloadOnHome(true);
 
         if (notes.length === 0) {
@@ -175,11 +181,15 @@ export class LoginComponent {
         await this.toastMessageService.showError(response.response_message);
       }
     } catch (error: any) {
-      console.log(error);
+      if (!loginCompleted && issuedToken && await this.secureStorageService.getItem('ssToken') === issuedToken) {
+        await this.secureStorageService.removeItem('ssToken');
+        this.cryptoKeyService.clearRuntimeKeys();
+        this.authService.setLoggedInState(false);
+      }
       await this.toastMessageService.showError('Something went wrong');
     } finally {
       this.isSaving = false;
-      await this.authService.initializeAuthState();
+
     }
   }
 

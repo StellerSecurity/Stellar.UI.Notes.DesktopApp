@@ -1,4 +1,5 @@
 {
+  "enterYourNoteHere": "Saisissez votre note ici..",
   "lockNoteWithPassword": "Verrouiller la note avec un mot de passe",
   "pleaseEnterYourPasswordToConfirm": "Pour désactiver le mot de passe de l’application de notes, veuillez entrer votre mot de passe pour confirmer.",
   "passwordWarningMsg": "Attention, cela laissera vos notes décryptées. Vous pouvez toujours ajouter un mot de passe à nouveau.",
