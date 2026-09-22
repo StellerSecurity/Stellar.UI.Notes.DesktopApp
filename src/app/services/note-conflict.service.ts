@@ -1,3 +1,4 @@
+import { unwrapLocalAppKey } from '../utils/local-app-key';
 import { Injectable } from '@angular/core';
 import { AlertController } from '@ionic/angular';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -76,7 +77,7 @@ export class NoteConflictService {
       let eak = await this.secure.getItem('ssEakB64');
       if (!eak && this.state.appHasPasswordChallenge()) {
         const wrapped = await this.secure.getItem('ssEakB64_Encrypted');
-        if (wrapped) eak = this.localCrypto.decrypt(wrapped, this.state.getNotesAppPassword());
+        if (wrapped) eak = await unwrapLocalAppKey(wrapped, this.state.getNotesAppPassword(), (v,p) => this.localCrypto.decrypt(v,p));
       }
       if (eak) await this.keys.importEAK(eak);
       const choices: Array<{ sent: any; remote: any; local: any; choice: string }> = [];

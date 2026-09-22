@@ -1,3 +1,4 @@
+import { unwrapLocalAppKey } from '../utils/local-app-key';
 import { Injectable, NgZone } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { App } from '@capacitor/app';
@@ -121,7 +122,7 @@ export class RemoteDownloadSyncService {
         return null;
       }
 
-      const decrypted = this.cryptoService.decrypt(enc, appPass) as string;
+      const decrypted = await unwrapLocalAppKey(enc, appPass, (v,p) => this.cryptoService.decrypt(v,p));
       return decrypted ? this.b64ToBytes(decrypted) : null;
     } catch {
       return null;

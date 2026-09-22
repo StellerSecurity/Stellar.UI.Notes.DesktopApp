@@ -1,3 +1,4 @@
+import { unwrapLocalAppKey } from '../utils/local-app-key';
 import { SyncWorkerService } from '../services/sync-worker.service';
 import { nextNoteVersion } from '../utils/note-version';
 import { Component, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
@@ -295,7 +296,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         const enc = await this.secureStorageService.getItem('ssEakB64_Encrypted');
         const appPass = this.notesService.getNotesAppPassword();
         if (enc && appPass) {
-          const decrypted = this.cryptoService.decrypt(enc, appPass) as string;
+          const decrypted = await unwrapLocalAppKey(enc, appPass, (v,p) => this.cryptoService.decrypt(v,p));
           if (decrypted) {
             this.mkRaw = this.b64ToBytes(decrypted);
             return true;

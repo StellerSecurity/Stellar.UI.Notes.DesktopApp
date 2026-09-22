@@ -1,7 +1,7 @@
 import { NoteConflictService, conflictPreview } from './services/note-conflict.service';
 import { RealtimeNotesService, validRealtimeGrant } from './services/realtime-notes.service';
 import { desktopRealtimeGrant } from './services/desktop-realtime-grant';
-import { readUnlockedAppKey } from './utils/legacy-app-key';
+import { wrapLocalAppKey, unwrapLocalAppKey, isModernLocalAppKey } from './utils/local-app-key';
 import { HomePage } from './home/home.page';
 import { FormBuilder } from '@angular/forms';
 import { LoginComponent } from './profile/login/login.component';
@@ -208,8 +208,8 @@ describe('Desktop and mobile encrypted note compatibility',()=>{
    {upload:async()=>({})} as any,{setForceDownloadOnHome:()=>{}} as any,crypto,new CryptoKeyService(),{} as any);
   page.ngOnInit();page.loginForm.setValue({email:'fixture@example.com',password});await page.login();
   expect(auth.setLoggedInState).toHaveBeenCalledWith(true);
-  const wrapped=saved.get('ssEakB64_Encrypted')!;expect(wrapped.startsWith('U2FsdGVk')).toBeTrue();
-  expect(atob(crypto.decrypt(wrapped,'app-pass')).length).toBe(32);expect(saved.has('ssEakB64')).toBeFalse();
+  const wrapped=saved.get('ssEakB64_Encrypted')!;expect(isModernLocalAppKey(wrapped)).toBeTrue();
+  expect(atob(await unwrapLocalAppKey(wrapped,'app-pass',(v,p)=>crypto.decrypt(v,p))).length).toBe(32);expect(saved.has('ssEakB64')).toBeFalse();
  });
  it('blocks logout while uploads are queued',async()=>{
   const page:any=Object.create(ProfileComponent.prototype);const logout=jasmine.createSpy('logout');const present=jasmine.createSpy('present');
@@ -276,18 +276,40 @@ describe('Desktop list search integration',()=>{
  });
 });
 
-describe('Legacy desktop app-key upgrade after verified unlock',()=>{
- it('recognizes old raw keys and keeps the exact key when wrapping them',()=>{
-  const key=btoa('12345678901234567890123456789012');const crypto=new CryptoService();
-  const legacy=readUnlockedAppKey(key,'app-password',(value,password)=>crypto.decrypt(value,password));
-  expect(legacy.needsWrapping).toBeTrue();expect(legacy.key).toBe(key);
-  const current=readUnlockedAppKey(crypto.encrypt(legacy.key,'app-password'),'app-password',(value,password)=>crypto.decrypt(value,password));
-  expect(current.needsWrapping).toBeFalse();expect(current.key).toBe(key);
+describe('Local desktop app-key protection and legacy upgrade',()=>{
+ const key=btoa('12345678901234567890123456789012');
+ const legacyDecrypt=(value:string,password:string)=>new CryptoService().decrypt(value,password);
+ it('reads both legacy key formats and preserves the exact key during upgrade',async()=>{
+  const oldWrapped=new CryptoService().encrypt(key,'app-password');
+  for(const old of [key,oldWrapped]) {
+   const unlocked=await unwrapLocalAppKey(old,'app-password',legacyDecrypt);
+   expect(unlocked).toBe(key);
+   const upgraded=await wrapLocalAppKey(unlocked,'app-password');
+   expect(isModernLocalAppKey(upgraded)).toBeTrue();
+   expect(await unwrapLocalAppKey(upgraded,'app-password',legacyDecrypt)).toBe(key);
+  }
  });
- it('rejects wrong passwords and corrupted keys instead of importing an empty key',()=>{
-  const crypto=new CryptoService();const wrapped=crypto.encrypt(btoa('12345678901234567890123456789012'),'correct');
-  expect(()=>readUnlockedAppKey(wrapped,'wrong',(value,password)=>crypto.decrypt(value,password))).toThrow();
-  expect(()=>readUnlockedAppKey('invalid','correct',()=> '')).toThrow();
+ it('uses independent random salts and authenticated envelopes',async()=>{
+  const first=await wrapLocalAppKey(key,'correct');const second=await wrapLocalAppKey(key,'correct');
+  expect(first).not.toBe(second);
+  await expectAsync(unwrapLocalAppKey(first,'wrong',legacyDecrypt)).toBeRejected();
+  const [prefix,body]=first.split(':');const bytes=Uint8Array.from(atob(body),c=>c.charCodeAt(0));
+  bytes[40]^=1;
+  await expectAsync(unwrapLocalAppKey(prefix+':'+btoa(String.fromCharCode(...bytes)),'correct',legacyDecrypt)).toBeRejected();
+ });
+ it('rejects malformed modern values without falling back to legacy decryption',async()=>{
+  const fallback=jasmine.createSpy('legacy').and.returnValue(key);
+  for(const value of ['stellar-local-key-v2:AAAA','stellar-local-key-v2:!!!','stellar-local-key-v2:'+btoa('x'.repeat(76))+'\n','x'.repeat(1025)]) {
+   await expectAsync(unwrapLocalAppKey(value,'correct',fallback)).toBeRejected();
+  }
+  expect(fallback).not.toHaveBeenCalled();
+  await expectAsync(wrapLocalAppKey(key,'')).toBeRejected();
+  await expectAsync(unwrapLocalAppKey(key,'',fallback)).toBeRejected();
+ });
+ it('rejects wrong legacy passwords and corrupt keys',async()=>{
+  const oldWrapped=new CryptoService().encrypt(key,'correct');
+  await expectAsync(unwrapLocalAppKey(oldWrapped,'wrong',legacyDecrypt)).toBeRejected();
+  await expectAsync(unwrapLocalAppKey('invalid','correct',()=> '')).toBeRejected();
  });
 });
 

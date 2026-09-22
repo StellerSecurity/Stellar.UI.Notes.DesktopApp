@@ -1,5 +1,5 @@
 import { nextNoteVersion } from '../utils/note-version';
-import { readUnlockedAppKey } from '../utils/legacy-app-key';
+import { unwrapLocalAppKey, wrapLocalAppKey, isModernLocalAppKey } from '../utils/local-app-key';
 import { NoteV1 } from '../models/NoteV1';
 import { matchesNoteSearch, noteSearchText } from '../utils/note-search';
 import {
@@ -923,13 +923,13 @@ export class HomePage implements AfterViewInit {
         );
         if (eakB64) {
           // Password validation above must succeed before legacy key migration.
-          const unlocked = readUnlockedAppKey(eakB64, this.input_password_app_unlock,
+          const unlocked = await unwrapLocalAppKey(eakB64, this.input_password_app_unlock,
             (value, password) => this.cryptoService.decrypt(value, password));
-          if (unlocked.needsWrapping) {
+          if (!isModernLocalAppKey(eakB64)) {
             await this.secureStorageService.setItem('ssEakB64_Encrypted',
-              this.cryptoService.encrypt(unlocked.key, this.input_password_app_unlock));
+              await wrapLocalAppKey(unlocked, this.input_password_app_unlock));
           }
-          eakB64 = unlocked.key;
+          eakB64 = unlocked;
           this.mkRaw = this.b64ToBytes(eakB64);
 
           // Import into crypto vault (keeps MK in RAM, used for AES-GCM note encryption)

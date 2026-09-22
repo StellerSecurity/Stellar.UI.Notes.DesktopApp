@@ -13,4 +13,10 @@ describe('note search', () => {
  it('never matches protected body text', () => {
   expect(matchesNoteSearch(['milk'], 'shopping', '', 'buy milk', true)).toBeFalse();
  });
+ it('keeps active markup detached and ignores hidden executable content', () => {
+  const marker = 'stellar-search-injection';
+  const before = document.querySelectorAll('iframe,img').length;
+  expect(noteSearchText('<p>'+marker+'</p><script>hidden</script><iframe>hidden</iframe><object>hidden</object>')).toBe(marker);
+  expect(document.querySelectorAll('iframe,img').length).toBe(before);
+ });
 });

@@ -1,3 +1,4 @@
+import { wrapLocalAppKey } from '../../utils/local-app-key';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -147,7 +148,7 @@ export class LoginComponent {
 
         // optional app-locker layer
         if (this.notesService.appHasPasswordChallenge()) {
-          const wrappedEak = this.cryptoService.encrypt(eakB64, this.notesService.getNotesAppPassword());
+          const wrappedEak = await wrapLocalAppKey(eakB64, this.notesService.getNotesAppPassword());
           await this.secureStorageService.setItem('ssEakB64_Encrypted', wrappedEak);
         } else {
           await this.secureStorageService.setItem('ssEakB64', eakB64);
