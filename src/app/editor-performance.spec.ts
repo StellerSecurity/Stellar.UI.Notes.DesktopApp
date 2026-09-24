@@ -188,3 +188,63 @@ describe('Desktop typing and sidebar rendering', () => {
     expect(page.waitForSync && page.manualSyncRequests > 0).toBeFalse();
   });
 });
+
+describe('Open desktop note receives persisted sync updates', () => {
+  function setup() {
+    const page: any = Object.create(AddNotePage.prototype);
+    const local = {id:'open', text:'<p>before</p>', title:'Before', last_modified:1, protected:false};
+    let stored: any[] = [{...local, text:'<p>phone</p><p>test</p><p>test</p>', title:'Phone', last_modified:2}];
+    let pending: any = null;
+    Object.assign(page, {viewActive:true, note_locked:false, notes_id:'open', currentNote:{...local},
+      notes:[{...local}], note_text:local.text, note_title:local.title, editorFocused:true,
+      authService:{isLoggedIn:true}, navController:{navigateRoot:jasmine.createSpy('navigateRoot')},
+      richTextEditorComponent:{setExternalContent:jasmine.createSpy('setExternalContent')},
+      notesService:{shouldAskForPassword:()=>false, getNotes:()=>JSON.stringify(stored),
+        appHasPasswordChallenge:()=>false, getPendingMutation:()=>pending,
+        reconcileServerConfirmation:jasmine.createSpy('reconcileServerConfirmation')}});
+    return {page, store:(value:any[])=>stored=value, pending:(value:any)=>pending=value};
+  }
+  it('updates a focused but clean editor without reopening or uploading', () => {
+    const {page}=setup(); page.refreshSyncedNote();
+    expect(page.note_text).toBe('<p>phone</p><p>test</p><p>test</p>');
+    expect(page.note_title).toBe('Phone');
+    expect(page.richTextEditorComponent.setExternalContent).toHaveBeenCalledWith(page.note_text);
+  });
+  it('retains pending edits for the outbox conflict/version-choice flow, even on blur', () => {
+    const f=setup(); f.pending({type:'upsert',localUpdatedAt:3});
+    f.page.pendingLiveNote={text:'stale deferred response',last_modified:99};
+    f.page.onEditorFocusChange(false);
+    expect(f.page.note_text).toBe('<p>before</p>');
+    expect(f.page.notesService.reconcileServerConfirmation).not.toHaveBeenCalled();
+    f.pending(null); f.page.refreshSyncedNote();
+    expect(f.page.note_title).toBe('Phone');
+  });
+  for (const flag of ['typing','isEditingTitle','note_locked']) {
+    it('does not replace content while '+flag, () => {
+      const {page}=setup(); page[flag]=true; page.refreshSyncedNote();
+      expect(page.richTextEditorComponent.setExternalContent).not.toHaveBeenCalled();
+    });
+  }
+  it('ignores updates after logout or leaving the view', () => {
+    const {page}=setup(); page.authService.isLoggedIn=false; page.refreshSyncedNote();
+    page.authService.isLoggedIn=true; page.viewActive=false; page.refreshSyncedNote();
+    expect(page.richTextEditorComponent.setExternalContent).not.toHaveBeenCalled();
+  });
+  it('does not apply an older version or a different note', () => {
+    const f=setup(); f.page.currentNote.last_modified=3; f.page.refreshSyncedNote();
+    expect(f.page.richTextEditorComponent.setExternalContent).not.toHaveBeenCalled();
+    f.page.notes_id='other'; f.page.currentNote={id:'other',last_modified:3};
+    f.store([{id:'open',text:'wrong note',last_modified:10}]); f.page.refreshSyncedNote();
+    expect(f.page.richTextEditorComponent.setExternalContent).not.toHaveBeenCalled();
+  });
+  it('closes a remotely deleted note instead of resurrecting it', () => {
+    const f=setup(); f.store([]); f.page.refreshSyncedNote();
+    expect(f.page.note_text).toBe(''); expect(f.page.note_locked).toBeTrue();
+    expect(f.page.navController.navigateRoot).toHaveBeenCalledWith('/home');
+  });
+  it('does not expose newly protected ciphertext', () => {
+    const f=setup(); f.store([{id:'open',protected:true,text:'ciphertext',last_modified:2}]);
+    f.page.refreshSyncedNote(); expect(f.page.note_text).toBe('');
+    expect(f.page.richTextEditorComponent.setExternalContent).not.toHaveBeenCalled();
+  });
+});

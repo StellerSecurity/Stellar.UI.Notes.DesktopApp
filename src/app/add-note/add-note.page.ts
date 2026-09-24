@@ -1,4 +1,5 @@
 import { unwrapLocalAppKey } from '../utils/local-app-key';
+import { RemoteDownloadSyncService } from '../services/remote-download-sync.service';
 import { SyncWorkerService } from '../services/sync-worker.service';
 import { nextNoteVersion } from '../utils/note-version';
 import { Component, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
@@ -29,11 +30,6 @@ import { NoteV1 } from "../models/NoteV1";
 import { Folder } from "../models/Folder";
 import { AuthService } from "../services/auth.service";
 
-// ✅ New: use Stellar Crypto SDK
-import {
-  unpackCipherBlob,
-  decryptTextWithMK,
-} from '@stellarsecurity/stellar-crypto';
 import { SecureStorageService } from '../services/secure-storage.service';
 
 // ✅ keep CommonJS requires (no ES imports)
@@ -84,8 +80,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   private fetchLiveNoteBound = () => {};
   private routeSub?: Subscription;
-  private editorFocused = false;
-  private pendingLiveNote: any | null = null;
+  private syncSub?: Subscription;
   private viewActive = true;
   private titleFocusTimer?: ReturnType<typeof setTimeout>;
   private readonly onVisibilityChange = () => {
@@ -101,7 +96,6 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.notes_password_input = '';
     this.notes_password_confirm = '';
     this.notesService.notesPasswordStored = null;
-    this.pendingLiveNote = null;
   }
 
   // 🔐 Master key held in RAM (derived from EAK)
@@ -175,8 +169,12 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     private notesApiV1Service: NotesApiV1Service,
     private translatorService: TranslatorService,
     private authService: AuthService,
-    private syncWorker: SyncWorkerService
+    private syncWorker: SyncWorkerService,
+    private remoteDownloadSync: RemoteDownloadSyncService
   ) {
+    window.addEventListener('stellar:notes-changed', this.realtimeHint);
+    window.addEventListener('stellar:note-conflict-resolved', this.conflictResolved);
+    this.syncSub = this.remoteDownloadSync.syncApplied$.subscribe(() => this.refreshSyncedNote());
     this.routeSub = this.activatedRoute.paramMap.subscribe(async (params: ParamMap) => {
       if (this.notesService.shouldAskForPassword()) {
         this.note_locked = true;
@@ -253,6 +251,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
     this.relockProtectedNote();
     this.routeSub?.unsubscribe();
+    this.syncSub?.unsubscribe();
+    clearTimeout(this.typingTimeout);
     this.stopLiveNotePolling();
   }
 
@@ -332,7 +332,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
 
 
-  private applyLiveNoteToUi(note: any): void {
+  private applyLiveNoteToUi(note: any, displayText = note.text, displayTitle = note.title): void {
     const noteId = this.notes_id as string;
     if (!this.currentNote) return;
 
@@ -345,8 +345,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.currentNote.folder = (note.folder ?? '').trim();
     this.currentNote.folder_id = this.normalizeFolderId((note as any).folder_id);
 
-    this.note_title = note.title;
-    this.note_text = note.text;
+    this.note_title = displayTitle;
+    this.note_text = displayText;
 
     for (let i = 0; i < this.notes.length; i++) {
       if (this.notes[i].id === noteId) {
@@ -364,21 +364,11 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
     this.notesService.reconcileServerConfirmation(note);
 
-    if (!this.isEditingTitle) {
-      this.currentNote.title = this.note_title;
-    }
-
-    this.richTextEditorComponent?.setExternalContent?.(note.text);
+    this.richTextEditorComponent?.setExternalContent?.(displayText);
   }
 
   public onEditorFocusChange(focused: boolean): void {
-    this.editorFocused = focused;
-
-    if (!focused && this.pendingLiveNote) {
-      const pending = this.pendingLiveNote;
-      this.pendingLiveNote = null;
-      this.applyLiveNoteToUi(pending);
-    }
+    if (!focused) this.refreshSyncedNote();
   }
 
   private placeCursorAtEnd() {
@@ -508,99 +498,52 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     window.removeEventListener('online', this.fetchLiveNoteBound);
   }
 
-  private async fetchLiveNote() {
-    if (this.stopSyncing) return;
-    if (this.note_locked) return;
+  private async fetchLiveNote(): Promise<void> {
+    if (this.stopSyncing || !this.viewActive || this.note_locked || !this.notes_id || !this.authService.isLoggedIn) return;
+    // Use the same session-checked, persisted merge as the sidebar and polling fallback.
+    await this.remoteDownloadSync.requestImmediateSync('realtime');
+    this.refreshSyncedNote();
+  }
 
-    if (this.typing) {
-      console.log('Do not fetch live note');
-      return;
-    }
-    if (!this.notes_id) return;
-
-    const noteId = this.notes_id as string;
-
+  private refreshSyncedNote(): void {
+    if (!this.viewActive || this.note_locked || !this.currentNote || !this.notes_id ||
+        !this.authService.isLoggedIn || this.notesService.shouldAskForPassword()) return;
+    // Never acknowledge or replace an outstanding local edit. Its durable outbox
+    // continues to use the existing server conflict/version-choice flow.
+    if (this.typing || this.isEditingTitle || this.notesService.getPendingMutation(this.notes_id)) return;
     try {
-      if (!this.authService.isLoggedIn) return;
-
-      this.notesApiV1Service
-        .find(noteId)
-        .then(async (note: any) => {
-          console.log('Fetched Live Note');
-          if (this.currentNote == null) return;
-
-          if (note.deleted) {
-            this.dataService.setForceDownloadOnHome(true);
-            await this.navController.navigateForward('/');
-            return;
+      const raw = this.notesService.getNotes();
+      const decoded = this.notesService.appHasPasswordChallenge()
+        ? this.cryptoService.decrypt(raw, this.notesService.getNotesAppPassword()) : raw;
+      const stored = JSON.parse(decoded || '[]');
+      if (!Array.isArray(stored)) return;
+      const note = stored.find((item: NoteV1) => item.id === this.notes_id && !item.deleted);
+      if (!note || !!note.protected !== !!this.currentNote.protected) {
+        this.note_locked = true;
+        this.note_text = '';
+        this.note_title = '';
+        void this.navController.navigateRoot('/home');
+        return;
+      }
+      if (Number(note.last_modified) <= Number(this.currentNote.last_modified)) return;
+      if (note.protected) {
+        let text = '', title = '';
+        try {
+          if (this.notes_password_stored) {
+            text = this.cryptoService.decrypt(note.text, this.notes_password_stored);
+            title = note.title ? this.cryptoService.decrypt(note.title, this.notes_password_stored) : '';
           }
-
-          if (note.protected !== this.currentNote.protected) {
-            this.dataService.setForceDownloadOnHome(true);
-            await this.navController.navigateForward('/');
-            return;
-          }
-
-          if (!note.protected) this.notes_password_stored = '';
-
-          if (this.currentNote.last_modified == note.last_modified) {
-            console.log('Equal');
-            return;
-          }
-          if ((this.currentNote.last_modified ?? 0) > (note.last_modified ?? 0)) {
-            console.log('Higher');
-            return;
-          }
-
-          const mkReady = await this.ensureMkLoaded();
-          if (!mkReady || !this.mkRaw) {
-            console.warn('MK not loaded in AddNotePage; skipping decrypt for live note');
-            return;
-          }
-
-          // 🔐 Decrypt text (required)
-          const blobText = unpackCipherBlob(note.text);
-          note.text = await decryptTextWithMK(this.mkRaw, {
-            ...blobText,
-            v: 1,
-            aad_b64: btoa(noteId),
-          });
-
-          // 🔐 Decrypt title if present
-          if (typeof note.title === 'string' && note.title.length > 0) {
-            const blobTitle = unpackCipherBlob(note.title);
-            note.title = await decryptTextWithMK(this.mkRaw, {
-              ...blobTitle,
-              v: 1,
-              aad_b64: btoa(noteId + '#title'),
-            });
-          } else {
-            note.title = '';
-          }
-
-          if (this.editorFocused || this.isEditingTitle) {
-            this.pendingLiveNote = note;
-          } else {
-            this.pendingLiveNote = null;
-            this.applyLiveNoteToUi(note);
-          }
-
-          if (note.protected) {
-            console.log('Note is protected, lets decrypt it.');
-            const ok = this.decryptNote(this.notes_password_stored, note);
-            console.log('Note decrypted...');
-            if (!ok) {
-              this.dismissModal().then(() => {});
-              await this.navController.navigateForward('/');
-            }
-          }
-        })
-        .catch(() => {
-          /* ignore; try again on next tick */
-        });
-    } catch (err) {
-      console.error('Find notes not done.', err);
-    }
+        } catch { /* A changed password requires unlocking again. */ }
+        if (!text) {
+          this.relockProtectedNote();
+          void this.navController.navigateRoot('/home');
+          return;
+        }
+        this.applyLiveNoteToUi({ ...note }, text, title);
+        return;
+      }
+      this.applyLiveNoteToUi({ ...note });
+    } catch { /* Keep the editor intact if local storage cannot be read. */ }
   }
 
   public loadFolders(): void {
@@ -1138,7 +1081,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
     this.typing = true;
     clearTimeout(this.typingTimeout);
-    this.typingTimeout = setTimeout(() => (this.typing = false), 10_000);
+    this.typingTimeout = setTimeout(() => { this.typing = false; this.refreshSyncedNote(); }, 10_000);
 
     clearTimeout(this.saveTimeout);
     this.save(null);

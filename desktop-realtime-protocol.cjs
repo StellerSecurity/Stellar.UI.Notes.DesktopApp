@@ -2,7 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 function redactRealtimeSecrets(line) {
-  return line.replace(/([?&](?:access_token|token)=)[^&\s"'<>]*/gi, '$1[REDACTED]')
+  return line.replace(/("(?:access_token|token|authorization)"\s*:\s*")[^"]*/gi, '$1[REDACTED]')
+    .replace(/([?&](?:access_token|token)=)[^&\s"'<>]*/gi, '$1[REDACTED]')
     .replace(/\bBearer\s+[^\s"'<>]+/gi, 'Bearer [REDACTED]');
 }
 
