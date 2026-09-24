@@ -14,8 +14,25 @@ import { buildApiUrl, notes } from '../constants/api/product.api';
 export function conflictPreview(note: any): string {
   if (!note || note.deleted) return 'Deleted on the other device';
   if (note.protected) return 'Password-protected note (content hidden)';
-  const text = `${note.title ?? ''}\n${note.text ?? ''}`.slice(0, 400);
+  const template = document.createElement('template');
+  template.innerHTML = String(note.text ?? '');
+  template.content.querySelectorAll('script,style,iframe,object,embed').forEach(node => node.remove());
+  template.content.querySelectorAll('br').forEach(node => node.replaceWith(document.createTextNode('\n')));
+  template.content.querySelectorAll('p,div,li').forEach(node => node.appendChild(document.createTextNode('\n')));
+  const text = `${note.title ?? ''}\n${template.content.textContent ?? ''}`.trim().slice(0, 400);
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Compare full decrypted content, never a truncated preview or randomized ciphertext. */
+export function sameConflictContent(local: any, remote: any): boolean {
+  if (!local || !remote || local.deleted || remote.deleted || local.id !== remote.id) return false;
+  for (const field of ['text', 'title', 'folder_id', 'folder']) {
+    if ((local[field] ?? '') !== (remote[field] ?? '')) return false;
+  }
+  const flag = (value: any) => value === undefined || value === null ? false
+    : value === 1 || value === '1' || value === 'true' ? true
+    : value === 0 || value === '0' || value === 'false' ? false : value;
+  return ['protected', 'auto_wipe', 'pinned', 'favorite'].every(field => flag(local[field]) === flag(remote[field]));
 }
 
 /** Conflicts stay in the encrypted outbox until the user explicitly chooses. */
@@ -83,10 +100,19 @@ export class NoteConflictService {
       const choices: Array<{ sent: any; remote: any; local: any; choice: string }> = [];
       for (const sent of op.payload.notes) {
         const remote = (result.notes ?? []).find((n: any) => n.id === sent.id);
-        if (remote && remote.text === sent.text && remote.title === sent.title && Number(remote.last_modified) === Number(sent.last_modified)) continue;
         const local = await this.decode(sent);
         const decodedRemote = await this.decode(remote);
         if (token !== await this.secure.getItem('ssToken') || this.state.shouldAskForPassword()) return;
+        if (sameConflictContent(local, decodedRemote)) {
+          const observed = observedLocal.get(sent.id);
+          // The queued snapshot may predate a locally persisted edit that has
+          // not reached the outbox yet. Never replace that newer local draft.
+          if (!observed || !sameConflictContent(JSON.parse(observed), local)) return;
+          // Use the same session, pending-edit and persistence guards as an
+          // explicit server choice before removing an already-saved operation.
+          choices.push({ sent, remote, local, choice: 'server' });
+          continue;
+        }
         const alert = await this.alerts.create({
           header: 'Choose note version',
           message: `<b>This device</b><br>${conflictPreview(local)}<br><br><b>Other device</b><br>${conflictPreview(decodedRemote)}`,
