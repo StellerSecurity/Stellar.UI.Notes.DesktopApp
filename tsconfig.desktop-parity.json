@@ -14,6 +14,7 @@
     "src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts",
     "src/app/adversarial-sync.spec.ts",
     "src/app/editor-stress.spec.ts",
-    "src/app/dependency-compatibility.spec.ts"
+    "src/app/dependency-compatibility.spec.ts",
+    "src/app/services/note-conflict.spec.ts"
   ]
 }
