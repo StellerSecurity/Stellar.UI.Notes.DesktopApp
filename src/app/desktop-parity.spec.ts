@@ -360,10 +360,13 @@ describe('Coalesced desktop uploads', () => {
 
 
 describe('Realtime security and fallback',()=>{
- const grant=(url='wss://notes-test.webpubsub.azure.com/client/hubs/notes?access_token=synthetic')=>({enabled:true,url,expires_at:Date.now()+30000});
+ const grant=(url='wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=synthetic')=>({enabled:true,url,expires_at:Date.now()+30000});
  it('accepts only short-lived WSS grants on Azure notes hub',()=>{expect(validRealtimeGrant(grant())).toBeTrue();});
+ it('rejects other Azure tenants and ambiguous access URLs',()=>{
+  for(const url of ['wss://other-tenant.webpubsub.azure.com/client/hubs/notes?access_token=x', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x&access_token=y', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x&extra=y', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x#fragment']) expect(validRealtimeGrant(grant(url))).toBeFalse();
+ });
  it('rejects insecure, foreign and credential-bearing URLs',()=>{
-  for(const url of ['ws://notes-test.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://evil.example/client/hubs/notes?access_token=x','wss://user:pass@notes-test.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://notes-test.webpubsub.azure.com/client/hubs/other?access_token=x'])expect(validRealtimeGrant(grant(url))).toBeFalse();
+  for(const url of ['ws://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://evil.example/client/hubs/notes?access_token=x','wss://user:pass@stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/other?access_token=x'])expect(validRealtimeGrant(grant(url))).toBeFalse();
  });
  it('rejects expired, long-lived and disabled grants',()=>{
   expect(validRealtimeGrant({...grant(),expires_at:Date.now()-1})).toBeFalse();
@@ -387,7 +390,7 @@ describe('Realtime security and fallback',()=>{
  it('rejects a negotiated grant if the account token changed while waiting',async()=>{
   let token='account-A';const reply=new Subject<any>();let started!:()=>void;const ready=new Promise<void>(r=>started=r);
   const service:any=new RealtimeNotesService({post:()=>{started();return reply;}} as any,{isLoggedIn:true} as any,{getItem:async()=>token} as any);
-  const connecting=service.connect(0);await ready;token='account-B';reply.next({enabled:true,url:'wss://notes-test.webpubsub.azure.com/client/hubs/notes?access_token=synthetic',expires_at:Date.now()+30000});reply.complete();await connecting;
+  const connecting=service.connect(0);await ready;token='account-B';reply.next({enabled:true,url:'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=synthetic',expires_at:Date.now()+30000});reply.complete();await connecting;
   expect(service.socket).toBeUndefined();service.stop();
  });
  it('does not dispatch stale-account hints',async()=>{

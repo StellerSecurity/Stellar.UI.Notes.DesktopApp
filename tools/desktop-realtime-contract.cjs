@@ -4,6 +4,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { realtimeAsset, registerRealtimeProtocol, redactRealtimeSecrets } = require('../desktop-realtime-protocol.cjs');
 let checks = 0;
+for (const field of ['access_token', 'token', 'Authorization']) {
+  const clean = redactRealtimeSecrets(JSON.stringify({[field]:'synthetic-sensitive-value',status:401}));
+  assert.ok(!clean.includes('synthetic-sensitive-value'));
+  assert.ok(clean.includes('401'));
+  checks++;
+}
+
 function check(ok, name) { assert.ok(ok, name); checks++; }
 const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'desktop-realtime.js'), 'utf8');

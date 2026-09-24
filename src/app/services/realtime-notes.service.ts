@@ -9,9 +9,12 @@ import { desktopRealtimeGrant } from './desktop-realtime-grant';
 export function validRealtimeGrant(value: any, now = Date.now()): boolean {
   try {
     const url = new URL(value.url);
+    let onlyAccessToken = true;
+    url.searchParams.forEach((_value, key) => { if (key !== 'access_token') onlyAccessToken = false; });
     return value.enabled === true && url.protocol === 'wss:' && !url.username && !url.password
-      && !url.port && /^[a-z0-9-]+\.webpubsub\.azure\.com$/.test(url.hostname)
-      && url.pathname === '/client/hubs/notes' && url.searchParams.has('access_token')
+      && !url.port && url.hostname === 'stellar-notes-realtime-prod.webpubsub.azure.com'
+      && url.pathname === '/client/hubs/notes' && !url.hash && url.searchParams.getAll('access_token').length === 1
+      && !!url.searchParams.get('access_token') && onlyAccessToken
       && Number.isFinite(value.expires_at) && value.expires_at > now + 1000 && value.expires_at <= now + 65000;
   } catch { return false; }
 }
