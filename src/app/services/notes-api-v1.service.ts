@@ -165,6 +165,10 @@ export class NotesApiV1Service {
       const { checksum_hmac: _previousChecksum, ...wireNote } = n as NoteV1 & { checksum_hmac?: string };
       encryptedNotes.push({
         ...wireNote,
+        checksum_hmac: await this.crypto.noteChecksum(JSON.stringify([
+          n.id, n.last_modified, n.text ?? '', n.title ?? '', !!n.protected, !!n.favorite,
+          !!n.pinned, !!n.deleted, !!n.auto_wipe, normalizedFolderId, normalizedFolderName
+        ])),
         edit_session: this.editSession,
         text: packCipherBlob(encText),
         title: packCipherBlob(encTitle),

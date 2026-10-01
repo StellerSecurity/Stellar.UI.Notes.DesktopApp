@@ -94,6 +94,16 @@ export class CryptoKeyService {
 
     /* --------------------- Encryption helpers --------------------- */
 
+    async noteChecksum(value: string): Promise<string> {
+        if (!this.eakBytes) throw new Error('Locked');
+        const material = await crypto.subtle.importKey('raw', this.eakBytes, 'HKDF', false, ['deriveKey']);
+        const key = await crypto.subtle.deriveKey(
+            { name: 'HKDF', hash: 'SHA-256', salt: TEXT.encode('stellar-notes-sync-v1'), info: TEXT.encode('content-confirmation') },
+            material, { name: 'HMAC', hash: 'SHA-256', length: 256 }, false, ['sign']
+        );
+        return b64encode(await crypto.subtle.sign('HMAC', key, TEXT.encode(value)));
+    }
+
     /** Encrypt a UTF-8 string with the MK. Optionally bind AAD (e.g., note id). */
     async encryptText(plain: string, aad?: string): Promise<CipherBlobV1> {
         if (!this.mkKey) throw new Error('Locked');
