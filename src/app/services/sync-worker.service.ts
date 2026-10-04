@@ -40,6 +40,12 @@ export class SyncWorkerService {
     this.trySync();
   }
 
+  private dispatchNotesChanged(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('stellar:notes-changed'));
+    }
+  }
+
   private async isOnline(): Promise<boolean> {
     const st = await Network.getStatus();
     return st.connected ?? navigator.onLine;
@@ -77,6 +83,7 @@ export class SyncWorkerService {
     if (this.syncing) return;
     this.syncing = true;
     const generation = this.outbox.generation;
+    let uploadedAny = false;
     try {
       if (!(await this.isOnline())) return;
       const token = await this.secure.getItem('ssToken');
@@ -101,6 +108,7 @@ export class SyncWorkerService {
           }
           if (!await this.isCurrentSession(headers, generation)) return;
           await this.outbox.drop([op.opId]);
+          uploadedAny = true;
           for (const note of op.payload.notes ?? []) {
             const pending = this.notesService.getPendingMutation(note.id);
             if (pending && pending.type !== 'delete' && pending.localUpdatedAt <= Number(note.last_modified)) this.notesService.clearPendingMutation(note.id);
@@ -119,6 +127,7 @@ export class SyncWorkerService {
       // Storage/network failures leave the durable queue intact for the next run.
     } finally {
       this.syncing = false;
+      if (uploadedAny) this.dispatchNotesChanged();
     }
   }
 }
