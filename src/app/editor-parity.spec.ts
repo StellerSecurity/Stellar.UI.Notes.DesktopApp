@@ -104,6 +104,22 @@ describe('Desktop Quill / mobile HTML compatibility', () => {
     fixture.destroy();tick(500);
   }));
 
+
+  it('keeps dash-space typing literal instead of auto-creating a list', fakeAsync(() => {
+    const {fixture, quill, host} = editor('');
+    const keyboard = quill.getModule('keyboard');
+    const spaceBindings = keyboard.bindings[32] ?? [];
+    expect(spaceBindings.some((binding: any) => String(binding.prefix) === String(/^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/))).toBeFalse();
+    quill.root.focus();
+    quill.insertText(0, '- ', 'user'); tick();
+    quill.insertText(2, 'not a list', 'user'); tick();
+    expect(quill.getText()).toBe('- not a list\n');
+    expect(quill.getFormat(0, 1)['list']).toBeUndefined();
+    expect(quill.root.querySelector('li')).toBeNull();
+    expect(host.html).toContain('- not a list');
+    fixture.destroy(); tick(500);
+  }));
+
   it('clears text, copies text without doubled lines, and blocks unsafe external links', fakeAsync(() => {
     const {fixture,quill,host}=editor('<p>one</p><p>two</p>');
     quill.setSelection(0,7,'silent');const data=new DataTransfer();

@@ -45,6 +45,9 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   readonly quillModules = {
     clipboard: { matchVisual: false, matchers: [[3, preserveNoteSpaces], [1, preserveNoteLineBreaks]] },
     history: { delay: 0, maxStack: 300, userOnly: true },
+    // Keep typed notes literal. Quill's default "list autofill" turns "- " or "1. "
+    // at the start of a line into lists; users should use the toolbar when they want a list.
+    keyboard: { bindings: { 'list autofill': false } },
   };
 
   constructor(
