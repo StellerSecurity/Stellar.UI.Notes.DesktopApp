@@ -132,7 +132,7 @@
     </ng-template>
   </ion-modal>
 
-  <div *ngIf="!note_locked">
+  <div *ngIf="!note_locked" class="desktop-note-editor-body">
     <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text" [noteId]="notes_id"
       (noteChange)="onSave($event, 'note_text')"
       (editorFocusChange)="onEditorFocusChange($event)"></app-rich-text-editor>

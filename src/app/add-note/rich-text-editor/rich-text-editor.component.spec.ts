@@ -52,6 +52,20 @@ describe('RichTextEditorComponent', () => {
     expect(editor.textContent?.trim()).toBe('');
   });
 
+  it('lets the editor fill the desktop pane instead of using a fixed viewport subtraction', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    const editorContainer = host.querySelector('.editor-container') as HTMLElement;
+    const quillEditor = host.querySelector('quill-editor') as HTMLElement;
+    const qlContainer = host.querySelector('.ql-container') as HTMLElement;
+    const qlEditor = host.querySelector('.ql-editor') as HTMLElement;
+    expect(getComputedStyle(editorContainer).height).not.toBe('auto');
+    expect(getComputedStyle(quillEditor).display).toBe('flex');
+    expect(getComputedStyle(qlContainer).flexGrow).toBe('1');
+    expect(getComputedStyle(qlEditor).height).not.toContain('calc');
+  });
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
