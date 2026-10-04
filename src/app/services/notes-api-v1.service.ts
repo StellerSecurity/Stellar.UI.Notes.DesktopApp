@@ -34,6 +34,12 @@ export class NotesApiV1Service {
   ) {}
 
 
+  private dispatchNotesChanged(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('stellar:notes-changed'));
+    }
+  }
+
   private async assertCurrentSession(token: string | null, generation: number): Promise<void> {
     const current = await this.secureStorageService.getItem('ssToken');
     if (!token || current !== token || generation !== this.outbox.generation) {
@@ -199,6 +205,7 @@ export class NotesApiV1Service {
         if (pending && pending.type !== 'delete' && pending.localUpdatedAt <= Number(note.last_modified)) this.notesService.clearPendingMutation(note.id);
       }
       if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
+      this.dispatchNotesChanged();
       return res;
     } catch (error: any) {
       await this.assertCurrentSession(TOKEN, generation);
