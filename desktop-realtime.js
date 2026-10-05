@@ -12,7 +12,7 @@
     const abort = new AbortController();
     const deadline = setTimeout(() => abort.abort(), 6500);
     try {
-      const response = await fetch('https://stellarprivatenotesuiappapiprod-dmefgreabahpcsbm.swedencentral-01.azurewebsites.net/api/v1/notescontroller/realtime', {
+      const response = await fetch('https://stellarprivatenotesuiappapiprod.stellarsecurity.com/api/v1/notescontroller/realtime', {
         method: 'POST', body: '{}', redirect: 'error', credentials: 'omit',
         cache: 'no-store', referrerPolicy: 'no-referrer', signal: abort.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${event.data.token}` }
