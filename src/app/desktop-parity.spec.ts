@@ -369,12 +369,15 @@ describe('Coalesced desktop uploads', () => {
 
 describe('Realtime security and fallback',()=>{
  const grant=(url='wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=synthetic')=>({enabled:true,url,expires_at:Date.now()+30000});
- it('accepts only short-lived WSS grants on Azure notes hub',()=>{expect(validRealtimeGrant(grant())).toBeTrue();});
+ it('accepts short-lived WSS grants on old and custom notes hubs',()=>{
+  expect(validRealtimeGrant(grant())).toBeTrue();
+  expect(validRealtimeGrant(grant('wss://stellar-notes-realtime-prod.stellarsecurity.com/client/hubs/notes?access_token=synthetic'))).toBeTrue();
+ });
  it('rejects other Azure tenants and ambiguous access URLs',()=>{
-  for(const url of ['wss://other-tenant.webpubsub.azure.com/client/hubs/notes?access_token=x', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x&access_token=y', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x&extra=y', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x#fragment']) expect(validRealtimeGrant(grant(url))).toBeFalse();
+  for(const url of ['wss://other-tenant.webpubsub.azure.com/client/hubs/notes?access_token=x', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x&access_token=y', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x&extra=y', 'wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x#fragment', 'wss://stellar-notes-realtime-prod.stellarsecurity.com/client/hubs/notes?access_token=x&extra=y']) expect(validRealtimeGrant(grant(url))).toBeFalse();
  });
  it('rejects insecure, foreign and credential-bearing URLs',()=>{
-  for(const url of ['ws://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://evil.example/client/hubs/notes?access_token=x','wss://user:pass@stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/other?access_token=x'])expect(validRealtimeGrant(grant(url))).toBeFalse();
+  for(const url of ['ws://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://evil.example/client/hubs/notes?access_token=x','wss://user:pass@stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/notes?access_token=x','wss://stellar-notes-realtime-prod.webpubsub.azure.com/client/hubs/other?access_token=x','wss://user:pass@stellar-notes-realtime-prod.stellarsecurity.com/client/hubs/notes?access_token=x'])expect(validRealtimeGrant(grant(url))).toBeFalse();
  });
  it('rejects expired, long-lived and disabled grants',()=>{
   expect(validRealtimeGrant({...grant(),expires_at:Date.now()-1})).toBeFalse();

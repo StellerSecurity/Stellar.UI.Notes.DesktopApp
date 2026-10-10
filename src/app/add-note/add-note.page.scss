@@ -35,6 +35,16 @@ ion-toolbar {
   background: #ffffff;
 }
 
+ion-content::part(scroll) {
+  height: 100%;
+  overflow: hidden;
+}
+
+.desktop-note-editor-body {
+  height: 100%;
+  min-height: 0;
+}
+
 ion-button {
   --border-radius: 14px;
   border-radius: 14px;
