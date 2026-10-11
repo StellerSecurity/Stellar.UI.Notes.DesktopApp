@@ -1,0 +1,68 @@
+# Manual build only. Review/approve dependencies and downloaded build tools before queuing.
+# OTA keys stay on the signing Mac; this pipeline has no deployment credentials.
+trigger: none
+pr: none
+
+parameters:
+- name: platform
+  type: string
+  default: both
+  values: [both, win, linux]
+
+jobs:
+- ${{ each target in split('win,linux', ',') }}:
+  - ${{ if or(eq(parameters.platform, 'both'), eq(parameters.platform, target)) }}:
+    - job: Build_${{ target }}
+      displayName: Build ${{ target }} x64
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      timeoutInMinutes: 45
+      pool:
+        ${{ if eq(target, 'win') }}:
+          vmImage: windows-2022
+        ${{ else }}:
+          vmImage: ubuntu-24.04
+      steps:
+      - checkout: self
+        persistCredentials: false
+      - pwsh: |
+          $ErrorActionPreference = 'Stop'
+          node --version
+          if ($LASTEXITCODE -ne 0) { throw 'Node unavailable' }
+          npm --version
+          if ($LASTEXITCODE -ne 0) { throw 'npm unavailable' }
+          node --test tools/finalize-desktop-release.test.cjs tools/finalize-mac-release.test.cjs tools/windows-ota.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release tests failed' }
+          node tools/desktop-url-contract.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'URL contract failed' }
+          node tools/desktop-realtime-contract.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Realtime contract failed' }
+          node tools/desktop-localization-contract.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Localization contract failed' }
+          npm ci --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Renderer build failed' }
+        displayName: Install approved locked dependencies and build renderer
+      - ${{ if eq(target, 'win') }}:
+        - pwsh: |
+            node node_modules/electron-builder/cli.js --win nsis --x64 --publish never --config.win.forceCodeSigning=false
+            if ($LASTEXITCODE -ne 0) { throw 'Windows packaging failed' }
+            node tools/finalize-desktop-release.cjs check-updater win dist/win-unpacked/resources/app-update.yml
+            if ($LASTEXITCODE -ne 0) { throw 'Packaged Windows updater validation failed' }
+          displayName: Package Windows without Authenticode (approved unsigned release)
+      - ${{ if eq(target, 'linux') }}:
+        - pwsh: |
+            node node_modules/electron-builder/cli.js --linux AppImage --x64 --publish never --config.compression=store
+            if ($LASTEXITCODE -ne 0) { throw 'Linux packaging failed' }
+          displayName: Package Linux AppImage
+      - pwsh: |
+          node tools/finalize-desktop-release.cjs stage '${{ target }}' dist "$env:STAGING_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact checks failed' }
+        displayName: Validate and collect only public build artifacts
+        env:
+          STAGING_DIR: $(Build.ArtifactStagingDirectory)/notes-${{ target }}-x64
+      - task: PublishPipelineArtifact@1
+        inputs:
+          targetPath: $(Build.ArtifactStagingDirectory)/notes-${{ target }}-x64
+          artifact: notes-${{ target }}-x64
+        displayName: Save unsigned artifacts for OTA signing on Mac
