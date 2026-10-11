@@ -172,8 +172,12 @@ async function note(cdp, marker) {
   return cdp.value(`${storedNotes}.find(n => !n.deleted && (n.text || '').includes(${JSON.stringify(marker)})) || null`);
 }
 async function openNote(cdp, id) {
+  const ready = `location.hash === ${JSON.stringify('#/note/' + id)} && !![...document.querySelectorAll('.ql-editor[contenteditable=true]')].find(e => !e.closest('.ion-page-hidden,.ion-page-invisible') && e.getBoundingClientRect().height)`;
+  // Clicking the selected note navigates through /dummy-route and recreates the page.
+  // Keep the existing editor instead of racing that navigation with the next action.
+  if (await cdp.value(ready)) return;
   await cdp.click(`.home-note-list ion-item[id="${id}"]`);
-  await until(() => cdp.value(`!!document.querySelector('.ql-editor[contenteditable=true]')`), 'note editor');
+  await until(() => cdp.value(ready), 'requested note editor');
 }
 async function newNote(cdp, marker) {
   await cdp.click('.create-note-btn');
