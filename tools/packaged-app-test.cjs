@@ -166,6 +166,10 @@ async function launch(executable, profile) {
   fs.mkdirSync(profile, { recursive: true, mode: 0o700 });
   const child = spawn(executable, [
     `--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', `--remote-debugging-port=${port}`,
+    // The hosted Windows desktop reports foreground QA windows as occluded.
+    // Keep rendering available for UI tests, as Chromium automation does. This
+    // changes only CI launch behavior; sandbox, web security and timers remain enabled.
+    ...(process.platform === 'win32' ? ['--disable-backgrounding-occluded-windows'] : []),
   ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' } });
   // Consume output but never publish raw application logs (they may contain tokens).
   child.stdout.resume();
