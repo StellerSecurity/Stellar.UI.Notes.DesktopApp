@@ -24,6 +24,9 @@
     "electron:macRelease": "npm run electron:macBuild",
     "release:mac:finalize": "node tools/finalize-mac-release.cjs",
     "test:mac-release": "node --test tools/finalize-mac-release.test.cjs",
+    "release:win:finalize": "node tools/finalize-desktop-release.cjs finalize win",
+    "release:linux:finalize": "node tools/finalize-desktop-release.cjs finalize linux",
+    "test:desktop-release": "node --test tools/finalize-desktop-release.test.cjs tools/finalize-mac-release.test.cjs",
     "electron:winBuild": "npm run build && electron-builder --win --publish never",
     "electron:winRelease": "npm run build && electron-builder --win --publish always",
     "electron:linuxBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store",
@@ -148,6 +151,7 @@
       "category": "Utility",
       "maintainer": "Stellar Security <support@stellarsecurity.com>",
       "executableName": "stellar-notes",
+      "executableArgs": [],
       "synopsis": "Private, end-to-end encrypted notes.",
       "icon": "icons/icons",
       "artifactName": "${productName}-${version}.${ext}",
@@ -190,6 +194,10 @@
     },
     "win": {
       "target": "nsis",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "signtoolOptions": {
+        "publisherName": "Stellar Security"
+      },
       "icon": "icons/icons/icon.ico",
       "publish": [
         {
