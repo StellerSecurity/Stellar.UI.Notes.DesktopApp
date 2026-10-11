@@ -104,7 +104,7 @@ class CDP {
     } catch (error) {
       const layout = await this.value(`(() => ({ viewport:[innerWidth,innerHeight], candidates:[...document.querySelectorAll(${JSON.stringify(selector)})].map(el => {
         const r=el.getBoundingClientRect(),h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-        return {rect:[r.x,r.y,r.width,r.height],hidden:!!el.closest('.ion-page-hidden,.ion-page-invisible'),display:getComputedStyle(el).display,hit:h?.tagName,hitClass:typeof h?.className==='string'?h.className:null};
+        return {rect:[r.x,r.y,r.width,r.height],hidden:!!el.closest('.ion-page-hidden,.ion-page-invisible'),display:getComputedStyle(el).display,defined:!!customElements.get(el.localName),hydrated:el.classList.contains('hydrated'),shadow:!!el.shadowRoot,hit:h?.tagName,hitClass:typeof h?.className==='string'?h.className:null};
       }), checkboxCount:document.querySelectorAll('ion-checkbox').length }))()`);
       console.log('QA control layout:', JSON.stringify({selector,...layout}));
       throw error;
@@ -172,7 +172,7 @@ async function note(cdp, marker) {
   return cdp.value(`${storedNotes}.find(n => !n.deleted && (n.text || '').includes(${JSON.stringify(marker)})) || null`);
 }
 async function openNote(cdp, id) {
-  const ready = `location.hash === ${JSON.stringify('#/note/' + id)} && !![...document.querySelectorAll('.ql-editor[contenteditable=true]')].find(e => !e.closest('.ion-page-hidden,.ion-page-invisible') && e.getBoundingClientRect().height)`;
+  const ready = `(() => { const n=${storedNotes}.find(n=>n.id===${JSON.stringify(id)}); return !!n && !![...document.querySelectorAll('.ql-editor[contenteditable=true]')].find(e=>!e.closest('.ion-page-hidden,.ion-page-invisible') && e.getBoundingClientRect().height && e.innerHTML===n.text); })()`;
   // Clicking the selected note navigates through /dummy-route and recreates the page.
   // Keep the existing editor instead of racing that navigation with the next action.
   if (await cdp.value(ready)) return;
