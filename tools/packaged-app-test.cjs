@@ -283,8 +283,9 @@ async function run(executable, output, sync) {
       });
       await check('delete only this run’s QA note and sync deletion', async () => {
         await openNote(a.cdp, first.id);
-        await a.cdp.click('.note-actions-menu-trigger ion-button');
-        await a.cdp.click('.desktop-note-action-item.danger');
+        await a.cdp.click('.notes-header-actions ion-button:has(img[src="assets/tabler-icon-square-check.svg"])');
+        await a.cdp.click(`ion-checkbox[id="checkbox_${first.id}"]`);
+        await a.cdp.click('.toolbar-bottom .delete-btn');
         await a.cdp.click('.confirmation-modal .blue-btn:not(.transparent-btn)');
         await until(async () => !(await note(a.cdp, marker)) && !(await note(b.cdp, marker)), 'deletion sync', 90000);
       });
