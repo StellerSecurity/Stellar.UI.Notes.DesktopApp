@@ -105,6 +105,9 @@ class CDP {
     // CDP input alone does not activate an Electron window. Switch to the target
     // as a user would, so Ionic's animation-frame work can hydrate new controls.
     await this.send('Page.bringToFront');
+    if (this.activateNative && !(await this.value(`document.visibilityState === 'visible' && document.hasFocus()`))) {
+      await this.activateNative();
+    }
     await until(() => this.value(`document.visibilityState === 'visible' && document.hasFocus()`), 'foreground test window');
     let previous;
     let point;
@@ -177,6 +180,15 @@ async function launch(executable, profile) {
       } catch { return false; }
     }, 'packaged renderer debugging target', 60000);
     cdp = await CDP.connect(target.webSocketDebuggerUrl);
+    if (process.platform === 'win32') {
+      cdp.activateNative = async () => {
+        const activation = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-File',
+          path.join(__dirname, 'activate-qa-window.ps1'), '-TargetProcessId', String(child.pid), '-ExpectedExecutable', executable,
+        ], { stdio: 'ignore' });
+        const [code] = await once(activation, 'exit');
+        if (code !== 0) throw Error('Native Windows QA activation failed');
+      };
+    }
     await until(() => cdp.value(`!!document.querySelector('.create-note-btn')`), 'application home');
     assert.equal(await cdp.value(`typeof require === 'undefined' && typeof process === 'undefined'`), true, 'Node must be isolated from renderer');
     let stopped = false;
