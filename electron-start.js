@@ -43,6 +43,13 @@ const PLATFORM_UPDATE_CONFIG = {
 
 let trustedWindowsUpdateManifest = null;
 
+if (process.platform === "win32") {
+  // Cached downloads skip NsisUpdater's signature callback. Only install after
+  // our final check against the independently verified Stellar manifest.
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.disableWebInstaller = true;
+}
+
 const APP_INDEX_PATH = path.join(
   __dirname,
   "dist/StellerPhoneNotesApp/index.html"
@@ -782,6 +789,26 @@ async function verifyDownloadedWindowsUpdate(_publisherName, installerPath) {
   }
 }
 
+async function installDownloadedUpdate(info) {
+  try {
+    if (process.platform === "win32") {
+      if (!trustedWindowsUpdateManifest || info?.version !== trustedWindowsUpdateManifest.remoteVersion ||
+          info.packages != null || !info.downloadedFile || info.downloadedFile !== autoUpdater.installerPath) {
+        throw new Error("Windows OTA rejected: downloaded update does not match the verified release.");
+      }
+      const error = await verifyDownloadedWindowsUpdate(null, info.downloadedFile);
+      if (error) throw new Error(error);
+      if (info.downloadedFile !== autoUpdater.installerPath) {
+        throw new Error("Windows OTA rejected: installer changed during verification.");
+      }
+    }
+    logLine("AutoUpdater: quitAndInstall");
+    autoUpdater.quitAndInstall();
+  } catch (error) {
+    logLine("AutoUpdater installation refused", { error: String(error?.message || error) });
+  }
+}
+
 /* ================= APP SHELL HELPERS ================= */
 
 function loadMainApp() {
@@ -1054,8 +1081,7 @@ if (process.platform !== "linux") {
   autoUpdater.on("update-downloaded", (info) => {
     logLine("AutoUpdater: update-downloaded", info);
     setTimeout(() => {
-      logLine("AutoUpdater: quitAndInstall");
-      autoUpdater.quitAndInstall();
+      void installDownloadedUpdate(info);
     }, 1500);
   });
 }

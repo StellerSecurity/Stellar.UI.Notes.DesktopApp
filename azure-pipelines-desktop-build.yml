@@ -30,9 +30,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Node unavailable' }
           npm --version
           if ($LASTEXITCODE -ne 0) { throw 'npm unavailable' }
-          npm ci --ignore-scripts --no-audit --no-fund
-          if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
-          node --test tools/finalize-desktop-release.test.cjs
+          node --test tools/finalize-desktop-release.test.cjs tools/finalize-mac-release.test.cjs tools/windows-ota.test.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Release tests failed' }
           node tools/desktop-url-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'URL contract failed' }
@@ -40,6 +38,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Realtime contract failed' }
           node tools/desktop-localization-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Localization contract failed' }
+          npm ci --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Renderer build failed' }
         displayName: Install approved locked dependencies and build renderer
