@@ -1,7 +1,7 @@
 {
   "name": "stellar-notes",
   "productName": "Stellar Notes",
-  "version": "0.0.5",
+  "version": "0.1.3",
   "author": {
     "name": "Stellar Security",
     "email": "support@stellarsecurity.com"
@@ -20,8 +20,10 @@
     "lint": "ng lint",
     "electron": "electron .",
     "generate-icons": "electron-icon-builder --input=icons/icon.png --output=icons --flatten",
-    "electron:macBuild": "npm run build && electron-builder --mac --publish never",
-    "electron:macRelease": "npm run build && electron-builder --mac --publish always",
+    "electron:macBuild": "npm run build && electron-builder --mac --arm64 --publish never",
+    "electron:macRelease": "npm run electron:macBuild",
+    "release:mac:finalize": "node tools/finalize-mac-release.cjs",
+    "test:mac-release": "node --test tools/finalize-mac-release.test.cjs",
     "electron:winBuild": "npm run build && electron-builder --win --publish never",
     "electron:winRelease": "npm run build && electron-builder --win --publish always",
     "electron:linuxBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store",
@@ -29,7 +31,7 @@
     "electron:linuxSignedBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store && node tools/sign-manifest.js dist --platform=linux && node tools/verify-manifest.js dist --platform=linux",
     "electron:winSignedBuild": "npm run build && electron-builder --win --publish never && node tools/sign-manifest.js dist --platform=win32 && node tools/verify-manifest.js dist --platform=win32",
     "electron:winSignedRelease": "npm run electron:winSignedBuild",
-    "electron:macSignedBuild": "npm run build && electron-builder --mac --publish never && node tools/sign-manifest.js dist --platform=darwin && node tools/verify-manifest.js dist --platform=darwin",
+    "electron:macSignedBuild": "npm run electron:macBuild",
     "electron:macSignedRelease": "npm run electron:macSignedBuild"
   },
   "dependencies": {
@@ -175,7 +177,10 @@
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.inherit.plist",
-      "forceCodeSigning": false,
+      "identity": "North Star Swiss SA (7VYLUCU756)",
+      "forceCodeSigning": true,
+      "hardenedRuntime": true,
+      "notarize": false,
       "publish": [
         {
           "provider": "generic",
