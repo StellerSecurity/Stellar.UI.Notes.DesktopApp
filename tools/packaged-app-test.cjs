@@ -28,9 +28,28 @@ async function freePort() {
 class CDP {
   constructor(socket) {
     this.socket = socket; this.next = 0; this.pending = new Map(); this.exceptions = 0;
+    this.authResponses = []; this.authRequests = new Map();
     socket.addEventListener('message', event => {
       const msg = JSON.parse(event.data);
       if (msg.method === 'Runtime.exceptionThrown') this.exceptions++;
+      if (msg.method === 'Network.responseReceived') {
+        const response = msg.params.response;
+        const url = new URL(response.url);
+        if (url.hostname === 'stellarprivatenotesuiappapiprod.stellarsecurity.com' && /^\/api\/v1\/logincontroller\/(create|auth)$/.test(url.pathname)) {
+          const safe = { operation: url.pathname.endsWith('/create') ? 'create' : 'login', httpStatus: response.status };
+          this.authResponses.push(safe); this.authRequests.set(msg.params.requestId, safe);
+        }
+      }
+      if (msg.method === 'Network.loadingFinished' && this.authRequests.has(msg.params.requestId)) {
+        const safe = this.authRequests.get(msg.params.requestId);
+        this.authRequests.delete(msg.params.requestId);
+        this.send('Network.getResponseBody', { requestId: msg.params.requestId }).then(result => {
+          // Parse only this run's QA auth response; never retain tokens, keys or server messages.
+          const body = JSON.parse(result.base64Encoded ? Buffer.from(result.body, 'base64').toString() : result.body);
+          safe.applicationCode = Number(body.response_code) || null;
+          safe.tokenReturned = typeof body.token === 'string' && body.token.length > 0;
+        }).catch(() => { safe.bodyUnavailable = true; });
+      }
       const item = this.pending.get(msg.id);
       if (!item) return;
       this.pending.delete(msg.id); clearTimeout(item.timer);
@@ -48,7 +67,7 @@ class CDP {
       socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
       socket.addEventListener('error', () => { clearTimeout(timer); reject(Error('Debug connection failed')); }, { once: true });
     });
-    const cdp = new CDP(socket); await cdp.send('Runtime.enable'); return cdp;
+    const cdp = new CDP(socket); await cdp.send('Runtime.enable'); await cdp.send('Network.enable'); return cdp;
   }
   send(method, params = {}) {
     const id = ++this.next;
@@ -65,13 +84,22 @@ class CDP {
     return result.result.value;
   }
   async click(selector) {
-    const point = await until(() => this.value(`(() => {
+    let previous;
+    const point = await until(async () => {
+      const point = await this.value(`(() => {
       const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e =>
-        !e.closest('.ion-page-hidden') && e.getBoundingClientRect().width && e.getBoundingClientRect().height);
+        !e.closest('.ion-page-hidden,.ion-page-invisible') && e.getBoundingClientRect().width && e.getBoundingClientRect().height);
       if (!el) return null;
       const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null;
-      return {x:r.x+r.width/2,y:r.y+r.height/2};
-    })()`), `visible control ${selector}`);
+      const x=r.x+r.width/2,y=r.y+r.height/2;
+      if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return null;
+      const hit = document.elementFromPoint(x,y);
+      if (!hit || !(el.contains(hit) || hit.contains(el))) return null;
+      return {x,y};
+    })()`);
+      const stable = point && previous && point.x === previous.x && point.y === previous.y;
+      previous = point; return stable ? point : false;
+    }, `visible stationary control ${selector}`);
     await this.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...point });
     await this.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...point });
   }
@@ -147,8 +175,15 @@ async function credentialsForm(cdp, route, credentials, submit) {
   await cdp.value(`location.hash = ${JSON.stringify(route)}`);
   await cdp.text('ion-input[formcontrolname=email] input', credentials.username);
   await cdp.text('ion-input[formcontrolname=password] input', credentials.password);
+  await until(() => cdp.value(`!![...document.querySelectorAll('form.ng-valid')].find(e => !e.closest('.ion-page-hidden,.ion-page-invisible'))`), 'valid QA form');
   await cdp.click(submit);
-  await until(() => cdp.value(`!location.hash.includes('/profile/') && !!document.querySelector('.create-note-btn')`), 'QA authentication', 60000);
+  try {
+    await until(() => cdp.value(`!location.hash.includes('/profile/') && !!document.querySelector('.create-note-btn')`), 'QA authentication', 60000);
+  } catch {
+    const state = await cdp.value(`({valid:!!document.querySelector('form.ng-valid'),busy:!!document.querySelector('.create-button ion-spinner,.login-button ion-spinner')})`);
+    console.log('QA auth diagnostics:', JSON.stringify({ operation: route.endsWith('create-account') ? 'create' : 'login', ...state, responses: cdp.authResponses }));
+    throw Error('QA authentication did not complete; see credential-free status diagnostics');
+  }
 }
 async function append(cdp, text) {
   await cdp.click('.ql-editor'); await cdp.key('End', 'End', 35, 2);
