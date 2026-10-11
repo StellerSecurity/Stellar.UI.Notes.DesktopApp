@@ -5,10 +5,12 @@ import {
 import { DomSanitizer } from '@angular/platform-browser';
 import { AlertController } from '@ionic/angular';
 import { bindSafeNotePaste } from './safe-note-paste';
+import { bindSafeNoteCopy } from './safe-note-copy';
 import { preserveNoteLineBreaks, preserveNoteSpaces } from './preserve-note-line-breaks';
 import { bindEditorScroll } from './editor-scroll';
+import { legacyNoteHtml } from './legacy-note-html';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-rich-text-editor',
   templateUrl: './rich-text-editor.component.html',
   styleUrls: ['./rich-text-editor.component.scss'],
@@ -38,12 +40,22 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     // Angular encodes e.g. æøå as HTML entities. Its parent echo is still the same
     // edit. Do not re-import the entire document or replace the user's caret node.
     if (safe === this.editorSafeHtml && quill.root.innerHTML === this.editorHtml) return quill.getContents();
-    return quill.clipboard.convert(safe);
+    return quill.clipboard.convert({ html: safe });
   };
 
-  // Same importer and undo policy as mobile. HTML remains the wire format.
+  // Never use Quill 2's interpolated semantic exporter. Serialize the DOM,
+  // restore legacy list markup, then sanitize before publishing or parent echoes.
+  readonly editorValueGetter = (quill: any): string => {
+    const html = legacyNoteHtml(quill.root);
+    const safe = this.safeHtml(html === '<p><br></p>' ? '' : html);
+    this.editorHtml = quill.root.innerHTML;
+    this.editorSafeHtml = safe;
+    return safe;
+  };
+
+  // HTML remains the wire format used by existing mobile and desktop clients.
   readonly quillModules = {
-    clipboard: { matchVisual: false, matchers: [[3, preserveNoteSpaces], [1, preserveNoteLineBreaks]] },
+    clipboard: { matchers: [[3, preserveNoteSpaces], [1, preserveNoteLineBreaks]] },
     history: { delay: 0, maxStack: 300, userOnly: true },
     // Keep typed notes literal. Quill's default "list autofill" turns "- " or "1. "
     // at the start of a line into lists; users should use the toolbar when they want a list.
@@ -98,15 +110,9 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     root.setAttribute('spellcheck', 'false');
     this.unlisten = [
       bindSafeNotePaste(quill, this.sanitizer),
+      bindSafeNoteCopy(quill, this.sanitizer),
       bindEditorScroll(quill, root, this.toolbar.nativeElement),
       this.renderer.listen(root, 'click', (event: MouseEvent) => this.openEditorLink(event)),
-      this.renderer.listen(root, 'copy', (event: ClipboardEvent) => {
-        const range = quill.getSelection();
-        if (!event.clipboardData || !range?.length) return;
-        if (quill.getContents(range.index, range.length).ops?.some((op: any) => typeof op.insert !== 'string')) return;
-        event.preventDefault();
-        event.clipboardData.setData('text/plain', quill.getText(range.index, range.length));
-      }),
     ];
     this.schedule(() => this.focusEmptyEditor(), 300);
   }
@@ -156,7 +162,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     if (this.quill) {
       const scrollTop = this.quill.root.scrollTop;
       // Update Quill's model, never only root.innerHTML. Remote changes are not user edits.
-      this.quill.setContents(this.quill.clipboard.convert(safe), 'silent');
+      this.quill.setContents(this.quill.clipboard.convert({ html: safe }), 'silent');
       this.quill.history.clear();
       this.quill.root.scrollTop = scrollTop;
       this.editorHtml = this.quill.root.innerHTML;

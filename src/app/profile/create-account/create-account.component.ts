@@ -22,7 +22,7 @@ import {
 import {firstValueFrom} from "rxjs";
 import { Location } from '@angular/common';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-create-account',
   templateUrl: './create-account.component.html',
   styleUrls: ['./create-account.component.scss'],

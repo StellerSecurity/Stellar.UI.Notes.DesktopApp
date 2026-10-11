@@ -7,7 +7,7 @@ import { SecureStorageService } from '../services/secure-storage.service';
 import { DataService } from '../services/data.service';
 import { AuthService } from '../services/auth.service';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-profile',
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],

@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core';
 import { IonInput, ModalController } from '@ionic/angular';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-note-locked-modal',
   templateUrl: './note-locked-modal.component.html',
   styleUrls: ['./note-locked-modal.component.scss'],

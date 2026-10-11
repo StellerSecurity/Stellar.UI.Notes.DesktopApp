@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, provideZoneChangeDetection } from '@angular/core';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { AlertController } from '@ionic/angular';
@@ -9,21 +9,22 @@ import { of } from 'rxjs';
 import { RichTextEditorComponent } from './add-note/rich-text-editor/rich-text-editor.component';
 import { preserveNoteLineBreaks, preserveNoteSpaces } from './add-note/rich-text-editor/preserve-note-line-breaks';
 
-@Component({template: '<app-rich-text-editor [note_text]="html" [noteId]="id" (noteChange)="save($event)"></app-rich-text-editor>'})
+@Component({ standalone: false,template: '<app-rich-text-editor [note_text]="html" [noteId]="id" (noteChange)="save($event)"></app-rich-text-editor>'})
 class EditorHost {
   html = ''; id = 'first'; changes: string[] = [];
   save(value: string): void { this.html = value; this.changes.push(value); }
 }
 
-describe('Desktop Quill / mobile HTML compatibility', () => {
+describe('Desktop Quill 2 legacy HTML round trips', () => {
   beforeEach(() => TestBed.configureTestingModule({
     declarations: [EditorHost, RichTextEditorComponent],
     imports: [FormsModule, QuillModule.forRoot(), TranslateModule.forRoot()],
     providers: [
       {provide: AlertController, useValue: {}},
-      {provide: QuillService, useValue: {config:{}, getQuill:()=>of(Quill), registerCustomModules:()=>Promise.resolve()}},
+      provideZoneChangeDetection(),
     ],
   }));
+  beforeEach(() => { spyOn(TestBed.inject(QuillService), 'getQuill').and.returnValue(of(Quill)); });
 
   function editor(html = '') {
     const fixture = TestBed.createComponent(EditorHost);
@@ -42,21 +43,74 @@ describe('Desktop Quill / mobile HTML compatibility', () => {
     '<p>æøå 😀 中文</p><p><br></p><p>end</p>',
     '<p>image<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j7XkAAAAASUVORK5CYII=" width="1" height="1" alt="tiny"></p>',
   ];
-  legacy.forEach((html, index) => it('round-trips legacy HTML case '+index+' through the mobile importer', fakeAsync(() => {
+  legacy.forEach((html, index) => it('round-trips legacy HTML case '+index+' through a second Quill 2 editor (legacy HTML fixtures)', fakeAsync(() => {
     const {fixture, component, quill, host} = editor(html);
     expect(host.changes).toEqual([]); // Opening old HTML must not silently resave it.
     const text = quill.getText(); const contents = quill.getContents();
     if (index < 4) expect(text).toBe('test\ntest\ntest\n');
     const node = document.createElement('div'); document.body.append(node);
-    const mobile: any = new Quill(node, {modules:{toolbar:false,clipboard:{matchVisual:false,matchers:[[3,preserveNoteSpaces],[1,preserveNoteLineBreaks]]}}});
-    mobile.setContents(mobile.clipboard.convert(quill.root.innerHTML), 'silent');
+    const mobile: any = new Quill(node, {modules:{toolbar:false,clipboard:{matchers:[[3,preserveNoteSpaces],[1,preserveNoteLineBreaks]]}}});
+    mobile.setContents(mobile.clipboard.convert({ html: component.editorValueGetter(quill) }), 'silent');
     expect(mobile.getText()).toBe(text);
     expect(mobile.getContents()).toEqual(contents);
-    component.setExternalContent(mobile.root.innerHTML); fixture.detectChanges(); tick();
+    component.setExternalContent(component.editorValueGetter(mobile)); fixture.detectChanges(); tick();
     expect(quill.getContents()).toEqual(contents);
     expect(host.changes).toEqual([]);
     node.remove(); fixture.destroy(); tick(500);
   })));
+
+  it('saves legacy lists and copies/cuts without calling the semantic HTML exporter', fakeAsync(() => {
+    const { fixture, component, quill, host } = editor('<ul><li>bullet</li></ul><ol><li>numbered</li></ol>');
+    const unsafeExport = spyOn(quill, 'getSemanticHTML').and.throwError('semantic exporter forbidden');
+    quill.insertText(0, 'edit ', 'user'); tick(); fixture.detectChanges(); tick();
+    expect(host.html).toContain('<ul>');
+    expect(host.html).toContain('<ol>');
+    expect(host.html).not.toContain('data-list');
+    expect(host.html).not.toContain('ql-ui');
+    const dom = quill.root.innerHTML;
+    const contents = quill.getContents();
+    expect(component.editorValueSetter(quill, host.html)).toEqual(contents);
+    expect(quill.root.innerHTML).toBe(dom);
+    quill.setSelection(0, 4, 'silent');
+    const data = new DataTransfer();
+    quill.root.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(data.getData('text/plain')).toBe('edit');
+    quill.root.dispatchEvent(new ClipboardEvent('cut', { clipboardData: data, bubbles: true, cancelable: true }));
+    tick();
+    expect(quill.getText().startsWith('edit')).toBeFalse();
+    component.undo(); tick();
+    expect(quill.getText().startsWith('edit')).toBeTrue();
+    expect(unsafeExport).not.toHaveBeenCalled();
+    fixture.destroy(); tick(500);
+  }));
+
+  it('copies an image as sanitized HTML and can paste it back without the semantic exporter', fakeAsync(() => {
+    const { fixture, component, quill } = editor(legacy[6]);
+    const unsafeExport = spyOn(quill, 'getSemanticHTML').and.throwError('semantic exporter forbidden');
+    quill.setSelection(0, quill.getLength() - 1, 'silent');
+    const data = new DataTransfer();
+    quill.root.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+    const html = data.getData('text/html');
+    const fragment = document.createElement('div'); fragment.innerHTML = html;
+    expect(fragment.querySelector('img')?.getAttribute('src')).toContain('data:image/png;base64,');
+    expect(fragment.querySelector('[onerror],script,iframe')).toBeNull();
+    component.setExternalContent('<p>replace</p>'); tick();
+    quill.setSelection(0, 7, 'silent');
+    quill.root.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    tick();
+    expect(quill.root.querySelector('img')).not.toBeNull();
+    expect(unsafeExport).not.toHaveBeenCalled();
+    fixture.destroy(); tick(500);
+  }));
+
+  it('keeps explicit trailing blank lines and consecutive spaces after external updates', fakeAsync(() => {
+    const { fixture, component, quill, host } = editor('<p>before</p>');
+    component.setExternalContent('<p>  two  spaces  </p><p><br></p><p><br></p>');
+    tick();
+    expect(quill.getText()).toBe('  two  spaces  \n\n\n');
+    expect(host.changes).toEqual([]);
+    fixture.destroy(); tick(500);
+  }));
 
   it('never executes untrusted saved, remote or pasted HTML', fakeAsync(() => {
     (window as any).__editorXss = 0;
@@ -108,7 +162,7 @@ describe('Desktop Quill / mobile HTML compatibility', () => {
   it('keeps dash-space typing literal instead of auto-creating a list', fakeAsync(() => {
     const {fixture, quill, host} = editor('');
     const keyboard = quill.getModule('keyboard');
-    const spaceBindings = keyboard.bindings[32] ?? [];
+    const spaceBindings = keyboard.bindings[' '] ?? [];
     expect(spaceBindings.some((binding: any) => String(binding.prefix) === String(/^\s*?(\d+\.|-|\*|\[ ?\]|\[x\])$/))).toBeFalse();
     quill.root.focus();
     quill.insertText(0, '- ', 'user'); tick();

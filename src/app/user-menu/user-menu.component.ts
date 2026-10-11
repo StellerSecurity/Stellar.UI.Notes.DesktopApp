@@ -7,7 +7,7 @@ import { DataService } from "../services/data.service";
 import { AuthService } from "../services/auth.service";
 import { TranslatorService } from "../services/translator.service";
 
-@Component({
+@Component({ standalone: false,
   selector: "app-user-menu",
   templateUrl: "./user-menu.component.html",
   styleUrls: ["./user-menu.component.scss"],

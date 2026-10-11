@@ -12,7 +12,7 @@ import { SyncWorkerService } from './services/sync-worker.service';
 import { RemoteDownloadSyncService } from './services/remote-download-sync.service';
 
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-root',
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],

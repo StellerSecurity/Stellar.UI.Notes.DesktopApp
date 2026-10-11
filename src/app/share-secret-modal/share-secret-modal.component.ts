@@ -16,7 +16,7 @@ if ((window as any).require) {
   }
 }
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-share-secret-modal',
   templateUrl: './share-secret-modal.component.html',
   styleUrls: ['./share-secret-modal.component.scss']

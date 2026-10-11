@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, provideZoneChangeDetection } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
@@ -28,22 +28,23 @@ function sidebar(): any {
   return page;
 }
 
-@Component({template: '<app-rich-text-editor [note_text]="text" (noteChange)="changed($event)"></app-rich-text-editor>'})
+@Component({ standalone: false,template: '<app-rich-text-editor [note_text]="text" (noteChange)="changed($event)"></app-rich-text-editor>'})
 class EditorFixture {
   text = '';
   changes: string[] = [];
   changed(value: string): void { this.text = value; this.changes.push(value); }
 }
 
-@Component({template: '<div *ngFor="let note of page.getNotes(); trackBy: page.trackNoteById" [attr.data-note-id]="note.id">{{note.text}}</div>'})
+@Component({ standalone: false,template: '<div *ngFor="let note of page.getNotes(); trackBy: page.trackNoteById" [attr.data-note-id]="note.id">{{note.text}}</div>'})
 class SidebarFixture { page = sidebar(); }
 
 describe('Desktop typing and sidebar rendering', () => {
   beforeEach(() => TestBed.configureTestingModule({
     declarations: [EditorFixture, SidebarFixture, RichTextEditorComponent],
     imports: [CommonModule, FormsModule, HttpClientTestingModule, QuillModule.forRoot(), TranslateModule.forRoot()],
-    providers: [{provide: AlertController, useValue: {}}, {provide: QuillService, useValue: { config: {}, getQuill: () => of(Quill), registerCustomModules: () => Promise.resolve() }}],
+    providers: [{provide: AlertController, useValue: {}}, provideZoneChangeDetection()],
   }));
+  beforeEach(() => { spyOn(TestBed.inject(QuillService), 'getQuill').and.returnValue(of(Quill)); });
 
   it('does not filter, sort, or write storage during repeated sidebar rendering', () => {
     const fixture = TestBed.createComponent(SidebarFixture);

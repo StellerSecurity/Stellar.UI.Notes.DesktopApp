@@ -5,7 +5,7 @@ import { AuthService } from "src/app/services/auth.service";
 import { ToastMessageService } from "src/app/services/toast-message.service";
 import { Location } from '@angular/common';
 
-@Component({
+@Component({ standalone: false,
   selector: "app-forgot-password",
   templateUrl: "./forgot-password.component.html",
   styleUrls: ["./forgot-password.component.scss"],

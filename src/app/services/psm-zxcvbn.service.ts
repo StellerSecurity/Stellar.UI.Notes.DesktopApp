@@ -1,9 +1,8 @@
 import { Injectable } from '@angular/core';
-import { IPasswordStrengthMeterService } from 'angular-password-strength-meter';
 import { zxcvbn } from '@zxcvbn-ts/core';
 
-@Injectable()
-export class PsmZxcvbnService extends IPasswordStrengthMeterService {
+@Injectable({ providedIn: 'root' })
+export class PsmZxcvbnService {
   score(password: string): number {
     return zxcvbn(password ?? '').score;
   }

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-settings-note',
   templateUrl: './settings-note.page.html',
   styleUrls: ['./settings-note.page.scss'],

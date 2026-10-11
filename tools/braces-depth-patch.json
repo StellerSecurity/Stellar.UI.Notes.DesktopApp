@@ -1,0 +1,85 @@
+{
+  "package": "braces",
+  "version": "3.0.3",
+  "advisory": "GHSA-vfj7-8cjw-p6xm",
+  "integrity": "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==",
+  "expires": "2026-11-10T00:00:00Z",
+  "files": {
+    "index.js": {
+      "original": "332ea07c7b006361aad12aa994ca75dc1db8e8382b884909e2f38f10b85c88a4",
+      "patched": "332ea07c7b006361aad12aa994ca75dc1db8e8382b884909e2f38f10b85c88a4",
+      "replacements": []
+    },
+    "lib/compile.js": {
+      "original": "dc98f22eee3d511785d92a00758d5f0d48efed5f5813bdecc2de430c529b5c9f",
+      "patched": "aafc0dc7a3977d62a670ae4bcaddcc9dfd7b4ce494c8ecd068a4df99bf5f4def",
+      "replacements": [
+        [
+          "  const walk = (node, parent = {}) => {",
+          "  const walk = (node, parent = {}, depth = 0) => {\n    if (depth > 128) throw Object.assign(new SyntaxError('Stellar braces nesting limit exceeded'), { code: 'STELLAR_BRACES_DEPTH' });"
+        ],
+        [
+          "walk(child, node)",
+          "walk(child, node, depth + 1)"
+        ]
+      ]
+    },
+    "lib/constants.js": {
+      "original": "c18ac5adb57308f1ce42a28552da3a31f5d83709743ebd9a636336813a744d4b",
+      "patched": "c18ac5adb57308f1ce42a28552da3a31f5d83709743ebd9a636336813a744d4b",
+      "replacements": []
+    },
+    "lib/expand.js": {
+      "original": "41ccc196ebfa7b7781a634e721eb744e4e7bcb54cba427a7e3d6806a1b9e58f7",
+      "patched": "1765dd118295961c8bc1a98e057875ae8506137bebfd4b5fec6fcde99c482b26",
+      "replacements": [
+        [
+          "  const walk = (node, parent = {}) => {",
+          "  const walk = (node, parent = {}, depth = 0) => {\n    if (depth > 128) throw Object.assign(new SyntaxError('Stellar braces nesting limit exceeded'), { code: 'STELLAR_BRACES_DEPTH' });"
+        ],
+        [
+          "walk(child, node)",
+          "walk(child, node, depth + 1)"
+        ]
+      ]
+    },
+    "lib/parse.js": {
+      "original": "e572166565f15fa6ad9865ae49d678218e32aabfd1b3720f6d0d43d39800d310",
+      "patched": "9abb8466bdb228eab82b876efbcffbe2a27605b1bba00b10b116af01839b18e0",
+      "replacements": [
+        [
+          "    if (value === CHAR_LEFT_PARENTHESES) {",
+          "    if (value === CHAR_LEFT_PARENTHESES) {\n      if (stack.length >= 128) throw Object.assign(new SyntaxError('Stellar braces nesting limit exceeded'), { code: 'STELLAR_BRACES_DEPTH' });"
+        ],
+        [
+          "    if (value === CHAR_LEFT_CURLY_BRACE) {",
+          "    if (value === CHAR_LEFT_CURLY_BRACE) {\n      if (stack.length >= 128) throw Object.assign(new SyntaxError('Stellar braces nesting limit exceeded'), { code: 'STELLAR_BRACES_DEPTH' });"
+        ]
+      ]
+    },
+    "lib/stringify.js": {
+      "original": "379f22d77bfa1478341ccd49c5e4267464aabcbba03558bab332aac23fc6f23a",
+      "patched": "bd18f29a0ad0dc2125bf89ea20c023566f48962e5bf490d4109a2fdd023b3623",
+      "replacements": [
+        [
+          "  const stringify = (node, parent = {}) => {",
+          "  const stringify = (node, parent = {}, depth = 0) => {\n    if (depth > 128) throw Object.assign(new SyntaxError('Stellar braces nesting limit exceeded'), { code: 'STELLAR_BRACES_DEPTH' });"
+        ],
+        [
+          "stringify(child)",
+          "stringify(child, {}, depth + 1)"
+        ]
+      ]
+    },
+    "lib/utils.js": {
+      "original": "b5a7596aa67730412b3c029ef09e84e6b67b8e445cffd35d1d295549c89066c7",
+      "patched": "b5a7596aa67730412b3c029ef09e84e6b67b8e445cffd35d1d295549c89066c7",
+      "replacements": []
+    },
+    "package.json": {
+      "original": "56f08b888a4f30dc7cf8a7dbb36ffe92b737912ba36abe9d069d32167c957ac7",
+      "patched": "56f08b888a4f30dc7cf8a7dbb36ffe92b737912ba36abe9d069d32167c957ac7",
+      "replacements": []
+    }
+  }
+}

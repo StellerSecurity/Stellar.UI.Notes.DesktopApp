@@ -7,7 +7,7 @@ import { IonicModule } from '@ionic/angular';
 import { AppSettingsPageRoutingModule } from './app-settings-routing.module';
 
 import { AppSettingsPage } from './app-settings.page';
-import {PasswordStrengthMeterModule} from "angular-password-strength-meter";
+import { PasswordStrengthMeterComponent } from '../password-strength-meter/password-strength-meter.component';
 import { ConfirmationModalModule } from '../confirmation-modal/confirmation-modal.module';
 import { DeleteNoteModalModule } from '../delete-note-modal/delete-note-modal.module';
 import { TranslateModule } from '@ngx-translate/core';
@@ -17,7 +17,7 @@ import { TranslateModule } from '@ngx-translate/core';
         FormsModule,
         IonicModule,
         AppSettingsPageRoutingModule,
-        PasswordStrengthMeterModule,
+        PasswordStrengthMeterComponent,
         ConfirmationModalModule,
         DeleteNoteModalModule,
         TranslateModule

@@ -39,11 +39,11 @@ export class CryptoKeyService {
     /** Decrypted Master Key (AES-GCM 256), held in memory while unlocked */
     private mkKey: CryptoKey | null = null;
 
-    private eakBytes: Uint8Array | null = null;
+    private eakBytes: Uint8Array<ArrayBuffer> | null = null;
     private eakB64: string | null = null;
 
     // Base64 helpers
-    private b64d(s: string): Uint8Array {
+    private b64d(s: string): Uint8Array<ArrayBuffer> {
         const bin = atob(s);
         const out = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);

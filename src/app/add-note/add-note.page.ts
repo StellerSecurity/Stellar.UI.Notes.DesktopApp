@@ -34,10 +34,10 @@ import { SecureStorageService } from '../services/secure-storage.service';
 
 // ✅ keep CommonJS requires (no ES imports)
 declare var require: any;
-const { v4: uuidv4 } = require('uuid');
+import { uuidv4 } from '../utils/uuid';
 const CryptoJS = require('crypto-js');
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-add-note',
   templateUrl: './add-note.page.html',
   styleUrls: ['./add-note.page.scss'],

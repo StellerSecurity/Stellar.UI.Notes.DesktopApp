@@ -4,7 +4,7 @@ import { preserveNoteLineBreaks, preserveNoteSpaces } from './add-note/rich-text
 describe('Seeded editor destruction attempts', () => {
   for (const seed of [4321,98765]) it('keeps text through 1000 random edits, undo/redo and HTML round trips: '+seed, () => {
     const host = document.createElement('div'); document.body.appendChild(host);
-    const editor: any = new Quill(host,{modules:{toolbar:false,history:{delay:0,userOnly:true},clipboard:{matchVisual:false,matchers:[[3,preserveNoteSpaces],[1,preserveNoteLineBreaks]]}}});
+    const editor: any = new Quill(host,{modules:{toolbar:false,history:{delay:0,userOnly:true},clipboard:{matchers:[[3,preserveNoteSpaces],[1,preserveNoteLineBreaks]]}}});
     let state = seed, expected = '';
     const random = () => { state = (Math.imul(state,1664525)+1013904223) >>> 0; return state >>> 4; };
     const started = performance.now();
@@ -23,7 +23,7 @@ describe('Seeded editor destruction attempts', () => {
         editor.history.undo(); expect(editor.getText()).withContext('undo '+step).toBe(before+'\n');
         editor.history.redo(); expect(editor.getText()).withContext('redo '+step).toBe(expected+'\n');
         if (step%25 === 0) {
-          editor.setContents(editor.clipboard.convert(editor.root.innerHTML),'silent');
+          editor.setContents(editor.clipboard.convert({ html: editor.root.innerHTML }),'silent');
           if (editor.getText() !== expected+'\n') throw new Error('HTML round trip changed text at seed '+seed+' step '+step+' '+JSON.stringify({actual:editor.getText(),expected:expected+'\n'}));
         }
       }

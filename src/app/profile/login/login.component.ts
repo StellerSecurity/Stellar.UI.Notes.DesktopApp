@@ -20,7 +20,7 @@ import { CryptoService } from 'src/app/services/crypto.service';
 import { CryptoKeyService } from 'src/app/services/crypto-key.service';
 import { Location } from '@angular/common';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-login',
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],

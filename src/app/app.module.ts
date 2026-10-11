@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, provideZoneChangeDetection } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -6,8 +6,6 @@ import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
-import { PsmZxcvbnService } from './services/psm-zxcvbn.service';
-import { PasswordStrengthMeterModule } from 'angular-password-strength-meter';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -44,7 +42,6 @@ export function initSodium() {
       positionClass: 'toast-bottom-center',
       preventDuplicates: true,
     }),
-    PasswordStrengthMeterModule.forRoot({ serviceClass: PsmZxcvbnService }),
     IonicModule.forRoot({ innerHTMLTemplatesEnabled: true }),
     AppRoutingModule,
     CommonModule,
@@ -53,7 +50,7 @@ export function initSodium() {
       loader: { provide: TranslateLoader, useFactory: HttpLoaderFactory, deps: [HttpClient] },
     }),
   ],
-  providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
+  providers: [provideZoneChangeDetection(), { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

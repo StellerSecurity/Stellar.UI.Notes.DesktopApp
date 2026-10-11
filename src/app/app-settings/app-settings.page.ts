@@ -15,7 +15,7 @@ import { DeleteNoteModalComponent } from "../delete-note-modal/delete-note-modal
 import { TranslatorService } from "../services/translator.service";
 import { SecureStorageService } from "../services/secure-storage.service";
 
-@Component({
+@Component({ standalone: false,
   selector: "app-app-settings",
   templateUrl: "./app-settings.page.html",
   styleUrls: ["./app-settings.page.scss"],
