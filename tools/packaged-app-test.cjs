@@ -28,10 +28,28 @@ async function freePort() {
 class CDP {
   constructor(socket) {
     this.socket = socket; this.next = 0; this.pending = new Map(); this.exceptions = 0;
+    this.runtimeDiagnostics = [];
     this.authResponses = []; this.authRequests = new Map();
     socket.addEventListener('message', event => {
       const msg = JSON.parse(event.data);
       if (msg.method === 'Runtime.exceptionThrown') this.exceptions++;
+      if (msg.method === 'Runtime.exceptionThrown' || (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error')) {
+        const detail = msg.params.exceptionDetails;
+        const args = detail ? [detail.exception] : msg.params.args;
+        // Keep categories and static source coordinates only. Never retain error messages or values.
+        const categories = (args || []).filter(Boolean).map(a => {
+          const description = a.description || a.value || '';
+          const member = String(description).match(/Cannot read properties of (?:undefined|null) \(reading '([A-Za-z_$][A-Za-z0-9_$]*)'\)/);
+          return { type: a.className || a.type, missingMember: member?.[1] };
+        });
+        const frames = (detail?.stackTrace || msg.params.stackTrace)?.callFrames || [];
+        this.runtimeDiagnostics.push({ categories, frames: frames.slice(0, 5).map(f => ({
+          source: /(?:^|\/)[a-zA-Z0-9_.-]+\.js$/.test(f.url) ? f.url.split('/').pop() : 'other', line: f.lineNumber, column: f.columnNumber,
+        })) });
+      }
+      if (msg.method === 'Network.loadingFailed' && msg.params.type === 'Script') {
+        this.runtimeDiagnostics.push({ scriptLoadFailed: /^net::ERR_[A-Z_]+$/.test(msg.params.errorText) ? msg.params.errorText : 'failed' });
+      }
       if (msg.method === 'Network.responseReceived') {
         const response = msg.params.response;
         const url = new URL(response.url);
@@ -107,6 +125,7 @@ class CDP {
         return {rect:[r.x,r.y,r.width,r.height],hidden:!!el.closest('.ion-page-hidden,.ion-page-invisible'),display:getComputedStyle(el).display,defined:!!customElements.get(el.localName),hydrated:el.classList.contains('hydrated'),shadow:!!el.shadowRoot,hit:h?.tagName,hitClass:typeof h?.className==='string'?h.className:null};
       }), checkboxCount:document.querySelectorAll('ion-checkbox').length }))()`);
       console.log('QA control layout:', JSON.stringify({selector,...layout}));
+      console.log('QA runtime diagnostics:', JSON.stringify(this.runtimeDiagnostics.slice(-20)));
       throw error;
     }
     await this.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...point });
