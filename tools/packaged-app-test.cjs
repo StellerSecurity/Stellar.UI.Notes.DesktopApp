@@ -102,6 +102,10 @@ class CDP {
     return result.result.value;
   }
   async click(selector) {
+    // CDP input alone does not activate an Electron window. Switch to the target
+    // as a user would, so Ionic's animation-frame work can hydrate new controls.
+    await this.send('Page.bringToFront');
+    await until(() => this.value(`document.visibilityState === 'visible' && document.hasFocus()`), 'foreground test window');
     let previous;
     let point;
     try { point = await until(async () => {
@@ -120,7 +124,7 @@ class CDP {
       previous = point; return stable ? point : false;
     }, `visible stationary control ${selector}`);
     } catch (error) {
-      const layout = await this.value(`(() => ({ viewport:[innerWidth,innerHeight], candidates:[...document.querySelectorAll(${JSON.stringify(selector)})].map(el => {
+      const layout = await this.value(`(() => ({ visibility:document.visibilityState, focused:document.hasFocus(), viewport:[innerWidth,innerHeight], candidates:[...document.querySelectorAll(${JSON.stringify(selector)})].map(el => {
         const r=el.getBoundingClientRect(),h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
         return {rect:[r.x,r.y,r.width,r.height],hidden:!!el.closest('.ion-page-hidden,.ion-page-invisible'),display:getComputedStyle(el).display,defined:!!customElements.get(el.localName),hydrated:el.classList.contains('hydrated'),shadow:!!el.shadowRoot,hit:h?.tagName,hitClass:typeof h?.className==='string'?h.className:null};
       }), checkboxCount:document.querySelectorAll('ion-checkbox').length }))()`);
@@ -316,6 +320,15 @@ async function run(executable, output, sync) {
         await a.cdp.click('.toolbar-bottom .delete-btn');
         await a.cdp.click('.confirmation-modal .blue-btn:not(.transparent-btn)');
         await until(async () => !(await note(a.cdp, marker)) && !(await note(b.cdp, marker)), 'deletion sync', 90000);
+        await a.cdp.screenshot(path.join(output, '06-deletion.png'));
+      });
+      await check('deleted note stays deleted after both clients restart', async () => {
+        await a.stop(); await b.stop();
+        a = await launch(executable, profileA); b = await launch(executable, profileB);
+        await delay(10000); // Allow the normal startup sync/poll to complete.
+        assert.equal(await note(a.cdp, marker), null, 'Deleted note returned on A');
+        assert.equal(await note(b.cdp, marker), null, 'Deleted note returned on B');
+        await b.cdp.screenshot(path.join(output, '07-deletion-restart.png'));
       });
     }
     assert.equal(a.cdp.exceptions, 0, 'Uncaught renderer exception');
