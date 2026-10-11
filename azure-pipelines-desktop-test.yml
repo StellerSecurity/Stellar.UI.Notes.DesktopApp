@@ -1,0 +1,95 @@
+# Manual tests of existing build artifacts; no package installation or release publishing.
+trigger: none
+pr: none
+
+parameters:
+- name: sourceBuild
+  type: number
+  default: 6573
+- name: platform
+  type: string
+  default: both
+  values: [both, win, linux]
+- name: createDisposableQaAccounts
+  type: boolean
+  default: false
+
+jobs:
+- ${{ each target in split('win,linux', ',') }}:
+  - ${{ if or(eq(parameters.platform, 'both'), eq(parameters.platform, target)) }}:
+    - job: Test_${{ target }}
+      displayName: Test packaged ${{ target }} x64
+      timeoutInMinutes: 15
+      pool:
+        ${{ if eq(target, 'win') }}:
+          vmImage: windows-2022
+        ${{ else }}:
+          vmImage: ubuntu-22.04
+      steps:
+      - checkout: self
+        persistCredentials: false
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          buildType: specific
+          project: $(System.TeamProject)
+          definition: '187'
+          buildVersionToDownload: specific
+          pipelineId: '${{ parameters.sourceBuild }}'
+          artifactName: notes-${{ target }}-x64
+          targetPath: $(Agent.TempDirectory)/qa-input
+        displayName: Download existing release build without rebuilding
+      - pwsh: |
+          $ErrorActionPreference = 'Stop'
+          node --test tools/packaged-app-test.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Test harness controls failed' }
+          node tools/finalize-desktop-release.cjs stage '${{ target }}' "$env:QA_INPUT" "$env:QA_VERIFIED"
+          if ($LASTEXITCODE -ne 0) { throw 'Release artifact hashes/version rejected' }
+        env:
+          QA_INPUT: $(Agent.TempDirectory)/qa-input
+          QA_VERIFIED: $(Agent.TempDirectory)/qa-verified
+        displayName: Verify downloaded files before executing installer
+      - ${{ if eq(target, 'win') }}:
+        - pwsh: |
+            $ErrorActionPreference = 'Stop'
+            $version = (Get-Content package.json | ConvertFrom-Json).version
+            $installer = Join-Path $env:QA_VERIFIED "Stellar Notes-$version-x64.exe"
+            $destination = Join-Path $env:AGENT_TEMPDIRECTORY 'qa-installed'
+            $install = Start-Process -FilePath $installer -ArgumentList @('/S', "/D=$destination") -PassThru -Wait
+            if ($install.ExitCode -ne 0) { throw 'Windows installer failed' }
+            $executable = Join-Path $destination 'Stellar Notes.exe'
+            if (!(Test-Path $executable)) { throw 'Installed Windows executable missing' }
+            $testArgs = @('tools/packaged-app-test.cjs', $executable, $env:QA_REPORTS)
+            if ($env:QA_SYNC -eq 'True') { $testArgs += '--create-qa-account' }
+            node @testArgs
+            if ($LASTEXITCODE -ne 0) { throw 'Packaged Windows tests failed; see safe report' }
+          displayName: Install and test actual Windows release in isolated profiles
+          env:
+            QA_VERIFIED: $(Agent.TempDirectory)/qa-verified
+            QA_REPORTS: $(Build.ArtifactStagingDirectory)/qa-report
+            QA_SYNC: ${{ parameters.createDisposableQaAccounts }}
+      - ${{ if eq(target, 'linux') }}:
+        - bash: |
+            set -euo pipefail
+            command -v Xvfb
+            command -v xvfb-run
+            version="$(node -p 'require("./package.json").version')"
+            image="$QA_VERIFIED/Stellar Notes-$version.AppImage"
+            chmod u+x "$image"
+            mkdir "$AGENT_TEMPDIRECTORY/qa-installed"
+            cd "$AGENT_TEMPDIRECTORY/qa-installed"
+            "$image" --appimage-extract > /dev/null
+            cd "$BUILD_SOURCESDIRECTORY"
+            args=(tools/packaged-app-test.cjs "$AGENT_TEMPDIRECTORY/qa-installed/squashfs-root/AppRun" "$QA_REPORTS")
+            if [ "$QA_SYNC" = 'True' ]; then args+=(--create-qa-account); fi
+            xvfb-run -a -s '-screen 0 1280x900x24' node "${args[@]}"
+          displayName: Test extracted release AppImage using existing virtual display
+          env:
+            QA_VERIFIED: $(Agent.TempDirectory)/qa-verified
+            QA_REPORTS: $(Build.ArtifactStagingDirectory)/qa-report
+            QA_SYNC: ${{ parameters.createDisposableQaAccounts }}
+      - task: PublishPipelineArtifact@1
+        condition: succeededOrFailed()
+        inputs:
+          targetPath: $(Build.ArtifactStagingDirectory)/qa-report
+          artifact: packaged-tests-${{ target }}
+        displayName: Keep safe test results and screenshots, never credentials or profiles
