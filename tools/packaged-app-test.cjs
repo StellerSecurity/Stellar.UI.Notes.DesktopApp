@@ -108,7 +108,15 @@ class CDP {
     if (this.activateNative && !(await this.value(`document.visibilityState === 'visible' && document.hasFocus()`))) {
       await this.activateNative();
     }
-    await until(() => this.value(`document.visibilityState === 'visible' && document.hasFocus()`), 'foreground test window');
+    try {
+      // Windows can activate the top-level window without reporting DOM focus
+      // until the subsequent click. Require visible, progressing rendering instead.
+      await until(() => this.value(`document.visibilityState === 'visible'`), 'visible test window');
+      await this.value(`new Promise(resolve => requestAnimationFrame(() => resolve(true)))`);
+    } catch (error) {
+      console.log('QA window readiness:', JSON.stringify(await this.value(`({visibility:document.visibilityState,focused:document.hasFocus()})`)));
+      throw error;
+    }
     let previous;
     let point;
     try { point = await until(async () => {
@@ -184,7 +192,7 @@ async function launch(executable, profile) {
       cdp.activateNative = async () => {
         const activation = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-File',
           path.join(__dirname, 'activate-qa-window.ps1'), '-TargetProcessId', String(child.pid), '-ExpectedExecutable', executable,
-        ], { stdio: 'ignore' });
+        ], { stdio: 'ignore', windowsHide: true });
         const [code] = await once(activation, 'exit');
         if (code !== 0) throw Error('Native Windows QA activation failed');
       };
