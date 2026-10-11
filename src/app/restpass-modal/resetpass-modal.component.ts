@@ -1,7 +1,7 @@
 import { Component, ViewChild } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-resetpass-modal',
   templateUrl: './resetpass-modal.component.html',
   styleUrls: ['./resetpass-modal.component.scss'],

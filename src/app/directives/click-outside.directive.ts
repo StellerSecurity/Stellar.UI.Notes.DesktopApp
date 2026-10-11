@@ -8,7 +8,7 @@ import {
   OnDestroy
 } from '@angular/core';
 
-@Directive({
+@Directive({ standalone: false,
   selector: '[appClickOutside]'
 })
 export class ClickOutsideDirective implements OnDestroy {

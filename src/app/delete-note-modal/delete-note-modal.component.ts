@@ -1,7 +1,7 @@
 import { Component, Input, ViewChild } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-delete-note-modal',
   templateUrl: './delete-note-modal.component.html',
   styleUrls: ['./delete-note-modal.component.scss'],

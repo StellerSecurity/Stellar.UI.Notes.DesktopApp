@@ -1,6 +1,4 @@
-import { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
+const config = {
   appId: 'Steller.Phone.NotesApp',
   appName: 'Stellar Notes',
   webDir: 'www',

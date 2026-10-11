@@ -12,7 +12,7 @@ import {AppModule} from "../app.module";
 import {StriphtmlPipe} from "../striphtml.pipe";
 import { ClickOutsideDirective } from '../directives/click-outside.directive';
 import { AddNotePage } from '../add-note/add-note.page';
-import { PasswordStrengthMeterModule } from 'angular-password-strength-meter';
+import { PasswordStrengthMeterComponent } from '../password-strength-meter/password-strength-meter.component';
 import { QuillModule } from 'ngx-quill';
 import { NoteLockedModalModule } from '../note-locked-modal/note-locked-modal.module';
 import { RichTextEditorComponent } from '../add-note/rich-text-editor/rich-text-editor.component';
@@ -25,7 +25,7 @@ import { NoteContextMenuComponent } from './note-context-menu/note-context-menu.
         FormsModule,
         IonicModule,
         HomePageRoutingModule,
-        PasswordStrengthMeterModule,
+        PasswordStrengthMeterComponent,
         NoteLockedModalModule,
         QuillModule,
         DeleteNoteModalModule,

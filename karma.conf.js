@@ -4,6 +4,8 @@
 module.exports = function (config) {
   config.set({
     basePath: '',
+    hostname: '127.0.0.1',
+    listenAddress: '127.0.0.1',
     frameworks: ['jasmine', '@angular-devkit/build-angular'],
     plugins: [
       require('karma-jasmine'),

@@ -2,7 +2,7 @@ import { AfterViewInit, Component, OnInit } from "@angular/core";
 import { NotesService } from "../services/notes.service";
 import { Router } from "@angular/router";
 
-@Component({
+@Component({ standalone: false,
   selector: "app-initial",
   templateUrl: "./initial.component.html",
   styleUrls: ["./initial.component.scss"],

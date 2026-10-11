@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { PasswordStrengthMeterComponent } from './password-strength-meter/password-strength-meter.component';
 import { Network } from '@capacitor/network';
 import { Preferences } from '@capacitor/preferences';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -5,6 +7,25 @@ import { Share } from '@capacitor/share';
 import { PsmZxcvbnService } from './services/psm-zxcvbn.service';
 
 describe('Desktop dependency compatibility', () => {
+  it('updates the local password meter without exposing the password in its DOM', () => {
+    TestBed.configureTestingModule({ imports: [PasswordStrengthMeterComponent] });
+    const fixture = TestBed.createComponent(PasswordStrengthMeterComponent);
+    fixture.detectChanges();
+    const meter: HTMLMeterElement = fixture.nativeElement.querySelector('meter');
+    expect(meter.hidden).toBeTrue();
+    const password = 'synthetic-only-X7!pR92$Lm8@vT';
+    fixture.componentRef.setInput('password', password);
+    fixture.detectChanges();
+    expect(meter.hidden).toBeFalse();
+    expect(meter.value).toBe(new PsmZxcvbnService().score(password));
+    expect(fixture.nativeElement.innerHTML).not.toContain(password);
+    fixture.componentRef.setInput('password', '');
+    fixture.detectChanges();
+    expect(meter.hidden).toBeTrue();
+    expect(meter.value).toBe(0);
+    fixture.destroy();
+  });
+
   it('reads existing Capacitor preference keys and removes only its test key', async () => {
     const key = 'stellar-peer-test-' + Date.now();
     localStorage.setItem('CapacitorStorage.' + key, 'existing-value');

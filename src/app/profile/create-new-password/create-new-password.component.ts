@@ -6,7 +6,7 @@ import { AuthService } from 'src/app/services/auth.service';
 import { ToastMessageService } from 'src/app/services/toast-message.service';
 import { Location } from '@angular/common';
 
-@Component({
+@Component({ standalone: false,
   selector: 'app-create-new-password',
   templateUrl: './create-new-password.component.html',
   styleUrls: ['./create-new-password.component.scss'],

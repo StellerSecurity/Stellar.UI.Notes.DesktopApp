@@ -2,18 +2,18 @@
 const PREFIX = 'stellar-local-key-v2:';
 const ITERATIONS = 600000;
 const AAD = new TextEncoder().encode('stellar-notes/local-app-key/v2');
-function decode(value: string): Uint8Array {
+function decode(value: string): Uint8Array<ArrayBuffer> {
   const bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
   if (encode(bytes) !== value) throw new Error('Invalid app key encoding');
   return bytes;
 }
 function encode(value: Uint8Array): string { return btoa(String.fromCharCode(...value)); }
-function rawKey(value: string): Uint8Array {
+function rawKey(value: string): Uint8Array<ArrayBuffer> {
   const bytes = decode(value);
   if (bytes.length !== 32) throw new Error('Invalid app key');
   return bytes;
 }
-async function keyFor(password: string, salt: Uint8Array): Promise<CryptoKey> {
+async function keyFor(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   if (!password) throw new Error('App password required');
   const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey({name:'PBKDF2', hash:'SHA-256', iterations:ITERATIONS, salt},

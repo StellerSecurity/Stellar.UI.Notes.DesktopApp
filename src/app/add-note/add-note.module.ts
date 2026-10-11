@@ -7,7 +7,7 @@ import { IonicModule } from '@ionic/angular';
 import { AddNotePageRoutingModule } from './add-note-routing.module';
 
 import { AddNotePage } from './add-note.page';
-import {PasswordStrengthMeterModule} from "angular-password-strength-meter";
+import { PasswordStrengthMeterComponent } from '../password-strength-meter/password-strength-meter.component';
 import { NoteLockedModalModule } from '../note-locked-modal/note-locked-modal.module';
 import { DeleteNoteModalModule } from '../delete-note-modal/delete-note-modal.module';
 import { QuillModule } from 'ngx-quill';
@@ -19,7 +19,7 @@ import { RichTextEditorComponent } from './rich-text-editor/rich-text-editor.com
         FormsModule,
         IonicModule,
         AddNotePageRoutingModule,
-        PasswordStrengthMeterModule,
+        PasswordStrengthMeterComponent,
         NoteLockedModalModule,
         DeleteNoteModalModule,
         QuillModule,

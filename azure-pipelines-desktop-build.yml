@@ -38,11 +38,36 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Realtime contract failed' }
           node tools/desktop-localization-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Localization contract failed' }
+          node --test tools/linux-apprun.test.cjs tools/release-toolchain-check.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release security tests failed' }
+          node tools/release-toolchain-check.cjs --lock-only
+          if ($LASTEXITCODE -ne 0) { throw 'Release dependency lock rejected' }
           npm ci --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
+          node --test tools/braces-patch-plan.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency mitigation control tests failed' }
+          node tools/braces-depth-patch.cjs --apply
+          if ($LASTEXITCODE -ne 0) { throw 'Reviewed braces patch rejected' }
+          node tools/release-toolchain-check.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Installed release toolchain rejected' }
+          $auditDir = Join-Path '$(Build.ArtifactStagingDirectory)' 'dependency-audit'
+          New-Item -ItemType Directory -Force -Path $auditDir | Out-Null
+          $auditFile = Join-Path $auditDir 'npm-audit.json'
+          npm audit --json --ignore-scripts | Set-Content -Encoding utf8 $auditFile
+          $auditExit = $LASTEXITCODE
+          Write-Host '##vso[task.setvariable variable=AuditReportCreated]true'
+          if ($auditExit -notin @(0, 1)) { throw 'npm audit did not return a usable report' }
+          node tools/release-audit.cjs $auditFile
+          if ($LASTEXITCODE -ne 0) { throw 'Unmitigated dependency finding or invalid mitigation; release build stopped' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Renderer build failed' }
         displayName: Install approved locked dependencies and build renderer
+      - task: PublishPipelineArtifact@1
+        condition: and(always(), eq(variables['AuditReportCreated'], 'true'))
+        inputs:
+          targetPath: $(Build.ArtifactStagingDirectory)/dependency-audit
+          artifact: dependency-audit-${{ target }}
+        displayName: Retain full dependency audit including mitigated findings
       - ${{ if eq(target, 'win') }}:
         - pwsh: |
             node node_modules/electron-builder/cli.js --win nsis --x64 --publish never --config.win.forceCodeSigning=false

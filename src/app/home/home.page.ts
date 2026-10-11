@@ -60,10 +60,10 @@ import { ShareSecretModalComponent } from "../share-secret-modal/share-secret-mo
 import { NoteLockedModalComponent } from "../note-locked-modal/note-locked-modal.component";
 
 declare var require: any;
-const { v4: uuidv4 } = require('uuid');
+import { uuidv4 } from '../utils/uuid';
 const CryptoJS = require('crypto-js');
 
-@Component({
+@Component({ standalone: false,
   selector: "app-home",
   templateUrl: "home.page.html",
   styleUrls: ["home.page.scss"],
