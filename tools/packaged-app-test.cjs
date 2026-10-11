@@ -85,7 +85,8 @@ class CDP {
   }
   async click(selector) {
     let previous;
-    const point = await until(async () => {
+    let point;
+    try { point = await until(async () => {
       const point = await this.value(`(() => {
       const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e =>
         !e.closest('.ion-page-hidden,.ion-page-invisible') && e.getBoundingClientRect().width && e.getBoundingClientRect().height);
@@ -100,6 +101,14 @@ class CDP {
       const stable = point && previous && point.x === previous.x && point.y === previous.y;
       previous = point; return stable ? point : false;
     }, `visible stationary control ${selector}`);
+    } catch (error) {
+      const layout = await this.value(`(() => ({ viewport:[innerWidth,innerHeight], candidates:[...document.querySelectorAll(${JSON.stringify(selector)})].map(el => {
+        const r=el.getBoundingClientRect(),h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+        return {rect:[r.x,r.y,r.width,r.height],hidden:!!el.closest('.ion-page-hidden,.ion-page-invisible'),display:getComputedStyle(el).display,hit:h?.tagName,hitClass:typeof h?.className==='string'?h.className:null};
+      }), checkboxCount:document.querySelectorAll('ion-checkbox').length }))()`);
+      console.log('QA control layout:', JSON.stringify({selector,...layout}));
+      throw error;
+    }
     await this.send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...point });
     await this.send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...point });
   }
@@ -296,6 +305,7 @@ async function run(executable, output, sync) {
   } catch (error) {
     // Only first-party error labels are retained; never dump page, network or credential objects.
     report.failure = String(error.message).slice(0, 240);
+    try { await a?.cdp.screenshot(path.join(output, 'failure-qa.png')); } catch { /* Never capture a login form. */ }
     throw error;
   } finally {
     await Promise.allSettled([a?.stop(), b?.stop()]);
