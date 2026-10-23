@@ -1,3 +1,4 @@
+import { translateText as t } from './app/i18n';
 import { enableProdMode } from '@angular/core';
 import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
 
@@ -9,4 +10,9 @@ if (environment.production) {
 }
 
 platformBrowserDynamic().bootstrapModule(AppModule)
-  .catch(err => console.log(err));
+  .catch(() => {
+    const screen=document.createElement('main');screen.className='sn-dialog-content';screen.style.cssText='max-width:480px;margin:12vh auto;text-align:center';
+    const title=document.createElement('h1');title.textContent='Stellar Notes';
+    const message=document.createElement('p');message.textContent=t('uiSavedNotesCouldNotBeReadKeepThis');
+    screen.append(title,message);document.body.replaceChildren(screen);
+  });

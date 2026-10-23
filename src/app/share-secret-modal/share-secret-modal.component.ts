@@ -1,10 +1,12 @@
-import { Component, Input } from '@angular/core';
-import { LoadingController, ModalController, ToastController } from '@ionic/angular';
+import { translateText as t } from '../i18n';
+import { Component, Input, OnDestroy } from '@angular/core';
+import { ModalController, ToastController } from '@ionic/angular';
 import { SecretapiService } from '../services/secretapi.service';
 import { Share } from '@capacitor/share';
 import { Router } from '@angular/router';
 import { TranslatorService } from '../services/translator.service';
 import { Capacitor } from '@capacitor/core';
+import { Subscription } from 'rxjs';
 
 // ✅ Import shell only if running inside Electron
 let shell: any = null;
@@ -21,7 +23,10 @@ if ((window as any).require) {
   templateUrl: './share-secret-modal.component.html',
   styleUrls: ['./share-secret-modal.component.scss']
 })
-export class ShareSecretModalComponent {
+export class ShareSecretModalComponent implements OnDestroy {
+  errorMessage = '';
+  private createRequest?: Subscription;
+  ngOnDestroy(): void { this.createRequest?.unsubscribe(); }
   secretUrl: string = '';
   @Input() addSecretModal: any;
   @Input() secret_id: any;
@@ -35,7 +40,6 @@ export class ShareSecretModalComponent {
   constructor(
     private modalCtrl: ModalController,
     private toastController: ToastController,
-    private loadingController: LoadingController,
     private secretapi: SecretapiService,
     private router: Router,
     private translatorService: TranslatorService
@@ -56,39 +60,27 @@ export class ShareSecretModalComponent {
     this.modalCtrl.dismiss();
   }
 
-  changeModalClass() {
-    const newClass = 'secretshare-copy-modal';
-    const modalEl = document.querySelector('ion-modal.secret-modal') as HTMLIonModalElement;
-    if (modalEl) {
-      modalEl.classList.add(newClass);
-    }
-  }
-
   async createSecret() {
-    const loading = await this.loadingController.create();
-    await loading.present();
-
-    this.secretapi.create(this.addSecretModal).subscribe({
-      next: async (response) => {
-        this.changeModalClass();
+    if (this.isLoading || this.step !== 1) return;
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.createRequest = this.secretapi.create(this.addSecretModal).subscribe({
+      next: (response) => {
         this.createdSecret = response;
-        this.step = 2;
         this.secretUrl = `https://stellarsecret.io/${this.secret_id}`;
-        this.expiryText = '';
-      },
-      error: async () => {
-        await loading.dismiss();
-        this.isLoading = false;
-        alert(this.allTranslations?.failedToShareSecretMsg);
-      },
-      complete: async () => {
-        await loading.dismiss();
+        this.step = 2;
         this.isLoading = false;
       },
+      error: () => {
+        this.isLoading = false;
+        this.errorMessage = t('failedToShareSecretMsg');
+      },
+      complete: () => { this.isLoading = false; },
     });
   }
 
   burnSecret() {
+    if (this.isDeletingSecret || !this.createdSecret?.id) return;
     this.isDeletingSecret = true;
     this.secretapi.delete(this.createdSecret?.id).subscribe({
       next: async () => {
@@ -101,7 +93,7 @@ export class ShareSecretModalComponent {
 
         await toast.present();
       },
-      error: async () => {},
+      error: async () => { this.isDeletingSecret = false; },
       complete: async () => {
         this.isDeletingSecret = false;
       },
@@ -123,14 +115,14 @@ export class ShareSecretModalComponent {
       // ✅ Native share on mobile
       await Share.share({
         title: 'Stellar Secret',
-        text: 'Here is your secret link',
+        text: t('hereIsYourSecretLink'),
         url: this.secretUrl,
         dialogTitle: 'Stellar Note',
       });
     } else if ((window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(this.secretUrl);
       const toast = await this.toastController.create({
-        message: 'Link opened in your default browser.',
+        message: t('uiLinkOpenedInYourDefaultBrowser'),
         duration: 3000,
         position: 'bottom',
       });

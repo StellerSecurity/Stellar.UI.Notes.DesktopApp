@@ -16,6 +16,13 @@
     "src/app/editor-stress.spec.ts",
     "src/app/dependency-compatibility.spec.ts",
     "src/app/services/note-conflict.spec.ts",
-    "src/app/add-note/rich-text-editor/legacy-note-html.spec.ts"
+    "src/app/add-note/rich-text-editor/legacy-note-html.spec.ts",
+    "src/app/desktop-design.spec.ts",
+    "src/app/i18n.spec.ts",
+    "src/app/app-settings/language-picker.component.spec.ts",
+    "src/app/desktop-navigation.spec.ts",
+    "src/app/local-storage-trash.spec.ts",
+    "src/app/update-status/update-status.component.spec.ts",
+    "src/app/home/note-pane-resize.directive.spec.ts"
   ]
 }

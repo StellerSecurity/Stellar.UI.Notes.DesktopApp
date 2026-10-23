@@ -1,3 +1,4 @@
+import { translateText as t } from '../i18n';
 import { unwrapLocalAppKey } from '../utils/local-app-key';
 import { Injectable } from '@angular/core';
 import { AlertController } from '@ionic/angular';
@@ -12,8 +13,8 @@ import { packCipherBlob, unpackCipherBlob } from '@stellarsecurity/stellar-crypt
 import { buildApiUrl, notes } from '../constants/api/product.api';
 
 export function conflictPreview(note: any): string {
-  if (!note || note.deleted) return 'Deleted on the other device';
-  if (note.protected) return 'Password-protected note (content hidden)';
+  if (!note || note.deleted) return t('uiDeletedOnTheOtherDevice');
+  if (note.protected) return t('uiPasswordProtectedNoteContentHidden');
   const template = document.createElement('template');
   template.innerHTML = String(note.text ?? '');
   template.content.querySelectorAll('script,style,iframe,object,embed').forEach(node => node.remove());
@@ -114,13 +115,13 @@ export class NoteConflictService {
           continue;
         }
         const alert = await this.alerts.create({
-          header: 'Choose note version',
-          message: `<b>This device</b><br>${conflictPreview(local)}<br><br><b>Other device</b><br>${conflictPreview(decodedRemote)}`,
+          header: t('uiChooseNoteVersion'),
+          message: `<b>${t('uiThisDevice')}</b><br>${conflictPreview(local)}<br><br><b>${t('uiOtherDevice')}</b><br>${conflictPreview(decodedRemote)}`,
           inputs: [
-            { type: 'radio', label: remote?.deleted ? 'Restore this version as a new note' : 'Keep this device’s version', value: 'local' },
-            { type: 'radio', label: remote?.deleted ? 'Keep the note deleted' : 'Keep the other device’s version', value: 'server' }
+            { type: 'radio', label: remote?.deleted ? t('uiRestoreThisVersionAsANewNote') : t('uiKeepThisDeviceSVersion'), value: 'local' },
+            { type: 'radio', label: remote?.deleted ? t('uiKeepTheNoteDeleted') : t('uiKeepTheOtherDeviceSVersion'), value: 'server' }
           ],
-          buttons: [{ text: 'Later', role: 'cancel' }, { text: 'Use selected version', role: 'confirm', handler: value => value === 'local' || value === 'server' }],
+          buttons: [{ text: t('uiLater'), role: 'cancel' }, { text: t('uiUseSelectedVersion'), role: 'confirm', handler: value => value === 'local' || value === 'server' }],
           backdropDismiss: false,
         });
         await alert.present();

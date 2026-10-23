@@ -1,3 +1,4 @@
+import { translateText as t } from '../../i18n';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -12,6 +13,7 @@ import { Location } from '@angular/common';
   styleUrls: ['./create-new-password.component.scss'],
 })
 export class CreateNewPasswordComponent implements OnInit, OnDestroy {
+  public formError = '';
   newPassword = '';
   confirmPassword = '';
   showNewPassword = false;
@@ -32,16 +34,14 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
     }
 
     getQueryParams(): void {
-      this.subscriptions.push(
-        this.activatedRoute.queryParamMap.subscribe((queryParams: any) => {
-          if (queryParams.has("confirmationCode")) {
-            this.confirmationCode = queryParams.get("confirmationCode");
-          }
-          if (queryParams.has("email")) {
-            this.email = queryParams.get("email");
-          }
-        })
-      );
+      const state = this.router.getCurrentNavigation()?.extras.state ?? history.state;
+      this.confirmationCode = typeof state?.confirmationCode === 'string' ? state.confirmationCode : '';
+      this.email = typeof state?.email === 'string' ? state.email : '';
+      if (history.state?.confirmationCode) {
+        const { confirmationCode, email, ...navigationState } = history.state;
+        history.replaceState(navigationState, '');
+      }
+      if (!this.confirmationCode || !this.email) void this.router.navigate(['/profile/forgot-password']);
     }
 
     initPasswordForm(): void {
@@ -75,6 +75,7 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
 
   confirm() {
     if (this.isSaving) return;
+    this.formError = '';
     if (this.passwordForm.valid) {
       this.isSaving = true;
       this.authService
@@ -89,12 +90,12 @@ export class CreateNewPasswordComponent implements OnInit, OnDestroy {
             if (response.response_code == 200) {
               this.backToLogin();
             } else {
-              this.toastMessageService.showError(response.response_message);
+              this.formError = (response.response_message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
             }
           },
           error: (error: any) => {
             this.isSaving = false;
-            this.toastMessageService.showError(error?.error?.message);
+            this.formError = (error?.error?.message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
           },
         });
     }

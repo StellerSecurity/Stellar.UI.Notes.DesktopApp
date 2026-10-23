@@ -158,14 +158,14 @@ describe('Desktop typing and sidebar rendering', () => {
     fixture.destroy(); tick(1000);
   }));
 
-  it('still saves every character locally before returning from the editor event', fakeAsync(() => {
+  it('updates every character in the local state before awaiting durable persistence', fakeAsync(() => {
     const page: any = Object.create(AddNotePage.prototype);
     let stored = JSON.stringify([{id:'other',text:'keep',last_modified:1}]);
     page.notes_id = 'typing'; page.note_locked = false; page.note_text = ''; page.note_title = 'Typing';
     page.notes_password_stored = ''; page.notes = []; page.currentNote = null;
     page.authService = {isLoggedIn:false};
     page.notesService = {getNotes:()=>stored, appHasPasswordChallenge:()=>false, setNotes:(value: string)=>stored=value,
-      markPendingMutation:()=>{}, setNoteIsUpdatedSubject:()=>{}};
+      flushPersistence:async()=>{},markPendingMutation:()=>{}, setNoteIsUpdatedSubject:()=>{}};
     for (let i=1;i<=50;i++) {
       page.onSave('x'.repeat(i));
       const notes = JSON.parse(stored);

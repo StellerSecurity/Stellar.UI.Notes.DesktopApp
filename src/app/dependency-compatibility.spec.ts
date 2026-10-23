@@ -1,3 +1,4 @@
+import { TranslateModule } from '@ngx-translate/core';
 import { TestBed } from '@angular/core/testing';
 import { PasswordStrengthMeterComponent } from './password-strength-meter/password-strength-meter.component';
 import { Network } from '@capacitor/network';
@@ -8,7 +9,7 @@ import { PsmZxcvbnService } from './services/psm-zxcvbn.service';
 
 describe('Desktop dependency compatibility', () => {
   it('updates the local password meter without exposing the password in its DOM', () => {
-    TestBed.configureTestingModule({ imports: [PasswordStrengthMeterComponent] });
+    TestBed.configureTestingModule({ imports: [PasswordStrengthMeterComponent, TranslateModule.forRoot()] });
     const fixture = TestBed.createComponent(PasswordStrengthMeterComponent);
     fixture.detectChanges();
     const meter: HTMLMeterElement = fixture.nativeElement.querySelector('meter');

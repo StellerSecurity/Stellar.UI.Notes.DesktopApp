@@ -1,3 +1,4 @@
+import { translateText as t } from '../../i18n';
 import { Component, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
@@ -24,6 +25,9 @@ export class ForgotPasswordComponent implements OnInit {
   };
   forgotPasswordForm: FormGroup;
   isProcessing = false;
+  codeError = '';
+  codeNotice = '';
+  resendAfter = 0;
 
   constructor(private router: Router, private fb: FormBuilder, private authService: AuthService,
     private toastMessageService: ToastMessageService, private location: Location) {}
@@ -45,29 +49,39 @@ export class ForgotPasswordComponent implements OnInit {
     if (this.forgotPasswordForm.valid) {
       this.email = this.forgotPasswordForm.get('email')?.value;
       this.isProcessing = true;
+      this.codeError = ''; this.codeNotice = '';
       this.authService.forgotPassword(this.forgotPasswordForm.get('email')?.value).subscribe({
         next: (response) => {
           this.isProcessing = false;
           if (response.response_code == 200) {
+            this.codeNotice = this.showVerification ? t('uiANewCodeHasBeenSent') : '';
             this.showVerification = true;
+            this.resendAfter = Date.now() + 30000;
           } else {
-            this.toastMessageService.showError(response.response_message);
+            this.codeError = response.response_message || t('uiTheCodeCouldNotBeSentPleaseTry');
           }
         },
         error: (error) => {
           this.isProcessing = false;
-          this.toastMessageService.showError(error?.error?.message);
+          this.codeError = error?.error?.message || t('uiTheCodeCouldNotBeSentPleaseTry');
         }
       })
     }
   }
 
   resendCode() {
-    console.log("Resend code to", this.email);
+    if (this.isProcessing || Date.now() < this.resendAfter) return;
+    this.sendCode();
   }
 
   useDifferentEmail() {
     this.showVerification = false;
+  }
+
+  continueWithCode(): void {
+    if (this.otpValue.length !== 6) { this.codeError = t('uiEnterTheSixCharacterCode'); return; }
+    // The reset API validates the code. Keep it out of the URL and server request logs.
+    void this.router.navigate(['/profile/create-new-password'], { state: { email: this.email, confirmationCode: this.otpValue } });
   }
 
   onOtpChange(value: string) {

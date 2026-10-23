@@ -1,16 +1,16 @@
-<div class="confirmation-modal">
-  <img src="./assets/icon-lock.svg" class="burn-img" alt="">
-  <h2>{{'thisNoteIsLocked' | translate}}</h2>
-  <p>{{'enterThePasswordForTheNote' | translate}}
-    <!-- <br> {{'toUnlockIt' | translate}} -->
-  </p>
-  <div class="input-group" style="position: relative;">
-    <ion-input #passwordInput type="{{ showPassword ? 'text' : 'password' }}" shape="round" placeholder="{{'enterYourPassword' | translate}}" (keyup.enter)="onEnter()"></ion-input>
-    <ion-icon slot="end" [name]="showPassword ? 'eye-off' : 'eye'"
-              (click)="togglePasswordVisibility()"></ion-icon>
+<section class="sn-dialog-content unlock-note-dialog" aria-labelledby="unlock-note-title">
+  <div class="sn-dialog-heading">
+    <h2 id="unlock-note-title">{{'thisNoteIsLocked' | translate}}</h2>
+    <button type="button" class="icon-button" (click)="dismiss(false)" [attr.aria-label]="'uiClose' | translate"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button>
   </div>
-  <div class="buttons">
-    <p class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</p>
-    <p class="blue-btn" (click)="dismiss(true)">{{'confirm' | translate}}</p>
+  <p class="description">{{'enterThePasswordForTheNote' | translate}}</p>
+  <div class="sn-password">
+    <ion-input #passwordInput [type]="showPassword ? 'text' : 'password'" [placeholder]="'enterYourPassword' | translate" [attr.aria-label]="'password' | translate" autocomplete="current-password" (keyup.enter)="onEnter()"></ion-input>
+    <button type="button" class="icon-button" [attr.aria-label]="(showPassword ? 'uiHidePassword' : 'uiShowPassword') | translate" (click)="togglePasswordVisibility()"><ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'" aria-hidden="true"></ion-icon></button>
   </div>
-</div>
+  <p class="sn-error" role="alert">{{error}}</p>
+  <div class="sn-dialog-actions">
+    <button type="button" class="sn-button" (click)="dismiss(false)">{{'cancel' | translate}}</button>
+    <button type="button" class="sn-button primary" [disabled]="checking" (click)="dismiss(true)">{{'unlock' | translate}}</button>
+  </div>
+</section>

@@ -1,0 +1,22 @@
+{
+  "provenance": "Synthetic fixture from application TypeScript using Node WebCrypto; all keys intentionally public.",
+  "master_key_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "recovery_secret_b64": "//79/Pv6+fj39vX08/Lx8O/u7ezr6uno5+bl5OPi4eA=",
+  "context": {
+    "account_id": "11",
+    "vault_id": "210a4221-c9c5-4f2b-93bf-962900d4a800",
+    "key_epoch": 1,
+    "envelope_id": "eb4c6514-d342-4a4a-812a-a29092d87b24"
+  },
+  "envelope": {
+    "account_id": "11",
+    "vault_id": "210a4221-c9c5-4f2b-93bf-962900d4a800",
+    "key_epoch": 1,
+    "envelope_id": "eb4c6514-d342-4a4a-812a-a29092d87b24",
+    "v": 2,
+    "suite": "HKDF-SHA256/AES-256-GCM",
+    "salt_b64": "A0x/VByTi9+1NeIpzeQbrcM6j6kyD8S7MNdjnlwMqGo=",
+    "iv_b64": "/qA6KEQz00Py7jp3",
+    "wrapped_key_b64": "qHZItT7CEsMyjcL2JmAjlNRWXKk0G/N6fuNv8FWM9AydfPYg4wLOcNmXNLVsLPCn"
+  }
+}

@@ -40,6 +40,7 @@ export class DataService {
       this.forceDownloadOnHome = false;
       this.authService.setLoggedInState(false);
       this.cryptoKeyService.clearRuntimeKeys();
+      await this.notesService.clearLocalPersistence();
       this.notesService.resetRuntimeState();
 
       await this.outboxStorage.clear().catch(() => {});

@@ -66,19 +66,6 @@
         width: 100%;
     }
 
-    .blue-btn {
-        display: flex;
-        padding: 0;
-        font-size: 14px;
-        justify-content: center;
-        align-items: center;
-        font-family: 'Poppins';
-        color: rgb(225, 0, 0);
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .transparent-btn.blue-btn {
-        color: #62626A;
-    }
+    .sn-button { min-width: 92px; }
+    .sn-button.destructive { background: #cc263e; border-color: #cc263e; color: #fff; }
 }

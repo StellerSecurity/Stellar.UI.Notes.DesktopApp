@@ -1,0 +1,109 @@
+/* Desktop handoff, adapted to the existing Angular and Ionic components. */
+:root { --ion-font-family: Poppins, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; --app-surface: #fff; --app-surface-soft: #f6f6fd; --app-border-soft: #eaeaf0; --app-text-strong: #0b0c19; --app-text-body: #62626a; --app-accent-text: #2761fc; --app-accent-soft: #e8edff; font-family: var(--ion-font-family); font-size: 14px; }
+body, ion-app { background: #fff; }
+button, input { font-family: inherit; }
+button, [role=button], ion-button::part(native) { cursor: default !important; }
+a, .text-link { cursor: pointer; }
+button:focus-visible, [role=button]:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid #2761fc; outline-offset: 2px; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; padding: 5px; border-radius: 8px; border: 0; color: #62626a; background: transparent; vertical-align: middle; }
+.icon-button ion-icon { font-size: 17px; pointer-events: none; }
+.icon-button:hover { background: #eaeaf0; }
+.icon-button.active, .icon-button[aria-pressed=true] { color: #2761fc; }
+.sn-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 16px; border-radius: 20px; border: 1px solid #d6d6e0; color: #0b0c19; background: #fff; font-size: 13px; font-weight: 500; }
+.sn-button:hover { background: #f6f6fd; }
+.sn-button.primary { background: #2761fc; border-color: #2761fc; color: #fff; }
+.sn-button.primary:hover { background: #2152d4; }
+.sn-button.danger { color: #cc263e; border-color: #f1c8cf; }
+.sn-button:disabled { opacity: .45; }
+.full-width { width: 100%; }
+.text-link { border: 0; background: transparent; color: #2761fc; padding: 4px 0; font-size: 12px; font-weight: 500; }
+.sn-input, .sn-password { width: 100%; min-height: 36px; border: 1px solid #d6d6e0; border-radius: 20px; background: #fff; }
+.sn-input { padding: 8px 14px; }
+.sn-password { display: flex; align-items: center; padding-right: 5px; }
+.sn-password:focus-within { outline: 2px solid #2761fc; outline-offset: 1px; }
+.sn-password input { flex: 1; min-width: 0; border: 0; border-radius: inherit; padding: 8px 14px; background: transparent; outline: 0; }
+.sn-error { color: #c6283d; font-size: 12px; min-height: 18px; margin: 6px 0 12px; overflow-wrap: anywhere; }
+.sn-dialog-content { padding: 24px; max-height: calc(100dvh - 60px); overflow: auto; color: #0b0c19; }
+.sn-dialog-content > label { display: block; font-size: 12px; margin: 12px 0 6px; }
+.sn-dialog-heading { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 20px; }
+.sn-dialog-heading h2 { font-size: 20px; font-weight: 600; margin: 0; }
+.sn-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+ion-modal.sn-compact-modal { --height: auto; --width: 440px; --max-width: calc(100vw - 40px); --border-radius: 18px; }
+ion-modal.confirmation-popup { --width: 440px; --border-radius: 18px; --backdrop-opacity: .25 !important; }
+ion-modal.centered-modal { --width: 440px; --height: 560px; --max-height: calc(100dvh - 40px); --border-radius: 18px; --background: #fff; }
+ion-modal.lock-note-modal { --width: 440px; --max-width: calc(100vw - 40px); --min-height: 0; --height: 540px; --max-height: calc(100dvh - 40px); --border-radius: 18px; }
+ion-modal.secret-modal { --width: 440px; --max-width: calc(100vw - 40px); --height: auto; --max-height: calc(100dvh - 40px); --border-radius: 18px; }
+
+ion-modal ion-content, ion-modal ion-header, ion-modal ion-toolbar { --background: #fff; --ion-background-color: #fff; background: #fff; }
+ion-modal ion-header { box-shadow: none; }
+ion-modal ion-toolbar { --min-height: 56px; border-bottom: 1px solid #eaeaf0; }
+ion-modal ion-button { height: 36px; --border-radius: 20px; --box-shadow: none; --background: #2761fc; font-size: 13px; }
+ion-modal ion-button.button-clear { --background: transparent; }
+ion-modal ion-input, .user-account-section ion-input { min-height: 36px; --padding-top: 8px !important; --padding-bottom: 8px !important; --padding-start: 14px !important; --padding-end: 36px !important; --background: #fff; font-size: 13px; border: 1px solid #d6d6e0; border-radius: 22px; margin: 0; }
+ion-modal ion-input.has-focus, .user-account-section ion-input.has-focus { outline: 2px solid #2761fc; }
+ion-modal .pass-info-box { background: #f6f6fd; border: 0; border-radius: 12px; padding: 16px; margin: 16px 0; }
+ion-modal .pass-list { list-style: none; padding: 0; margin: 8px 0 0; font-size: 12px; color: #62626a; }
+ion-modal .pass-list li { margin: 5px 0; }
+ion-modal .pass-list li.active { text-decoration: none !important; color: #247943; }
+ion-modal .pass-list ion-icon { opacity: .35; }
+ion-modal .pass-list li.active ion-icon { opacity: 1; color: #247943; }
+ion-modal .confirmation-modal { padding: 24px; text-align: left; background: #fff; }
+ion-modal .confirmation-modal h2 { font-size: 20px; font-weight: 600; }
+ion-modal .confirmation-modal p { font-size: 13px; color: #62626a; }
+ion-modal .confirmation-modal .burn-img { width: 32px; height: 32px; object-fit: contain; }
+ion-modal .confirmation-modal .buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+ion-modal .confirmation-modal .buttons .blue-btn { display: inline-flex; justify-content: center; align-items: center; min-height: 36px; padding: 8px 20px; border-radius: 20px; border: 1px solid #d6d6e0; font: 500 13px var(--ion-font-family); color: #fff; background: #2761fc; margin: 0; }
+ion-modal .confirmation-modal .buttons .transparent-btn { background: #fff; color: #0b0c19; }
+ion-modal .confirmation-modal .buttons .destructive { background: #cc263e; border-color: #cc263e; }
+.sn-menu { padding: 6px; background: #fff; min-width: 210px; }
+.sn-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 30px; padding: 6px 10px; border-radius: 6px; background: transparent; color: #0b0c19; font-size: 13px; text-align: left; }
+.sn-menu button ion-icon { font-size: 16px; }
+.sn-menu button.danger { color: #cc263e; }
+.sn-menu button:hover, .sn-menu button:focus-visible { background: #2761fc; color: #fff; outline: none; }
+.sn-menu button:disabled { opacity: .4; background: transparent; color: #62626a; }
+ion-popover::part(content), .note-context-popover::part(content) { border-radius: 10px; border: 1px solid #eaeaf0; background: #fff; box-shadow: 0 10px 30px #0b0c1926; margin: 0; width: 230px; }
+ion-alert { --max-width: 440px; --width: 440px; --background: #fff; }
+ion-alert .alert-wrapper { border-radius: 18px !important; }
+ion-alert .alert-title { font-size: 20px !important; }
+ion-alert .alert-input { border: 1px solid #d6d6e0 !important; border-radius: 20px !important; padding: 8px 14px !important; }
+ion-alert .alert-button { border-radius: 18px !important; text-transform: none !important; font-size: 13px !important; }
+ion-toast { --background: #0b0c19; --color: white; --border-radius: 12px; --width: fit-content; --max-width: 520px; font-size: 13px; }
+.user-account-section-container { --background: #f6f6fd; --padding-start: 10px; --padding-end: 10px; --padding-top: 10px; --padding-bottom: 10px; }
+.user-account-section { display: flex; gap: 10px; height: calc(100dvh - 20px); min-height: 580px; background: #f6f6fd; }
+.user-account-section .top-section { width: 32%; min-width: 260px; height: 100%; margin: 0; padding: 24px; border-radius: 18px; position: relative; overflow: hidden; background: repeating-radial-gradient(circle at 50% 115%, transparent 0 98px, #ffffff08 99px 100px, transparent 101px 200px), linear-gradient(145deg,#2761fc,#2152d4); justify-content: flex-start; }
+.user-account-section .top-section::before { content: 'Stellar ID'; position: absolute; top: 24px; left: 24px; color: #fff; background: #ffffff26; border-radius: 18px; font-size: 11px; padding: 5px 10px; }
+.user-account-section .top-section .logo-container { display: block; }
+.user-account-section .top-section .login-app-logo-img { width: 52px; height: 52px; object-fit: contain; }
+.user-account-section .top-section .app-name { font-size: 24px; margin: 14px 0 0; font-weight: 600; }
+.user-account-section .form-card { flex: 1; min-width: 0; height: 100%; width: auto; margin: 0; border-radius: 18px; padding: 64px 32px 32px; overflow: auto; }
+.user-account-section .form-card .form-card-content { width: 360px; max-width: 100%; }
+.user-account-section .form-card .title { font-size: 24px; text-align: left; font-weight: 600; line-height: 1.3; }
+.user-account-section .form-card .subtitle { font-size: 13px; text-align: left; line-height: 1.6; color: #62626a; margin: 6px 0 24px; }
+.user-account-section .form-card .input-field { --background: transparent; --padding-start: 0; --inner-padding-end: 0; --min-height: 36px; overflow: visible; border-radius: 0; margin-bottom: 16px; }
+.user-account-section .field-label { display: block; font-size: 12px; margin: 14px 0 6px; color: #0b0c19; }
+.user-account-section .form-card .password-toggle { position: absolute; right: 8px; z-index: 3; font-size: 16px; padding: 4px; background: transparent; border-radius: 4px; }
+.user-account-section .form-card .login-button, .user-account-section .form-card .create-button, .user-account-section .form-card .send-button, .user-account-section .form-card .confirm-button { height: 36px !important; min-height: 36px; font-size: 13px !important; --box-shadow: none; margin-bottom: 20px !important; }
+.user-account-section .form-card .back-button { height: 28px; font-size: 12px; left: 20px; top: 20px; --padding-start: 0; --color: #0b0c19; }
+.user-account-section .form-card .footer { font-size: 12px; color: #62626a; padding-top: 20px; }
+.user-account-section .form-card .footer a { font-size: 12px; }
+.user-account-section .form-card .forgot-password { display: block; width: 100%; text-align: right; margin: 10px 0 18px; padding: 0; border: 0; background: transparent; font-size: 12px; color: #2761fc; }
+.user-account-section [role=alert], .vault-recovery-warning { font-size: 12px; line-height: 1.6; padding: 12px; border-radius: 8px; background: #fff5e9; color: #845b25; }
+.user-account-section .code-input-wrapper { margin: 20px 0; }
+.user-account-section .code-input-wrapper input { width: 42px !important; height: 44px !important; border-radius: 10px !important; font-size: 20px; }
+@media (max-height: 720px) { .user-account-section .form-card { align-items: flex-start; } }
+
+/* Account menu is anchored to the sidebar footer, clear of the window edge. */
+ion-popover.user-menu-popover::part(content) {
+  top: auto !important; bottom: 68px !important; left: 12px !important;
+  margin: 0 !important; width: 270px !important; min-width: 0 !important;
+  max-height: calc(100dvh - 96px); overflow-y: auto; transform-origin: bottom left;
+}
+.user-popover button.menu-item { width: 100%; background: transparent; text-align: left; }
+.user-popover button.menu-item:hover { background: #2761fc; }
+
+ion-popover.language-picker-popover { --width: 308px; --max-width: calc(100vw - 48px); --backdrop-opacity: 0; --offset-y: 6px; }
+ion-popover.language-picker-popover::part(content) { width: var(--width); max-width: var(--max-width); border-radius: 15px; border: 1px solid #e5e5ee; box-shadow: 0 12px 44px #0b0c1929, 0 2px 8px #0b0c190a; }
+ion-popover.language-picker-popover::part(arrow) { display: none; }
+
+ion-modal ion-header::after { display: none; background-image: none; box-shadow: none; }
+ion-modal ion-header.header-md { box-shadow: none; }

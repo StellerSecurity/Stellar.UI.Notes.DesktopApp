@@ -1,4 +1,7 @@
-import { Injectable } from "@angular/core";
+import { LocalNoteStorage } from './local-note-storage.service';
+import { CryptoService } from './crypto.service';
+import { NoteV1 } from '../models/NoteV1';
+import { Injectable, Optional } from "@angular/core";
 import { BehaviorSubject } from "rxjs";
 
 export type PendingNoteMutationType =
@@ -20,9 +23,110 @@ export interface PendingNoteMutation {
   providedIn: "root",
 })
 export class NotesService {
+  private persistenceReady = false;
+  private cachedRaw = '[]';
+  private trashRaw = '[]';
+  private trashCache?:{raw:string;password:string;entries:Array<{id:string;trashedAt:number;note:NoteV1}>};
+  private persistence: Promise<void> = Promise.resolve();
+  private persistenceError: unknown;
+  private persistenceGeneration = 0;
+  private persistenceRunning=false;
+  private pendingSnapshot?:{notes:string;trash:string;password:string;generation:number};
+  constructor(@Optional() private localStore?: LocalNoteStorage) {}
+  async initializePersistence(): Promise<void> {
+    if (!this.localStore) return;
+    const stored=await this.localStore.open();
+    const legacy=localStorage.getItem('notes');
+    this.cachedRaw=stored.exists?stored.notes:(legacy ?? '[]');
+    this.trashRaw=stored.trash;
+    if(stored.exists) {
+      if(stored.passwordProtected)localStorage.setItem('app_password_challenge','1');
+      else localStorage.removeItem('app_password_challenge');
+    }
+    this.persistenceReady=true;
+    if (!stored.exists && legacy!==null) {this.queuePersistence();await this.flushPersistence();}
+    localStorage.removeItem('notes');
+  }
+  private queuePersistence(): void {
+    if(!this.persistenceReady || !this.localStore)return;
+    this.pendingSnapshot={notes:this.cachedRaw,trash:this.trashRaw,password:this.notesAppPassword,generation:this.persistenceGeneration};
+    this.startPersistence();
+  }
+  private startPersistence():void {
+    if(this.persistenceRunning || !this.pendingSnapshot)return;
+    this.persistenceRunning=true;
+    this.persistence=Promise.resolve().then(async()=>{
+      while(this.pendingSnapshot) {
+        const snapshot=this.pendingSnapshot;this.pendingSnapshot=undefined;
+        if(snapshot.generation!==this.persistenceGeneration)continue;
+        await this.localStore!.write(snapshot.notes,snapshot.trash,snapshot.password);
+        this.persistenceError=undefined;this.localPersistenceFailed$.next(false);
+      }
+    }).catch(error=>{this.persistenceError=error;this.localPersistenceFailed$.next(true);}).finally(()=>{
+      this.persistenceRunning=false;
+      if(this.pendingSnapshot)this.startPersistence();
+    });
+  }
+  get trashEnabled(): boolean { return localStorage.getItem('stellarTrashEnabled')==='true'; }
+  set trashEnabled(value:boolean) {localStorage.setItem('stellarTrashEnabled',String(value));}
+  getTrash(): Array<{id:string;trashedAt:number;note:NoteV1}> {
+    if(this.shouldAskForPassword())return [];
+    if(this.trashCache?.raw===this.trashRaw && this.trashCache.password===this.notesAppPassword)return this.trashCache.entries;
+    const plain=this.trashRaw.startsWith('[')?this.trashRaw:new CryptoService().decrypt(this.trashRaw,this.notesAppPassword);
+    const entries=JSON.parse(plain);
+    this.trashCache={raw:this.trashRaw,password:this.notesAppPassword,entries};return entries;
+  }
+  private saveTrash(entries:any[]):void {
+    const raw=JSON.stringify(entries);
+    this.trashRaw=this.notesAppPassword?new CryptoService().encrypt(raw,this.notesAppPassword):raw;
+    this.queuePersistence();
+  }
+  async captureTrash(notes:NoteV1[]):Promise<string[]> {
+    if(!this.trashEnabled || !notes.length)return [];
+    const generation=this.persistenceGeneration;
+    const raw=this.getNotes();
+    const stored:NoteV1[]=JSON.parse(raw.startsWith('[')?raw:new CryptoService().decrypt(raw,this.notesAppPassword));
+    const ids=new Set(notes.map(note=>note.id));
+    const existing=this.getTrash();
+    const entries=stored.filter(note=>ids.has(note.id)).map(note=>existing.find(entry=>entry.note.id===note.id && entry.note.last_modified===note.last_modified) ?? {id:crypto.randomUUID(),trashedAt:Date.now(),note:{...note}});
+    const entryIds=new Set(entries.map(entry=>entry.id));
+    this.saveTrash([...existing.filter(entry=>!entryIds.has(entry.id)),...entries]);await this.flushPersistence();
+    if(generation!==this.persistenceGeneration)throw Error('Local note session changed');
+    return entries.map(entry=>entry.id);
+  }
+  async restoreTrash(ids:string[]):Promise<NoteV1[]> {
+    const generation=this.persistenceGeneration;
+    const selected=new Set(ids),entries=this.getTrash().filter(entry=>selected.has(entry.id));
+    if(!entries.length)return [];
+    const raw=this.getNotes();const crypt=new CryptoService();
+    const notes:NoteV1[]=JSON.parse(raw.startsWith('[')?raw:crypt.decrypt(raw,this.notesAppPassword));
+    const restored=entries.map(entry=>({...entry.note,id:crypto.randomUUID(),base_version:0,last_modified:Date.now(),deleted:false}));
+    const next=JSON.stringify([...notes,...restored]);
+    this.setNotes(this.notesAppPassword?crypt.encrypt(next,this.notesAppPassword):next);
+    for(const note of restored)this.markPendingMutation(note.id,'update',note.last_modified);
+    await this.flushPersistence();
+    if(generation!==this.persistenceGeneration)throw Error('Local note session changed');
+    await this.removeTrash(ids);
+    if(generation!==this.persistenceGeneration)throw Error('Local note session changed');
+    this.setNoteIsUpdatedSubject(true);return restored;
+  }
+  async removeTrash(ids:string[]):Promise<void> {const selected=new Set(ids);this.saveTrash(this.getTrash().filter(entry=>!selected.has(entry.id)));await this.flushPersistence();}
+  async expireTrash():Promise<void> {
+    const expired=this.getTrash().filter(entry=>Date.now()-entry.trashedAt>=30*86400000).map(entry=>entry.id);
+    if(expired.length){await this.removeTrash(expired);this.setNoteIsUpdatedSubject(true);}
+  }
+  async clearLocalPersistence():Promise<void> {
+    this.persistenceGeneration++;this.pendingSnapshot=undefined;await this.persistence;await this.localStore?.clear();
+    this.cachedRaw=this.trashRaw='[]';this.persistenceError=undefined;
+  }
+
+  public readonly localPersistenceFailed$ = new BehaviorSubject<boolean>(false);
   public readonly syncNeedsAttention$ = new BehaviorSubject<boolean>(false);
   public hasPendingMutations(): boolean { return this.pendingNoteMutations.size > 0; }
+  restoreLastNoteAttempted=false;
   selectedNoteId: any = "";
+  pendingImageNote: {html: string} | null = null;
+  editorFocusNoteId: string | null = null;
   private noteIsUpdatedSubject = new BehaviorSubject<boolean>(true);
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();
   private noteIsDeletedSubject = new BehaviorSubject<boolean>(false);
@@ -38,6 +142,7 @@ export class NotesService {
   private pendingNoteMutations = new Map<string, PendingNoteMutation>();
 
   public getNotes() {
+    if(this.persistenceReady)return this.cachedRaw;
     const notes = localStorage.getItem("notes");
     return notes == null ? "[]" : notes;
   }
@@ -90,7 +195,11 @@ export class NotesService {
   }
 
   public setNotes(data: any) {
-    localStorage.setItem("notes", data);
+    if(this.persistenceReady) {
+      if(this.shouldAskForPassword())throw Error('Local notes are locked');
+      this.cachedRaw=data ?? '[]';this.queuePersistence();
+    }
+    else localStorage.setItem("notes",data);
   }
 
   public appHasPasswordChallenge() {
@@ -102,7 +211,14 @@ export class NotesService {
   }
 
   public setNotesAppPassword(password: string) {
+    if(!password && this.appHasPasswordChallenge()) {this.notesAppPassword='';return;}
+    const trash = this.shouldAskForPassword() ? null : this.getTrash();
     this.notesAppPassword = password;
+    if(trash) {
+      const raw=JSON.stringify(trash);
+      this.trashRaw=password?new CryptoService().encrypt(raw,password):raw;
+    }
+    if(password && this.persistenceReady)this.queuePersistence();
   }
 
   public setDecryptedNotes(data: any) {
@@ -173,10 +289,16 @@ export class NotesService {
   }
 
   public async flushPersistence(): Promise<void> {
-    return;
+    let current:Promise<void>;
+    do {current=this.persistence;await current;}while(current!==this.persistence);
+    if(this.persistenceError)throw this.persistenceError;
   }
 
   public resetRuntimeState(): void {
+    this.persistenceGeneration++;this.pendingSnapshot=undefined;
+    this.trashCache=undefined;
+    this.pendingImageNote = null;
+    this.restoreLastNoteAttempted=true;
     this.selectedNoteId = '';
     this.currentNote = null;
     this.isNoteTemporaryDescripted = false;

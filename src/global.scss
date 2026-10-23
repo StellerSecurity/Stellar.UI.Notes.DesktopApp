@@ -730,7 +730,7 @@ ion-modal.lock-note-modal {
 
 /* WebKit (Chrome, Safari, Edge) */
 .home-note-list::-webkit-scrollbar {
-  width: 6px; /* very slim */
+  width: 9px;
 }
 
 .home-note-list::-webkit-scrollbar-track {
@@ -837,3 +837,12 @@ ion-searchbar,
   --highlight-color-valid: var(--app-accent-text);
   --highlight-color-invalid: var(--ion-color-danger);
 }
+
+/* Reused offline Poppins assets from the mobile app; SIL OFL 1.1. */
+@font-face { font-family: Poppins; font-style: normal; font-weight: 400; font-display: swap; src: url('./assets/fonts/poppins/Poppins-Regular.ttf') format('truetype'); }
+@font-face { font-family: Poppins; font-style: normal; font-weight: 500; font-display: swap; src: url('./assets/fonts/poppins/Poppins-Medium.ttf') format('truetype'); }
+@font-face { font-family: Poppins; font-style: normal; font-weight: 600; font-display: swap; src: url('./assets/fonts/poppins/Poppins-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: Poppins; font-style: normal; font-weight: 700; font-display: swap; src: url('./assets/fonts/poppins/Poppins-Bold.ttf') format('truetype'); }
+@font-face { font-family: Poppins; font-style: italic; font-weight: 400; font-display: swap; src: url('./assets/fonts/poppins/Poppins-Italic.ttf') format('truetype'); }
+
+@import './theme/desktop-design.scss';

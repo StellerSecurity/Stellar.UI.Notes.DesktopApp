@@ -189,10 +189,10 @@ describe('Desktop and mobile encrypted note compatibility',()=>{
   const password='fixture-password-123';const {header}=await createVault(password);const bundle=exportServerBundleFromHeader(header);
   const saved=new Map<string,string>();const crypto=new CryptoService();
   const auth={loginHandling:()=>of({response_code:200,token:'fixture-token',user:{crypto_version:bundle.crypto_version,kdf_params:bundle.kdf_params,kdf_salt_b64:bundle.kdf_salt,eak_b64:bundle.eak}}),setLoggedInState:jasmine.createSpy('loggedIn')};
-  const page=new LoginComponent({navigate:async()=>true} as any,new FormBuilder(),auth as any,{showError:()=>{}} as any,{setItem:async(k:string,v:string)=>{saved.set(k,v);}} as any,
+  const page=new LoginComponent({navigate:async()=>true} as any,new FormBuilder(),auth as any,{showError:()=>{}} as any,{getItem:async(k:string)=>saved.get(k)??null,removeItem:async(k:string)=>{saved.delete(k);},setItem:async(k:string,v:string)=>{saved.set(k,v);}} as any,
    {appHasPasswordChallenge:()=>true,getNotesAppPassword:()=> 'app-pass',getNotes:()=> '[]',getDecryptedNotes:()=>null} as any,
    {upload:async()=>({})} as any,{setForceDownloadOnHome:()=>{}} as any,crypto,new CryptoKeyService(),{} as any);
-  page.ngOnInit();page.loginForm.setValue({email:'fixture@example.com',password});await page.login();
+  page.ngOnInit();page.loginForm.setValue({email:'fixture@example.com',password,notesPassword:''});await page.login();
   expect(auth.setLoggedInState).toHaveBeenCalledWith(true);
   const wrapped=saved.get('ssEakB64_Encrypted')!;expect(isModernLocalAppKey(wrapped)).toBeTrue();
   expect(atob(await unwrapLocalAppKey(wrapped,'app-pass',(v,p)=>crypto.decrypt(v,p))).length).toBe(32);expect(saved.has('ssEakB64')).toBeFalse();

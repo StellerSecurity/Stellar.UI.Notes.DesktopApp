@@ -1,0 +1,32 @@
+{
+  "provenance": {
+    "package": "@stellarsecurity/stellar-crypto",
+    "version": "1.0.2",
+    "vault_js_sha256": "48869780deca55839033dea9f42d87df2c74d0636feb261ab16d4492002f796d",
+    "b64_js_sha256": "bd7a0e74819f69e3508fd8bc0613b6bed33759e4aabea46ad090a8862c4f96d8",
+    "limitation": "Generated with the exact installed legacy SDK, not extracted from a released application binary."
+  },
+  "password": "synthetic-previous-password-ONLY",
+  "master_key_b64": "RBP6EOupThp7fOYuy5KZY2eLzvHR+QcP8grT/amxmI0=",
+  "bundle": {
+    "crypto_version": "v1",
+    "kdf_params": {
+      "algo": "PBKDF2",
+      "hash": "SHA-256",
+      "iters": 210000
+    },
+    "kdf_salt": "7/DUg74siBVg7l4bLLHJSw==",
+    "eak": "CpPZfdiQKPs7FJpZsEcSArIA7+IqL3phzBPU/ofm01CFg5nqBhwPxlgcjSdLLqtR1yn0W7LWCi0xnTjh"
+  },
+  "plaintext": {
+    "id": "fixture-note",
+    "text": "<p>Synthetic note: æ ø ü 🔐</p>",
+    "title": "Synthetic title",
+    "folder": "Synthetic folder"
+  },
+  "note": {
+    "text": "Yq2Y+7iW8kmrQveW5x/FxEfp3rUxFZQlRgexXv0Yg5jrN1g4tPLsLjZvEseBYQk0SZ1LU0wruFrVDClCXOUuSg==",
+    "title": "uivvVQXXZwNMxgjWkOUaS1/OBDtEXISguSjofy2s93TJ+ckd+uEno754uA==",
+    "folder": "XxCJg8vZ6EiYUoSrBZEe9H7AzrtKBXaHuyCNlZmu/IOceptOUjAEuXTS8yU="
+  }
+}

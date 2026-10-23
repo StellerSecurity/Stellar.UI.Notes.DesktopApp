@@ -1,25 +1,50 @@
-<div class="editor-container" #editorWrapper (focusin)="onEditorFocusIn()" (focusout)="onEditorFocusOut()">
+<div class="editor-container" [style.--heading-0]="headingStyle(0)" [style.--heading-1]="headingStyle(1)" [style.--heading-2]="headingStyle(2)" [style.--heading-3]="headingStyle(3)" [style.--heading-4]="headingStyle(4)" [style.--heading-5]="headingStyle(5)" [style.--heading-6]="headingStyle(6)" #editorWrapper (focusin)="onEditorFocusIn()" (focusout)="onEditorFocusOut()">
   <quill-editor [(ngModel)]="note_text" (ngModelChange)="onContentChange($event)"
     [modules]="quillModules" [sanitize]="true" [compareValues]="true" [valueSetter]="editorValueSetter" [valueGetter]="editorValueGetter" [onlyFormatEventData]="true" [defaultEmptyValue]="''"
     (onEditorCreated)="onEditorCreated($event)" [placeholder]="editorPlaceholder('enterYourNoteHere' | translate)">
     <div quill-editor-toolbar class="desktop-editor-toolbar" #toolbar>
-      <button type="button" title="Undo" aria-label="Undo" (mousedown)="$event.preventDefault()" (click)="undo()"><img src="assets/editor-icon/undo-icon.png" alt=""></button>
-      <button type="button" title="Redo" aria-label="Redo" (mousedown)="$event.preventDefault()" (click)="redo()"><img class="redo-icon" src="assets/editor-icon/undo-icon.png" alt=""></button>
-      <span class="divider"></span>
-      <button type="button" class="ql-bold" title="Bold" aria-label="Bold"></button>
-      <button type="button" class="ql-strike" title="Strikethrough" aria-label="Strikethrough"></button>
-      <span class="list-group">
-        <button type="button" class="ql-list" value="bullet" title="Bulleted list" aria-label="Bulleted list"></button>
-        <button type="button" class="ql-list" value="ordered" title="Numbered list" aria-label="Numbered list"></button>
-      </span>
-      <select class="ql-header" aria-label="Heading">
-        <option selected value="">Standard</option>
-        <option value="1">Heading 1</option><option value="2">Heading 2</option>
-        <option value="3">Heading 3</option><option value="4">Heading 4</option>
-        <option value="5">Heading 5</option><option value="6">Heading 6</option>
+      <select class="ql-header" [attr.aria-label]="'uiHeading' | translate">
+        <option selected value="">{{'uiStandard' | translate}}</option>
+        <option value="1">{{'uiHeading1' | translate}}</option><option value="2">{{'uiHeading2' | translate}}</option>
+        <option value="3">{{'uiHeading3' | translate}}</option><option value="4">{{'uiHeading4' | translate}}</option>
+        <option value="5">{{'uiHeading5' | translate}}</option><option value="6">{{'uiHeading6' | translate}}</option>
       </select>
-      <button type="button" class="ql-link" title="Insert link" aria-label="Insert link"></button>
-      <button type="button" class="ql-image" title="Insert image" aria-label="Insert image"></button>
+      <button class="history-tool" type="button" [title]="'uiUndo' | translate" [attr.aria-label]="'uiUndo' | translate" (mousedown)="$event.preventDefault()" (click)="undo()"><img src="assets/editor-icon/undo-icon.png" alt=""></button>
+      <button class="history-tool" type="button" [title]="'uiRedo' | translate" [attr.aria-label]="'uiRedo' | translate" (mousedown)="$event.preventDefault()" (click)="redo()"><img class="redo-icon" src="assets/editor-icon/undo-icon.png" alt=""></button>
+      <span class="divider"></span>
+      <button type="button" class="ql-bold" [title]="'uiBold' | translate" [attr.aria-label]="'uiBold' | translate"></button>
+      <button type="button" class="ql-strike" [title]="'uiStrikethrough' | translate" [attr.aria-label]="'uiStrikethrough' | translate"></button>
+      <span class="list-group">
+        <button type="button" class="ql-list" value="bullet" [title]="'uiBulletedList' | translate" [attr.aria-label]="'uiBulletedList' | translate"></button>
+        <button type="button" class="ql-list" value="ordered" [title]="'uiNumberedList' | translate" [attr.aria-label]="'uiNumberedList' | translate"></button>
+      </span>
+      <button type="button" class="ql-link" [title]="'uiInsertLink' | translate" [attr.aria-label]="'uiInsertLink' | translate"></button>
+      <button type="button" class="ql-image" [title]="'uiInsertImage' | translate" [attr.aria-label]="'uiInsertImage' | translate"></button>
+      <span class="toolbar-spacer"></span><ng-content select="[editor-actions]"></ng-content>
+    </div>
+    <div below-quill-editor-toolbar class="editor-document-heading">
+      <time *ngIf="modifiedAt">{{modifiedDate()}}</time>
+      <input class="document-title" [attr.aria-label]="'uiNoteTitle' | translate" [placeholder]="'uiUntitledNote' | translate" [ngModel]="noteTitle" (ngModelChange)="titleChange.emit($event)" (keydown.enter)="$event.preventDefault(); focusBody()">
+      <p *ngIf="imageDropError" class="sn-error" role="alert">{{imageDropError}}</p>
     </div>
   </quill-editor>
+  <div *ngIf="previewImageSrc" #previewSurface class="image-preview" role="dialog" [attr.aria-label]="'uiImagePreview' | translate"
+    (click)="closeImagePreview()" (keydown)="onPreviewKeydown($event)"
+    (dragover)="$event.preventDefault()" (drop)="$event.preventDefault()">
+    <button #imagePreviewClose class="image-preview-close" type="button" [attr.aria-label]="'uiCloseImagePreview' | translate" [title]="'uiCloseEsc' | translate" (click)="$event.stopPropagation(); closeImagePreview()"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button>
+    <div class="image-preview-zoom" role="group" [attr.aria-label]="'uiImageZoom' | translate" (click)="$event.stopPropagation()">
+      <button type="button" [attr.aria-label]="'uiZoomOut' | translate" [title]="'uiZoomOut' | translate" [disabled]="previewZoom <= 1" (click)="zoomPreview(previewZoom / 1.25)"><ion-icon name="remove-outline" aria-hidden="true"></ion-icon></button>
+      <button type="button" class="zoom-value" [attr.aria-label]="'uiFitImage' | translate" [title]="'uiFitImage0' | translate" (click)="zoomPreview(1)">{{previewZoom * 100 | number:'1.0-0'}}%</button>
+      <button type="button" [attr.aria-label]="'uiZoomIn' | translate" [title]="'uiZoomIn' | translate" [disabled]="previewZoom >= 5" (click)="zoomPreview(previewZoom * 1.25)"><ion-icon name="add-outline" aria-hidden="true"></ion-icon></button>
+    </div>
+    <button class="image-preview-remove" type="button" aria-keyshortcuts="Backspace Delete" [disabled]="!quill?.isEnabled()" (click)="$event.stopPropagation(); removePreviewImage()"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon><span>{{'uiRemoveImage' | translate}}</span></button>
+    <div #previewStage class="image-preview-stage">
+      <img #previewImage [src]="previewImageSrc" [alt]="previewImageAlt" draggable="false"
+        [class.zoomed]="previewZoom > 1" [class.panning]="previewPanning" [class.animate-zoom]="previewAnimateZoom"
+        [style.transform]="'translate(' + previewPanX + 'px,' + previewPanY + 'px) scale(' + previewZoom + ')'"
+        (click)="togglePreviewZoom($event)"
+        (pointerdown)="startPreviewPan($event)" (pointermove)="movePreviewPan($event)"
+        (pointerup)="endPreviewPan($event)" (pointercancel)="endPreviewPan($event)" (lostpointercapture)="endPreviewPan($event)">
+    </div>
+  </div>
 </div>

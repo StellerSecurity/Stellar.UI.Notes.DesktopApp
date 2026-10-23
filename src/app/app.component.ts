@@ -1,10 +1,11 @@
+import { translateText as t } from './i18n';
 import { NoteConflictService } from './services/note-conflict.service';
 import { RealtimeNotesService } from './services/realtime-notes.service';
 import { Capacitor } from '@capacitor/core';
 import { NotesService } from './services/notes.service';
 import { ToastMessageService } from './services/toast-message.service';
 import { distinctUntilChanged, filter } from 'rxjs';
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { TranslatorService } from './services/translator.service';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Storage as IonicStorage } from '@ionic/storage-angular';
@@ -18,6 +19,14 @@ import { RemoteDownloadSyncService } from './services/remote-download-sync.servi
   styleUrls: ['app.component.scss'],
 })
 export class AppComponent {
+  @HostListener('window:stellar:flush-persistence',['$event'])
+  async flushLocalChanges(event:Event):Promise<void> {
+    const id=(event as CustomEvent).detail;
+    if(typeof id!=='string')return;
+    try {await this.notesState.flushPersistence();(window as any).electronAPI?.persistenceFlushed?.(id,true);}
+    catch {(window as any).electronAPI?.persistenceFlushed?.(id,false);void this.toastMessages.showError(t('uiTheNoteCouldNotBeSavedKeepThis'));}
+  }
+
   constructor(
     private noteConflicts: NoteConflictService,
     private realtimeNotes: RealtimeNotesService,
@@ -28,9 +37,13 @@ export class AppComponent {
     private syncWorker: SyncWorkerService,
     private remoteDownloadSync: RemoteDownloadSyncService,
   ) {
-    this.notesState.syncNeedsAttention$.pipe(distinctUntilChanged(), filter(Boolean)).subscribe(() => {
-      void this.toastMessages.showError('Notes are saved on this device, but synchronization is not confirmed. We will retry automatically.');
+    this.notesState.localPersistenceFailed$.pipe(distinctUntilChanged(),filter(Boolean)).subscribe(()=>{
+      void this.toastMessages.showError(t('uiTheNoteCouldNotBeSavedKeepThis'));
     });
+    this.notesState.syncNeedsAttention$.pipe(distinctUntilChanged(), filter(Boolean)).subscribe(() => {
+      void this.toastMessages.showError(t('uiNotesAreSavedOnThisDeviceButSynchronization'));
+    });
+    (window as any).electronAPI?.persistenceReady?.();
     this.syncWorker.init();
     this.realtimeNotes.init();
     this.noteConflicts.init();

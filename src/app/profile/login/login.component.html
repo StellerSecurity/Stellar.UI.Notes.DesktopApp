@@ -1,9 +1,9 @@
-<ion-content class="ion-padding user-account-section-container" scroll-y="false">
+<ion-content class="ion-padding user-account-section-container" [scrollY]="true">
   <div class="user-account-section">
     <!-- Top Blue Section with Logo -->
     <div class="top-section">
       <div class="logo-container">
-        <img class="login-app-logo-img" src="./assets/note-logo-white-bg.png" alt="">
+        <img class="login-app-logo-img" src="assets/app-icon-128.png" alt="">
         <div class="app-name">Stellar Notes</div>
       </div>
     </div>
@@ -11,19 +11,19 @@
     <!-- White Card Login Form -->
     <div class="form-card">
       <ion-button fill="clear" size="small" class="back-button" (click)="goBack()">
-        <ion-icon name="chevron-back-outline"></ion-icon>
+        <ion-icon name="chevron-back-outline"></ion-icon><span>{{'uiBack' | translate}}</span>
       </ion-button>
       <div class="form-card-content">
         <div class="title">{{'stellarIDLogin' | translate}}</div>
         <p class="subtitle">{{'pleaseEnterYourEmailAndPassword' | translate}}</p>
 
-        <form [formGroup]="loginForm">
+        <form [formGroup]="loginForm" (ngSubmit)="login()">
           <!-- Email -->
-          <ion-item class="input-field" lines="none" style="margin-bottom: 0;">
+          <label class="field-label">{{'uiEmail' | translate}}</label><ion-item class="input-field" lines="none" style="margin-bottom: 0;">
             <ion-input
-              placeholder="Email"
+              [placeholder]="'uiEmail' | translate"
               type="email"
-              formControlName="email"
+              formControlName="email" [attr.aria-label]="'uiEmail' | translate"
               [ngClass]="{'border-danger': loginForm.get('email')?.invalid && loginForm.get('email')?.touched}">
             </ion-input>
           </ion-item>
@@ -35,18 +35,18 @@
           </ion-text>
 
           <!-- Password -->
-          <ion-item
+          <label class="field-label">{{'password' | translate}}</label><ion-item
             class="input-field"
             lines="none"
-            style="margin-top: 16px"
+            style="margin-top: 0"
             [ngClass]="{
               'mb-0': loginForm.get('password')?.invalid && loginForm.get('password')?.touched
             }"
           >
             <ion-input
               [type]="showPassword ? 'text' : 'password'"
-              placeholder="Password"
-              formControlName="password"
+              [placeholder]="'password' | translate"
+              formControlName="password" [attr.aria-label]="'password' | translate"
               [ngClass]="{
                 'border-danger': loginForm.get('password')?.invalid && loginForm.get('password')?.touched
               }"
@@ -56,15 +56,22 @@
               name="{{ showPassword ? 'eye-off-outline' : 'eye-outline' }}"
               slot="end"
               class="password-toggle"
-              (click)="togglePasswordVisibility()"
+              role="button" tabindex="0" [attr.aria-label]="'uiShowOrHidePassword' | translate" (keydown.enter)="togglePasswordVisibility()" (click)="togglePasswordVisibility()"
             ></ion-icon>
           </ion-item>
 
-          <div class="forgot-password" (click)="forgotPassword()">{{'forgotPassword' | translate}}</div>
+          <p *ngIf="vaultErrorKey" role="alert">{{ vaultErrorKey | translate }}</p>
+          <ion-item *ngIf="needsPreviousNotesPassword" class="input-field" lines="none">
+            <ion-input type="password" formControlName="notesPassword" autocomplete="off"
+              [label]="'notesPreviousPassword' | translate" labelPlacement="stacked">
+            </ion-input>
+          </ion-item>
+
+          <button type="button" class="forgot-password" (click)="forgotPassword()">{{'forgotPassword' | translate}}</button>
 
           <ion-button
             class="login-button"
-            (click)="login()"
+            type="submit" [disabled]="isSaving"
             >
 
             <ng-container *ngIf="!isSaving; else loadingTpl">
@@ -77,6 +84,7 @@
             </ng-template>
 
           </ion-button>
+        <p class="sn-error" role="alert" *ngIf="formError">{{formError}}</p>
         </form>
 
         <div class="footer">

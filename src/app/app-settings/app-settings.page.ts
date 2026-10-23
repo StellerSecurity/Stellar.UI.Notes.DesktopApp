@@ -1,3 +1,5 @@
+import packageInfo from '../../../package.json';
+import { translateText as t } from '../i18n';
 import { wrapLocalAppKey, unwrapLocalAppKey } from '../utils/local-app-key';
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import {
@@ -21,6 +23,10 @@ import { SecureStorageService } from "../services/secure-storage.service";
   styleUrls: ["./app-settings.page.scss"],
 })
 export class AppSettingsPage implements AfterViewInit {
+  public readonly appVersion=packageInfo.version;
+  public readonly appName='Stellar Notes';
+  public get trashEnabled():boolean {return this.noteService.trashEnabled;}
+  public toggleTrash(event:Event):void {this.noteService.trashEnabled=(event.target as HTMLInputElement).checked;}
   public appPasswordChallenge: boolean;
   public wipeNotesOnFailedPasswords: boolean = true;
   public notesAppPassword: string;
@@ -36,6 +42,12 @@ export class AppSettingsPage implements AfterViewInit {
   public allTranslations: any;
   public shouldShowPasswordOnAppContent: boolean = false;
   public useBiometrics = true;
+  public get languagePreference() { return this.translatorService.preference; }
+  public changeLanguage(language: string): void {
+    this.translatorService.selectLanguage(language);
+    if (this.notesAppPassword) this.notesAppPasswordChange();
+    else this.passwordStrengthHelperText = this.translatorService.allTranslations['passwordAtLeastLength'];
+  }
 
   @ViewChild(IonModal) modal: IonModal;
 
@@ -121,7 +133,10 @@ export class AppSettingsPage implements AfterViewInit {
         this.notesAppPassword
       );
 
+      localStorage.removeItem("app_password_challenge");
+      this.noteService.setNotesAppPassword("");
       this.noteService.setNotes(decryptedNotes);
+      await this.noteService.flushPersistence();
       this.noteService.setDecryptedNotes(decryptedNotes);
       this.notesAppPassword = "";
       this.confirmPassword = "";
@@ -142,8 +157,9 @@ export class AppSettingsPage implements AfterViewInit {
       this.notesAppPassword
     );
 
-    this.noteService.setNotes(encryptedNotes);
     this.noteService.setNotesAppPassword(this.notesAppPassword);
+    this.noteService.setNotes(encryptedNotes);
+    await this.noteService.flushPersistence();
     this.notesAppPassword = "";
     this.appProtectorService.init();
     this.noteService.setFailedPasswordAppAttempts(0);
@@ -153,26 +169,12 @@ export class AppSettingsPage implements AfterViewInit {
     await this.navController.navigateRoot("/home");
   }
 
-  public async save() {
-    if (!this.notesAppPassword || this.notesAppPassword.length < 3) {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.thePasswordIsWeakPleaseMakeYourPasswordStronger,
-        duration: 3000,
-        position: "bottom",
-      });
-      await toast.present();
-      return;
-    }
+  public passwordError = '';
 
-    if (this.notesAppPassword !== this.confirmPassword) {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.theTwoPasswordsDoesNotMatch,
-        duration: 3000,
-        position: "bottom",
-      });
-      await toast.present();
-      return;
-    }
+  public async save() {
+    this.passwordError = '';
+    if (!this.notesAppPassword || this.notesAppPassword.length < 6) { this.passwordError = t('uiUseAtLeast6Characters'); return; }
+    if (this.notesAppPassword !== this.confirmPassword) { this.passwordError = t('uiThePasswordsDoNotMatch'); return; }
 
     try {
       let notes = this.noteService.getNotes();
@@ -197,8 +199,9 @@ export class AppSettingsPage implements AfterViewInit {
         this.notesAppPassword
       );
 
-      this.noteService.setNotes(encryptedNotes);
       this.noteService.setNotesAppPassword(this.notesAppPassword);
+      this.noteService.setNotes(encryptedNotes);
+      await this.noteService.flushPersistence();
 
       this.notesAppPassword = "";
       this.confirmPassword = "";
@@ -214,7 +217,7 @@ export class AppSettingsPage implements AfterViewInit {
       console.error("Error while saving app password", err);
 
       const toast = await this.toastController.create({
-        message: "Something went wrong while saving the password.",
+        message: t('uiSomethingWentWrongWhileSavingThePassword'),
         duration: 3000,
         position: "bottom",
       });
@@ -241,7 +244,7 @@ export class AppSettingsPage implements AfterViewInit {
               decryptedNotes = this.cryptoService.decrypt(notes, inputValue);
             } catch (e) {
               const toast = await this.toastController.create({
-                message: "The entered password was not correct.",
+                message: t('uiTheEnteredPasswordWasNotCorrect'),
                 duration: 3000,
                 position: "bottom",
               });
@@ -250,7 +253,10 @@ export class AppSettingsPage implements AfterViewInit {
               return;
             }
 
+            localStorage.removeItem("app_password_challenge");
+            this.noteService.setNotesAppPassword("");
             this.noteService.setNotes(decryptedNotes);
+            await this.noteService.flushPersistence();
             this.noteService.setDecryptedNotes(decryptedNotes);
             await this.modal?.dismiss();
             this.notesAppPassword = "";
@@ -309,7 +315,7 @@ export class AppSettingsPage implements AfterViewInit {
           decryptedNotes = this.cryptoService.decrypt(notes, inputValue);
         } catch (e) {
           const toast = await this.toastController.create({
-            message: "The entered password was not correct.",
+            message: t('uiTheEnteredPasswordWasNotCorrect'),
             duration: 3000,
             position: "bottom",
           });
@@ -328,7 +334,10 @@ export class AppSettingsPage implements AfterViewInit {
           await this.secureStorageService.removeItem("ssEakB64_Encrypted");
         }
 
+        localStorage.removeItem("app_password_challenge");
+        this.noteService.setNotesAppPassword("");
         this.noteService.setNotes(decryptedNotes);
+        await this.noteService.flushPersistence();
         this.noteService.setDecryptedNotes(decryptedNotes);
 
         this.notesAppPassword = "";
@@ -347,7 +356,7 @@ export class AppSettingsPage implements AfterViewInit {
         console.error("Error while removing password", err);
 
         const toast = await this.toastController.create({
-          message: "Something went wrong while removing the password.",
+          message: t('uiSomethingWentWrongWhileRemovingThePassword'),
           duration: 3000,
           position: "bottom",
         });
@@ -432,13 +441,14 @@ export class AppSettingsPage implements AfterViewInit {
       }
 
       try {
+        await this.noteService.clearLocalPersistence();
         localStorage.clear();
         await this.navController.navigateRoot("/home");
       } catch (err) {
         console.error("Error clearing app storage", err);
 
         const toast = await this.toastController.create({
-          message: "Something went wrong while clearing the app data.",
+          message: t('uiSomethingWentWrongWhileClearingTheAppData'),
           duration: 3000,
           position: "bottom",
         });

@@ -5,7 +5,7 @@
     </ion-back-button>
   </ion-buttons>
   <ion-toolbar>
-    <ion-title>Profile</ion-title>
+    <ion-title>{{'uiProfile' | translate}}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -17,23 +17,23 @@
       {{isLoggedIn}}
       <div *ngIf="isLoggedIn; else loginBlock">
         <div class="account-name-card">
-            <div class="label-title">Account Name</div>
+            <div class="label-title">{{'uiAccountName' | translate}}</div>
             <div class="account-name">{{user?.email}}</div>
         </div>
       </div>
 
       <ng-template #loginBlock>
         <div class="login-profile-box">
-          <div class="login-title">Log In to your Profile</div>
-          <div class="login-sub-title">Please enter your email and password</div>
+          <div class="login-title">{{'uiLogInToYourProfile' | translate}}</div>
+          <div class="login-sub-title">{{'pleaseEnterYourEmailAndPassword' | translate}}</div>
 
-          <ion-button expand="block" class="login-button">Log In</ion-button>
+          <ion-button expand="block" class="login-button">{{'login' | translate}}</ion-button>
         </div>
 
         <!-- Settings -->
         <div (click)="goToSettings()" class="action-item">
           <ion-icon name="options-outline" slot="start"></ion-icon>
-          <ion-label>Settings</ion-label>
+          <ion-label>{{'settings' | translate}}</ion-label>
         </div>
       </ng-template>
 
@@ -41,7 +41,7 @@
       <!-- Logout -->
       <div (click)="confirmLogout()" class="action-item-logout">
         <ion-icon name="log-out-outline" slot="start"></ion-icon>
-        <ion-label>Logout</ion-label>
+        <ion-label>{{'logout' | translate}}</ion-label>
       </div>
 
 

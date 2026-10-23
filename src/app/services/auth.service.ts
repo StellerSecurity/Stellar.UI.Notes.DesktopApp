@@ -10,6 +10,7 @@ import { SecureStorageService } from './secure-storage.service';
 })
 export class AuthService {
   private loggedInSubject = new BehaviorSubject<boolean>(false);
+  private authStateRevision = 0;
 
   public readonly loginState$ = this.loggedInSubject.asObservable();
 
@@ -22,12 +23,15 @@ export class AuthService {
   }
 
   setLoggedInState(isLoggedIn: boolean): void {
+    this.authStateRevision++;
     this.loggedInSubject.next(!!isLoggedIn);
   }
 
   async initializeAuthState() {
+    const revision = ++this.authStateRevision;
     const token = await this.secureStorageService.getItem('ssToken');
-    this.loggedInSubject.next(!!token);
+    // A pending storage read must not overwrite a later login/logout.
+    if (revision === this.authStateRevision) this.loggedInSubject.next(!!token);
   }
 
   createAccount(data: loginDto): Observable<any> {
