@@ -312,5 +312,9 @@
   "nativeUpdateDownloaded": "Güncelleme indirildi",
   "nativeUpdateReady": "Stellar Notes {version} yüklenmeye hazır.",
   "searchLanguages": "Dil ara",
-  "noLanguagesFound": "Dil bulunamadı"
+  "noLanguagesFound": "Dil bulunamadı",
+  "sortFolders": "Klasörleri sırala",
+  "folderSortAscending": "Ad: A–Z",
+  "folderSortDescending": "Ad: Z–A",
+  "folderSortManual": "Özel sıralama"
 }

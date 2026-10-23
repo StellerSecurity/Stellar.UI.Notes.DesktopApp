@@ -57,6 +57,8 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   @Input() noteId: string | null = null;
   @Input() noteTitle = '';
   @Input() autoFocusNewNote = false;
+  @Input() focusBodyRequested = false;
+  @Output() bodyFocusHandled = new EventEmitter<void>();
   private didAutoFocus = false;
   @Input() modifiedAt: number | null = null;
   @Output() titleChange = new EventEmitter<string>();
@@ -153,6 +155,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     }
     this.note_text = this.safeHtml(this.note_text);
     this.publishedContent = this.note_text;
+    if (this.focusBodyRequested) this.schedule(() => this.focusRequestedBody(),0);
   }
 
   onEditorCreated(quill: any): void {
@@ -175,7 +178,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
       bindEditorScroll(quill, this.editorWrapper.nativeElement.querySelector('quill-editor') as HTMLElement, this.toolbar.nativeElement),
       this.renderer.listen(root, 'click', (event: MouseEvent) => this.openEditorLink(event)),
     ];
-    this.schedule(() => this.focusEmptyEditor(), 0);
+    this.schedule(() => { this.focusEmptyEditor(); this.focusRequestedBody(); }, 0);
   }
 
   public onEnter(): void {
@@ -196,6 +199,17 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     this.onLeave();
     this.unlisten.forEach(remove => remove());
     this.unlisten = [];
+  }
+
+  public focusRequestedBody(): void {
+    if (!this.focusBodyRequested || !this.active || this.destroyed || !this.quill) return;
+    const active = document.activeElement as HTMLElement | null;
+    if (!active?.closest('input, textarea, ion-input, ion-modal, ion-alert')) {
+      const selection = this.quill.getSelection();
+      this.quill.root.focus({preventScroll:true});
+      if (!selection) this.quill.setSelection(Math.max(0,this.quill.getLength() - 1),0,'silent');
+    }
+    this.bodyFocusHandled.emit();
   }
 
   public focusEmptyEditor(): void {

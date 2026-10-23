@@ -312,5 +312,9 @@
   "nativeUpdateDownloaded": "Pobrano aktualizację",
   "nativeUpdateReady": "Stellar Notes {version} jest gotowy do instalacji.",
   "searchLanguages": "Szukaj języków",
-  "noLanguagesFound": "Nie znaleziono języków"
+  "noLanguagesFound": "Nie znaleziono języków",
+  "sortFolders": "Sortuj foldery",
+  "folderSortAscending": "Nazwa: A–Z",
+  "folderSortDescending": "Nazwa: Z–A",
+  "folderSortManual": "Własna kolejność"
 }

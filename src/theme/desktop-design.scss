@@ -104,3 +104,6 @@ ion-popover.user-menu-popover::part(content) {
 ion-popover.language-picker-popover { --width: 308px; --max-width: calc(100vw - 48px); --backdrop-opacity: 0; --offset-y: 6px; }
 ion-popover.language-picker-popover::part(content) { width: var(--width); max-width: var(--max-width); border-radius: 15px; border: 1px solid #e5e5ee; box-shadow: 0 12px 44px #0b0c1929, 0 2px 8px #0b0c190a; }
 ion-popover.language-picker-popover::part(arrow) { display: none; }
+
+ion-modal ion-header::after { display: none; background-image: none; box-shadow: none; }
+ion-modal ion-header.header-md { box-shadow: none; }

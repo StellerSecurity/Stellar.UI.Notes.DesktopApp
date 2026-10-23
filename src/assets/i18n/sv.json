@@ -312,5 +312,9 @@
   "nativeUpdateDownloaded": "Uppdatering hämtad",
   "nativeUpdateReady": "Stellar Notes {version} är redo att installeras.",
   "searchLanguages": "Sök språk",
-  "noLanguagesFound": "Inga språk hittades"
+  "noLanguagesFound": "Inga språk hittades",
+  "sortFolders": "Sortera mappar",
+  "folderSortAscending": "Namn: A–Ö",
+  "folderSortDescending": "Namn: Ö–A",
+  "folderSortManual": "Egen ordning"
 }

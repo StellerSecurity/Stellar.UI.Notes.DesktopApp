@@ -76,6 +76,14 @@ describe('RichTextEditorComponent', () => {
     button.remove();
   });
 
+  it('focuses an existing note body on an explicit Enter request without changing content', async () => {
+    await fixture.whenStable(); component.quill.setText('Existing body');
+    const row=document.createElement('button');document.body.appendChild(row);row.focus();
+    component.focusBodyRequested=true;const handled=spyOn(component.bodyFocusHandled,'emit');
+    const before=component.quill.getContents();component.focusRequestedBody();
+    expect(document.activeElement).toBe(component.quill.root);expect(component.quill.getContents()).toEqual(before);expect(handled).toHaveBeenCalled();row.remove();
+  });
+
   it('does not steal a deliberate title focus during new-note autofocus', async () => {
     await fixture.whenStable();
     component.autoFocusNewNote = true;

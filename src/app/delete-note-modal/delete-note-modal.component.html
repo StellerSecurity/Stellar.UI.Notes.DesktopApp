@@ -11,7 +11,7 @@
   </ng-container>
 
   <div class="buttons">
-    <button type="button" class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</button>
-    <button type="button" class="blue-btn destructive" (click)="dismiss(true)">{{'delete' | translate}}</button>
+    <button type="button" class="sn-button" (click)="dismiss(false)">{{'cancel' | translate}}</button>
+    <button type="button" class="sn-button destructive" #confirmDeleteButton (click)="dismiss(true)">{{'delete' | translate}}</button>
   </div>
 </div>

@@ -23,6 +23,7 @@ export class NotesService {
   public readonly syncNeedsAttention$ = new BehaviorSubject<boolean>(false);
   public hasPendingMutations(): boolean { return this.pendingNoteMutations.size > 0; }
   selectedNoteId: any = "";
+  editorFocusNoteId: string | null = null;
   private noteIsUpdatedSubject = new BehaviorSubject<boolean>(true);
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();
   private noteIsDeletedSubject = new BehaviorSubject<boolean>(false);

@@ -312,5 +312,9 @@
   "nativeUpdateDownloaded": "Atualização baixada",
   "nativeUpdateReady": "O Stellar Notes {version} está pronto para instalar.",
   "searchLanguages": "Buscar idiomas",
-  "noLanguagesFound": "Nenhum idioma encontrado"
+  "noLanguagesFound": "Nenhum idioma encontrado",
+  "sortFolders": "Ordenar pastas",
+  "folderSortAscending": "Nome: A–Z",
+  "folderSortDescending": "Nome: Z–A",
+  "folderSortManual": "Ordem personalizada"
 }

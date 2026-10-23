@@ -1,7 +1,7 @@
 :host { display: block; height: 100%; }
-.desktop-layout { display: grid; grid-template-columns: 220px 300px minmax(0,1fr); height: 100dvh; overflow: hidden; background: #fff; color: #0b0c19; font-size: 14px; }
-.desktop-layout.sidebar-hidden { grid-template-columns: 300px minmax(0,1fr); }
-.desktop-folders-pane { display: flex; flex-direction: column; background: #f6f6fd; border-right: 1px solid #eaeaf0; min-height: 0; }
+.desktop-layout { display: grid; grid-template-columns: 220px 300px minmax(0,1fr); height: 100dvh; overflow: hidden; background: #fff; color: #0b0c19; font-size: 14px; transition: grid-template-columns 220ms cubic-bezier(.2,.8,.2,1); }
+.desktop-layout.sidebar-hidden { grid-template-columns: 0px 300px minmax(0,1fr); }
+.desktop-folders-pane { width: 220px; min-width: 0; overflow: hidden; transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; background: #f6f6fd; border-right: 1px solid #eaeaf0; min-height: 0; }
 .folders-header { display: flex; align-items: center; gap: 6px; height: 56px; flex-shrink: 0; padding: 0 12px; strong { font-size: 13px; } }
 .brand-icon { width: 24px; height: 24px; object-fit: contain; }
 .folders-scroll { flex: 1; overflow: auto; padding: 0 12px; }
@@ -18,9 +18,9 @@
 .notes-search { padding: 0 12px 6px; ion-searchbar { padding: 0; min-height: 32px; --border-radius: 8px; --background: #f6f6fd; --box-shadow: none; --icon-color: #62626a; font-size: 13px; } }
 :host ::ng-deep .notes-search .searchbar-input { min-height: 32px; height: 32px; padding-inline-start: 32px !important; font-size: 13px; }
 :host ::ng-deep .notes-search .searchbar-search-icon { width: 16px; height: 16px; top: 8px; left: 10px; }
-.home-note-list { min-height: 0; flex: 1; overflow: auto; padding: 0 12px 12px; }
-.note-group { color: #62626a; font-size: 11px; padding: 10px 6px 4px; }
-.note-row { padding: 9px 8px; border-bottom: 1px solid #eaeaf0; border-radius: 5px; min-height: 59px; user-select: none; cursor: default; &.selected { background: #e8edff; } &:focus-visible { outline: 2px solid #2761fc; outline-offset: -2px; } &.is-dragging { opacity: .45; } }
+.home-note-list { overflow-anchor: none; min-height: 0; flex: 1; overflow: auto; padding: 0 12px 12px; }
+.note-group { height: 32px; box-sizing: border-box; color: #62626a; font-size: 11px; padding: 10px 6px 4px; }
+.note-row { box-sizing: border-box; overflow: hidden; padding: 9px 8px; border-bottom: 1px solid #eaeaf0; border-radius: 5px; min-height: 59px; user-select: none; cursor: default; &.selected { background: #e8edff; } &:focus-visible { outline: 2px solid #2761fc; outline-offset: -2px; } &.is-dragging { opacity: .45; } }
 .note-drag-stack { position: fixed; z-index: 100000; pointer-events: none; width: 232px; height: 62px; border-radius: 12px; }
 .note-drag-stack-front { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; width: 100%; height: 100%; padding: 16px; border: 1px solid #ffffffb3; border-radius: inherit; color: #fff; background: #2761fc; box-shadow: 0 12px 28px #152b6640; font-size: 14px; }
 .note-drag-stack ion-icon { font-size: 26px; }
@@ -41,3 +41,9 @@
 .app-lock-card { width: 360px; text-align: center; h1 { font-size: 24px; font-weight: 600; } > p { color: #62626a; font-size: 13px; } form { margin-top: 24px; text-align: left; } label { display: block; margin-bottom: 6px; font-size: 12px; } > .text-link { margin-top: 20px; } }
 .app-lock-icon { width: 64px; height: 64px; }
 .move-choices { max-height: 260px; overflow: auto; margin: 12px 0; label { display: flex; align-items: center; gap: 10px; padding: 10px 0; overflow-wrap: anywhere; } input { accent-color: #2761fc; } }
+
+.desktop-layout.sidebar-hidden .desktop-folders-pane { opacity: 0; transform: translateX(-14px); pointer-events: none; }
+.folder-header-actions { display: flex; gap: 2px; }
+.folder-chip.reorder-before { box-shadow: inset 0 2px #2761fc; }
+.folder-chip.reorder-after { box-shadow: inset 0 -2px #2761fc; }
+@media (prefers-reduced-motion: reduce) { .desktop-layout, .desktop-folders-pane { transition: none; } }

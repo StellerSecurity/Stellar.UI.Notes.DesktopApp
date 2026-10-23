@@ -1,4 +1,4 @@
-import { Component, Input, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 
 @Component({ standalone: false,
@@ -7,6 +7,9 @@ import { ModalController } from '@ionic/angular';
   styleUrls: ['./delete-note-modal.component.scss'],
 })
 export class DeleteNoteModalComponent {
+  @ViewChild('confirmDeleteButton') confirmDeleteButton?: ElementRef<HTMLButtonElement>;
+  private dismissing = false;
+  ionViewDidEnter(): void { this.confirmDeleteButton?.nativeElement.focus({preventScroll:true}); }
   @Input() count = 0;
   @Input() isSingleDelete: boolean = false; 
 
@@ -14,7 +17,9 @@ export class DeleteNoteModalComponent {
 
   // Dismiss the modal with the confirmation result
   public dismiss(confirm: boolean): void {
-    this.modalCtrl.dismiss({ confirm });
+    if (this.dismissing) return;
+    this.dismissing = true;
+    void this.modalCtrl.dismiss({ confirm });
   }
   
 }

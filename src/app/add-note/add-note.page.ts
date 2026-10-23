@@ -51,6 +51,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   public lockError = '';
   private unlockPromptOpen = false;
   public get isNewNote(): boolean { return this.newlyCreatedNote; }
+  public get bodyFocusRequested(): boolean { return this.notesService.editorFocusNoteId === this.notes_id; }
+  public bodyFocusHandled(): void { if (this.bodyFocusRequested) this.notesService.editorFocusNoteId = null; }
   public get modifiedAt(): number | null { return this.currentNote?.last_modified || null; }
   public notes_password_input = '';
   public note_locked = false;

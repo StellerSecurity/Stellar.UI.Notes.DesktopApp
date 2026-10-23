@@ -19,6 +19,7 @@
     "src/app/add-note/rich-text-editor/legacy-note-html.spec.ts",
     "src/app/desktop-design.spec.ts",
     "src/app/i18n.spec.ts",
-    "src/app/app-settings/language-picker.component.spec.ts"
+    "src/app/app-settings/language-picker.component.spec.ts",
+    "src/app/desktop-navigation.spec.ts"
   ]
 }

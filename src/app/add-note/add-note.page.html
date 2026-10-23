@@ -1,5 +1,5 @@
 <div class="desktop-note-editor-body" *ngIf="!note_locked">
-  <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text" [noteId]="notes_id" [noteTitle]="note_title" [autoFocusNewNote]="isNewNote" [modifiedAt]="modifiedAt"
+  <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text" [noteId]="notes_id" [noteTitle]="note_title" [autoFocusNewNote]="isNewNote" [focusBodyRequested]="bodyFocusRequested" (bodyFocusHandled)="bodyFocusHandled()" [modifiedAt]="modifiedAt"
     (titleChange)="noteTitleChange({detail: {value: $event}})" (noteChange)="onSave($event, 'note_text')" (editorFocusChange)="onEditorFocusChange($event)">
     <div editor-actions class="editor-note-actions">
       <button type="button" class="icon-button" (click)="openLockModal()" [title]="getProtected() ? ('removeLock' | translate) : ('lockNote' | translate)" [attr.aria-label]="getProtected() ? ('removeLock' | translate) : ('lockNote' | translate)"><ion-icon [name]="getProtected() ? 'lock-open-outline' : 'lock-closed-outline'"></ion-icon></button>

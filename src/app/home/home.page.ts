@@ -1,5 +1,7 @@
+import { NoteListWindow, NoteListRow } from '../utils/note-list-window';
+import { FolderOrder, FolderSort } from '../utils/folder-order';
 import { translateText as t } from '../i18n';
-import { desktopNoteDate, selectionRange } from '../utils/desktop-note-presentation';
+import { desktopNoteDate, desktopNoteMonth, selectionRange } from '../utils/desktop-note-presentation';
 import { AppSettingsPage } from '../app-settings/app-settings.page';
 import { nextNoteVersion } from '../utils/note-version';
 import { unwrapLocalAppKey, wrapLocalAppKey, isModernLocalAppKey } from '../utils/local-app-key';
@@ -99,6 +101,63 @@ export class HomePage implements AfterViewInit {
   private createThenMove = false;
   private displayCache = new WeakMap<object, {title: string; text: string; preview: string; heading: string}>();
   public readonly noteDate = desktopNoteDate;
+  public readonly noteMonth = desktopNoteMonth;
+  private noteWindow?: NoteListWindow;
+  private virtualScrollTop = 0;
+  private virtualViewportHeight = 640;
+  private scrollPersistTimer?: ReturnType<typeof setTimeout>;
+  private searchCache?: WeakMap<object, {title: string; text: string; folder: string; protected: boolean; fields: string[]}>;
+  private folderOrder = new FolderOrder();
+  public folderSortOpen = false;
+  public folderSortEvent?: Event;
+  public draggingSidebarFolderId: string | null = null;
+  public folderReorderTarget: string | null = null;
+  public folderReorderAfter = false;
+  private get folderOrdering(): FolderOrder { return this.folderOrder ?? (this.folderOrder = new FolderOrder()); }
+  public get folderSortMode() { return this.folderOrdering.mode; }
+  public sortFolders(mode: FolderSort): void { this.folders = this.folderOrdering.select(mode,this.folders); this.folderSortOpen = false; }
+  public startFolderDrag(event: DragEvent, folder: Folder): void {
+    event.stopPropagation(); if (!folder.id) return; this.draggingSidebarFolderId = folder.id;
+    if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('application/x-stellar-folder',folder.id); }
+  }
+  public endFolderDrag(): void { this.draggingSidebarFolderId = null; this.folderReorderTarget = null; }
+  public overSidebarFolder(event: DragEvent, folder: Folder): void {
+    if (!this.draggingSidebarFolderId) { this.onFolderDragOver(event,folder.name); return; }
+    event.preventDefault(); event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.folderReorderTarget = folder.id || null;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.folderReorderAfter = event.clientY > rect.top + rect.height / 2;
+  }
+  public dropSidebarFolder(event: DragEvent, folder: Folder): void {
+    if (!this.draggingSidebarFolderId) { void this.onFolderDrop(event,folder.name); return; }
+    event.preventDefault(); event.stopPropagation();
+    this.folders = this.folderOrdering.move(this.folders,this.draggingSidebarFolderId,folder.id || '',this.folderReorderAfter);
+    this.endFolderDrag();
+  }
+  public renameFolderFromKeyboard(event: Event, folder: Folder): void {
+    event.preventDefault(); event.stopPropagation(); this.requestRenameFolder(folder);
+  }
+  private updateNoteWindow(): NoteListWindow {
+    const view = this.noteWindow ?? (this.noteWindow = new NoteListWindow());
+    view.update(this.getNotes(),this.activeFolderName === '__all__',this.virtualScrollTop || 0,this.virtualViewportHeight || 640);
+    return view;
+  }
+  public get visibleNoteRows(): NoteListRow[] { return this.updateNoteWindow().visible; }
+  public get topNoteSpacer(): number { return this.updateNoteWindow().top; }
+  public get bottomNoteSpacer(): number { return this.updateNoteWindow().bottom; }
+  public trackVisibleRow(_index: number, row: NoteListRow): string { return row.key; }
+  public trackFolderById(_index: number, folder: Folder): string { return folder.id || folder.name; }
+  private focusNoteRow(id: string): void {
+    const list = this.notesListScroll?.nativeElement, row = this.updateNoteWindow().position(id);
+    if (list && row) {
+      if (row.offset < list.scrollTop) list.scrollTop = row.offset;
+      else if (row.offset + row.height > list.scrollTop + list.clientHeight) list.scrollTop = row.offset + row.height - list.clientHeight;
+      this.captureNoteViewport();
+      this.cdr.detectChanges();
+    }
+    document.getElementById(id)?.focus({preventScroll:true});
+  }
   public notes: any[] = [];
 
   public should_display = true;
@@ -285,6 +344,7 @@ export class HomePage implements AfterViewInit {
         return;
       }
       container.scrollTop = scrollTop;
+      this.captureNoteViewport();
       this.pendingRestoreScrollTop = null;
     }, 0);
   }
@@ -381,8 +441,17 @@ export class HomePage implements AfterViewInit {
     }
   }
 
+  private captureNoteViewport(): void {
+    const list = this.notesListScroll?.nativeElement;
+    if (list) { this.virtualScrollTop = list.scrollTop; this.virtualViewportHeight = list.clientHeight || 640; }
+  }
+  @HostListener('window:resize')
+  public onNotesListResize(): void { this.captureNoteViewport(); }
+
   public onNotesListScroll(): void {
-    this.persistUiState();
+    this.captureNoteViewport();
+    clearTimeout(this.scrollPersistTimer);
+    this.scrollPersistTimer = setTimeout(() => this.persistUiState(),180);
   }
 
   private getStoredFolders(password: string = ''): Folder[] {
@@ -500,7 +569,7 @@ export class HomePage implements AfterViewInit {
       }
     }
 
-    this.folders = Array.from(folderMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    this.folders = this.folderOrdering.sort(Array.from(folderMap.values()));
 
     if (this.activeFolderName !== '__all__'
       && !this.folders.some((folder) => folder.name === this.activeFolderName)) {
@@ -562,6 +631,7 @@ export class HomePage implements AfterViewInit {
   ngAfterViewInit(): void {
     setTimeout(() => {
       this.initializePressGesture();
+      this.captureNoteViewport();
       this.allTranslations = this.translatorService.allTranslations;
     }, 300)
   }
@@ -573,6 +643,8 @@ export class HomePage implements AfterViewInit {
 
   ionViewWillLeave() {
     this.onNoteDragEnd();
+    clearTimeout(this.scrollPersistTimer);
+    this.endFolderDrag();
     window.removeEventListener('stellar:notes-changed', this.realtimeHint);
     this.persistUiState();
     this.exitSearchMode();
@@ -736,6 +808,8 @@ export class HomePage implements AfterViewInit {
   }
 
   search() {
+    if (this.notesListScroll) this.notesListScroll.nativeElement.scrollTop = 0;
+    this.virtualScrollTop = 0;
     this.isSearching = !!this.search_query.trim();
     this.pauseSync = this.isSearching;
     this.applyFilters();
@@ -1093,7 +1167,10 @@ export class HomePage implements AfterViewInit {
     return this.listOfCheckedCheckboxes.length ? this.listOfCheckedCheckboxes.includes(id) : this.noteService.selectedNoteId === id;
   }
 
-  public selectedNotes(): any[] { return this.getNotes().filter(note => this.isNoteSelected(note.id)); }
+  public selectedNotes(): any[] {
+    const ids = new Set(this.listOfCheckedCheckboxes.length ? this.listOfCheckedCheckboxes : [this.noteService.selectedNoteId]);
+    return this.getNotes().filter(note => ids.has(note.id));
+  }
   public allSelectedFavorite(): boolean { return this.selectedNotes().every(note => note.favorite); }
   public isNoteLocked(note: any): boolean {
     return !!note.protected && !(note.id === this.noteService.selectedNoteId && this.noteService.isNoteTemporaryDescripted);
@@ -1114,6 +1191,7 @@ export class HomePage implements AfterViewInit {
   public searchAllNotes(): void { this.activeFolderName = '__all__'; this.activeFilter = 'all'; this.applyFilters(); }
 
   public selectDesktopNote(event: MouseEvent | KeyboardEvent, note: any): void {
+    if (this.noteService.editorFocusNoteId !== note.id) this.noteService.editorFocusNoteId = null;
     event.preventDefault();
     event.stopPropagation();
     const previous = this.listOfCheckedCheckboxes.length ? this.listOfCheckedCheckboxes : [this.noteService.selectedNoteId].filter(Boolean) as string[];
@@ -1157,8 +1235,13 @@ export class HomePage implements AfterViewInit {
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? notes.length - 1 : event.key === 'ArrowDown' ? Math.min(index + 1, notes.length - 1) : event.key === 'ArrowUp' ? Math.max(index - 1, 0) : -1;
     if (next >= 0) {
       this.selectDesktopNote(event, notes[next]);
-      document.getElementById(notes[next].id)?.focus();
-    } else if (event.key === 'Enter' || event.key === ' ') {
+      this.focusNoteRow(notes[next].id);
+    } else if (event.key === 'Enter') {
+      event.preventDefault(); event.stopPropagation();
+      if (this.listOfCheckedCheckboxes.length !== 1 || !this.isNoteSelected(notes[index].id)) this.selectDesktopNote(event, notes[index]);
+      this.noteService.editorFocusNoteId = notes[index].id;
+      this.cdr.detectChanges();
+    } else if (event.key === ' ') {
       this.selectDesktopNote(event, notes[index]);
     } else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
       event.preventDefault(); event.stopPropagation();
@@ -1175,11 +1258,13 @@ export class HomePage implements AfterViewInit {
     if (command && key === ',') { event.preventDefault(); void this.settings(); return; }
     if (command && key === 'n') { event.preventDefault(); this.goToCreateNewNote(); return; }
     if (command && (key === 'f' || key === 'k')) { event.preventDefault(); this.enterSearchMode(); return; }
-    if (this.isTypingTarget(event.target as HTMLElement)) return;
+    if (this.isTypingTarget(event.target as HTMLElement) || event.isComposing) return;
+    if ((event.target as HTMLElement)?.closest?.('[data-folder-id]')) return;
     if (key === 'escape' && this.listOfCheckedCheckboxes.length > 1) {
       event.preventDefault(); this.listOfCheckedCheckboxes = [this.focusedNoteId || this.listOfCheckedCheckboxes[0]]; this.applyDesktopSelection();
-    } else if ((key === 'delete' || (event.metaKey && key === 'backspace')) && this.selectedNotes().length) {
-      event.preventDefault(); this.listOfCheckedCheckboxes = this.selectedNotes().map(n => n.id); void this.deleteSelectedNotes();
+    } else if ((key === 'delete' || key === 'backspace') && this.selectedNotes().length) {
+      event.preventDefault(); if (event.repeat) return;
+      this.listOfCheckedCheckboxes = this.selectedNotes().map(n => n.id); void this.deleteSelectedNotes();
     } else if (key === '/') { event.preventDefault(); this.enterSearchMode(); }
   }
 
@@ -1214,6 +1299,14 @@ export class HomePage implements AfterViewInit {
     this.loadFolders(this.noteService.getNotesAppPassword());
   }
 
+  private cachedSearchFields(note: any): string[] {
+    const cache = this.searchCache ?? (this.searchCache = new WeakMap());
+    const old = cache.get(note), title = note.title || '', text = note.text || '', folder = note.folder || '', protectedNote = !!note.protected;
+    if (old && old.title === title && old.text === text && old.folder === folder && old.protected === protectedNote) return old.fields;
+    const fields = [normalize(title),normalize(folder),protectedNote ? '' : noteSearchText(text)];
+    cache.set(note,{title,text,folder,protected:protectedNote,fields}); return fields;
+  }
+
   public applyFilters(): void {
     const base = Array.isArray(this.notes) ? [...this.notes] : [];
     const terms = normalize(this.search_query ?? '').split(' ').filter(Boolean);
@@ -1222,9 +1315,8 @@ export class HomePage implements AfterViewInit {
       if (this.activeFolderName !== '__all__' && (note?.folder ?? '') !== this.activeFolderName) return false;
       if (this.activeFilter === 'favorites' && !note?.favorite) return false;
       if (terms.length > 0) {
-        return matchesNoteSearch(terms,
-          normalize(note.title), normalize(note.folder),
-          note.protected ? '' : noteSearchText(note.text ?? ''), !!note.protected);
+        const fields = this.cachedSearchFields(note);
+        return matchesNoteSearch(terms,fields[0],fields[1],fields[2],!!note.protected);
       }
       return true;
     }).sort((a: any, b: any) => {
@@ -1659,9 +1751,6 @@ export class HomePage implements AfterViewInit {
    * @private
    */
   private async deleteNotesConfirm(id:any = '') {
-    const loading = await this.loadingController.create();
-    await loading.present();
-
     const idsToDelete = new Set<string>(id ? [id] : this.listOfCheckedCheckboxes);
 
     // delete the selected notes from notes[]
@@ -1717,6 +1806,7 @@ export class HomePage implements AfterViewInit {
 
     this.listOfCheckedCheckboxes = [];
     this.applyFilters();
+    this.cdr.detectChanges();
     if (idsToDelete.has(this.noteService.selectedNoteId || '')) await this.router.navigate(['/home']);
     const toast = await this.toastController.create({
       message: this.allTranslations.theSelectedNotesHasBeenDeleted,
@@ -1725,7 +1815,6 @@ export class HomePage implements AfterViewInit {
     });
 
     await toast.present();
-    await loading.dismiss();
 
     // current branch behaviour: reload home
     // window.location.href = "/";
