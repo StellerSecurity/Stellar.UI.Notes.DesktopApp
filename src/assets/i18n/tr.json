@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Bu notun parolasını kaldırmak istiyor musunuz? Kilit kaldırılırsa not cihazınızda şifrelenmemiş olarak saklanır.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Parola zayıf. Daha güçlü bir parola seçin.",
   "enterYourCurrentPassword": "Mevcut parolanızı girin",
+  "theNoteHasBeenDeleted": "Not silindi.",
   "theSelectedNotesHasBeenDeleted": "Seçilen notlar silindi.",
   "secretDeletedSuccessfully": "Gizli mesaj silindi.",
   "shareNote": "Notu paylaş",

@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Czy chcesz usunąć hasło notatki? Po usunięciu blokady notatka będzie przechowywana na urządzeniu bez szyfrowania.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Hasło jest słabe. Wybierz silniejsze hasło.",
   "enterYourCurrentPassword": "Wpisz obecne hasło",
+  "theNoteHasBeenDeleted": "Notatka została usunięta.",
   "theSelectedNotesHasBeenDeleted": "Wybrane notatki zostały usunięte.",
   "secretDeletedSuccessfully": "Tajna wiadomość została usunięta.",
   "shareNote": "Udostępnij notatkę",

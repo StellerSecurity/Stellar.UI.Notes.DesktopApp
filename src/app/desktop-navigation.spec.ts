@@ -1,3 +1,5 @@
+import { InitialComponent } from './initial/initial.component';
+import { AddNotePage } from './add-note/add-note.page';
 import { DeleteNoteModalComponent } from './delete-note-modal/delete-note-modal.component';
 import { ModalController } from '@ionic/angular';
 import { TranslateModule } from '@ngx-translate/core';
@@ -57,18 +59,25 @@ describe('Desktop keyboard and large note lists',()=>{
       expect(TestBed.inject(ModalController).dismiss).toHaveBeenCalledOnceWith({confirm:true});
     } finally {if(!hydrated)document.documentElement.classList.remove('hydrated');}
   });
-  it('deletes confirmed notes locally without opening a loading overlay',async()=>{
+  for (const scenario of [
+    {name:'one selected note', selected:['0'], id:'', remaining:['1','2','3'], message:'Note deleted'},
+    {name:'one explicit note despite multiple selected notes', selected:['0','1'], id:'0', remaining:['1','2','3'], message:'Note deleted'},
+    {name:'multiple selected notes', selected:['0','1'], id:'', remaining:['2','3'], message:'Notes deleted'},
+  ]) it(`deletes ${scenario.name} without a loading overlay and uses the correct toast`,async()=>{
     const p=home();let stored='';
+    p.listOfCheckedCheckboxes=scenario.selected;
     p.noteService.appHasPasswordChallenge=()=>false;
     p.noteService.setNotes=(value:string)=>stored=value;
     p.noteService.getNotes=()=>stored;
     p.noteService.setDecryptedNotes=()=>{};
-    p.authService={isLoggedIn:false};p.allTranslations={theSelectedNotesHasBeenDeleted:'Deleted'};
-    p.toastController={create:async()=>({present:async()=>{}})};
+    p.authService={isLoggedIn:false};
+    p.allTranslations={theNoteHasBeenDeleted:'Note deleted',theSelectedNotesHasBeenDeleted:'Notes deleted'};
+    p.toastController={create:jasmine.createSpy('toast').and.resolveTo({present:async()=>{}})};
     p.loadingController={create:jasmine.createSpy('loading').and.throwError('Deletion must not block on an overlay')};
-    await p.deleteNotesConfirm();
-    expect(JSON.parse(stored).map((note:any)=>note.id)).toEqual(['2','3']);
-    expect(p.filteredResults.map((note:any)=>note.id)).toEqual(['3','2']);
+    await p.deleteNotesConfirm(scenario.id);
+    expect(JSON.parse(stored).map((note:any)=>note.id)).toEqual(scenario.remaining);
+    expect(p.filteredResults.map((note:any)=>note.id).sort()).toEqual(scenario.remaining);
+    expect(p.toastController.create.calls.mostRecent().args[0].message).toBe(scenario.message);
     expect(p.loadingController.create).not.toHaveBeenCalled();
   });
   it('leaves editing keys, empty selection, composing text and folder focus alone',()=>{
@@ -171,5 +180,45 @@ describe('Folder order preferences',()=>{
     expect(new FolderOrder().sort([...folders].reverse()).map(f=>f.id)).toEqual(['c','a','b']);
     expect(JSON.stringify(folders)).toBe(copy);
     expect(order.move(folders,'missing','a',false)).toBe(folders);
+  });
+});
+
+describe('Create a note by dropping local images on the empty editor',()=>{
+  const drop = (files:File[],types=['Files']) => ({dataTransfer:{files,types},preventDefault:jasmine.createSpy(),stopPropagation:jasmine.createSpy()}) as unknown as DragEvent;
+  const setup = () => {
+    const service:any={shouldAskForPassword:()=>false,pendingImageNote:null};
+    const router:any={navigate:jasmine.createSpy('navigate').and.resolveTo(true)};
+    return {component:new InitialComponent(service,router),service,router};
+  };
+  it('creates one new note containing all dropped images, then consumes the draft once through normal save',async()=>{
+    const {component,service,router}=setup();
+    await component.onImageDrop(drop([new File(['png'],'a.png',{type:'image/png'}),new File(['jpg'],'b.jpg',{type:'image/jpeg'})]));
+    expect(router.navigate).toHaveBeenCalledOnceWith(['/note']);
+    expect(service.pendingImageNote.html.match(/<img /g).length).toBe(2);
+    expect(service.pendingImageNote.html).toContain('data:image/png;base64,');
+    const editor:any=Object.create(AddNotePage.prototype);editor.notesService=service;editor.save=jasmine.createSpy();
+    editor.importDroppedImageNote();editor.importDroppedImageNote();
+    expect(editor.note_text).toContain('data:image/jpeg;base64,');
+    expect(editor.save).toHaveBeenCalledOnceWith(null,true);expect(service.pendingImageNote).toBeNull();
+  });
+  it('rejects unsupported files and oversized images without creating an empty note',async()=>{
+    const {component,router}=setup();
+    await component.onImageDrop(drop([new File(['svg'],'a.svg',{type:'image/svg+xml'})]));
+    expect(component.imageDropError).toBeTruthy();expect(router.navigate).not.toHaveBeenCalled();
+    const large=new File(['x'],'large.png',{type:'image/png'});Object.defineProperty(large,'size',{value:11*1024*1024});
+    await component.onImageDrop(drop([large]));expect(component.imageDropError).toBeTruthy();expect(router.navigate).not.toHaveBeenCalled();
+  });
+  it('does not create notes after leaving the view or while the vault is locked',async()=>{
+    const {component,service,router}=setup();
+    const pending=component.onImageDrop(drop([new File(['png'],'a.png',{type:'image/png'})]));
+    component.ngOnDestroy();await pending;expect(router.navigate).not.toHaveBeenCalled();expect(service.pendingImageNote).toBeNull();
+    const locked=setup();locked.service.shouldAskForPassword=()=>true;
+    await locked.component.onImageDrop(drop([new File(['png'],'a.png',{type:'image/png'})]));expect(locked.router.navigate).not.toHaveBeenCalled();
+  });
+  it('ignores internal note drags and clears an unconsumed draft if navigation fails',async()=>{
+    const {component,service,router}=setup();
+    const internal=drop([],['application/x-stellar-note-ids']);await component.onImageDrop(internal);expect(internal.preventDefault).not.toHaveBeenCalled();
+    router.navigate.and.resolveTo(false);
+    await component.onImageDrop(drop([new File(['png'],'a.png',{type:'image/png'})]));expect(service.pendingImageNote).toBeNull();expect(component.imageDropError).toBeTruthy();
   });
 });

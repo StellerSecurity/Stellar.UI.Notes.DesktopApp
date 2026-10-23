@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Êtes‑vous sûr de vouloir supprimer le mot de passe de cette note ? Elle sera stockée en clair sur votre appareil si le verrouillage est retiré.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Le mot de passe est faible. Veuillez le renforcer.",
   "enterYourCurrentPassword": "Saisissez votre mot de passe actuel",
+  "theNoteHasBeenDeleted": "La note a été supprimée.",
   "theSelectedNotesHasBeenDeleted": "Les notes sélectionnées ont été supprimées.",
   "secretDeletedSuccessfully": "Secret Deleted successfully",
   "shareNote": "Partager la note",

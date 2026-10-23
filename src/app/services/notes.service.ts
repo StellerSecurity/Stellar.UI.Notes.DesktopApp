@@ -23,6 +23,7 @@ export class NotesService {
   public readonly syncNeedsAttention$ = new BehaviorSubject<boolean>(false);
   public hasPendingMutations(): boolean { return this.pendingNoteMutations.size > 0; }
   selectedNoteId: any = "";
+  pendingImageNote: {html: string} | null = null;
   editorFocusNoteId: string | null = null;
   private noteIsUpdatedSubject = new BehaviorSubject<boolean>(true);
   noteIsUpdated$ = this.noteIsUpdatedSubject.asObservable();
@@ -178,6 +179,7 @@ export class NotesService {
   }
 
   public resetRuntimeState(): void {
+    this.pendingImageNote = null;
     this.selectedNoteId = '';
     this.currentNote = null;
     this.isNoteTemporaryDescripted = false;

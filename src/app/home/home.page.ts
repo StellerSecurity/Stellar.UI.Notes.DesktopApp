@@ -1809,7 +1809,9 @@ export class HomePage implements AfterViewInit {
     this.cdr.detectChanges();
     if (idsToDelete.has(this.noteService.selectedNoteId || '')) await this.router.navigate(['/home']);
     const toast = await this.toastController.create({
-      message: this.allTranslations.theSelectedNotesHasBeenDeleted,
+      message: idsToDelete.size === 1
+        ? this.allTranslations.theNoteHasBeenDeleted
+        : this.allTranslations.theSelectedNotesHasBeenDeleted,
       duration: 2500,
       position: "bottom",
     });

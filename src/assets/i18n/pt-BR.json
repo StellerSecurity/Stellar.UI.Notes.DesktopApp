@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Deseja remover a senha da nota? Sem o bloqueio, ela será armazenada sem criptografia no seu dispositivo.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "A senha é fraca. Escolha uma senha mais forte.",
   "enterYourCurrentPassword": "Digite sua senha atual",
+  "theNoteHasBeenDeleted": "A nota foi excluída.",
   "theSelectedNotesHasBeenDeleted": "As notas selecionadas foram excluídas.",
   "secretDeletedSuccessfully": "A mensagem secreta foi excluída.",
   "shareNote": "Compartilhar nota",

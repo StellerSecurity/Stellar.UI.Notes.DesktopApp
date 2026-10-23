@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Are you sure, you want to remove the password for the note? It will be stored in a decrypted-state on your device, if the lock is removed.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "The password is weak. Please make your password stronger.",
   "enterYourCurrentPassword": "Enter your current password",
+  "theNoteHasBeenDeleted": "The note has been deleted.",
   "theSelectedNotesHasBeenDeleted": "The selected notes have been deleted.",
   "secretDeletedSuccessfully": "Secret Deleted successfully",
   "shareNote": "Share note",

@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Wil je het wachtwoord van de notitie verwijderen? Zonder vergrendeling wordt deze onversleuteld op je apparaat opgeslagen.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Het wachtwoord is zwak. Kies een sterker wachtwoord.",
   "enterYourCurrentPassword": "Voer je huidige wachtwoord in",
+  "theNoteHasBeenDeleted": "De notitie is verwijderd.",
   "theSelectedNotesHasBeenDeleted": "De geselecteerde notities zijn verwijderd.",
   "secretDeletedSuccessfully": "Het geheime bericht is verwijderd.",
   "shareNote": "Notitie delen",

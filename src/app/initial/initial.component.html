@@ -1,1 +1,3 @@
 <div class="initial-toolbar"></div><div class="initial-state"><ion-icon name="document-text-outline"></ion-icon><h2>{{'uiNoNoteSelected' | translate}}</h2><p>{{'uiChooseANoteFromTheListOrStart' | translate}}</p><button class="sn-button primary" (click)="newNote()">{{'uiNewNote' | translate}}</button></div>
+
+<p class="sn-error image-drop-error" role="alert" *ngIf="imageDropError">{{imageDropError}}</p>

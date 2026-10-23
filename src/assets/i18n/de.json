@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Sind Sie sich sicher, dass Sie das Passwort für diese Notiz entfernen möchten? Sie wird danach unverschlüsselt auf Ihrem Gerät gespeichert.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Das Passwort ist schwach. Bitte machen Sie es stärker.",
   "enterYourCurrentPassword": "Geben Sie Ihr aktuelles Passwort ein",
+  "theNoteHasBeenDeleted": "Die Notiz wurde gelöscht.",
   "theSelectedNotesHasBeenDeleted": "Die ausgewählten Notizen wurden gelöscht.",
   "secretDeletedSuccessfully": "Secret Deleted successfully",
   "shareNote": "Notiz teilen",

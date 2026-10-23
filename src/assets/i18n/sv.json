@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Är du säker på att du vill ta bort lösenordet för anteckningen? Den kommer att sparas okrypterad på din enhet om låset tas bort.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Lösenordet är svagt. Gör det starkare.",
   "enterYourCurrentPassword": "Ange ditt nuvarande lösenord",
+  "theNoteHasBeenDeleted": "Anteckningen har raderats.",
   "theSelectedNotesHasBeenDeleted": "De valda anteckningarna har raderats.",
   "secretDeletedSuccessfully": "Secret Deleted successfully",
   "shareNote": "Dela anteckning",

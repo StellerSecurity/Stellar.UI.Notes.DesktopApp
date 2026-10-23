@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Er du sikker på, at du vil fjerne adgangskoden til denne note? Den vil blive gemt ukrypteret på din enhed, hvis låsen fjernes.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Adgangskoden er svag. Gør den stærkere.",
   "enterYourCurrentPassword": "Indtast din nuværende adgangskode",
+  "theNoteHasBeenDeleted": "Noten er blevet slettet.",
   "theSelectedNotesHasBeenDeleted": "De valgte noter er blevet slettet.",
   "secretDeletedSuccessfully": "Secret Deleted successfully",
   "shareNote": "Del note",

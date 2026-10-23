@@ -3,6 +3,24 @@ const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_BATCH_BYTES = 25 * 1024 * 1024;
 
+export function noteImageFilesError(files: File[]): string {
+  if (files.some(file => !IMAGE_TYPES.includes(file.type))) return t('uiChooseAPNGJPEGGIFOrWebPImage');
+  if (files.some(file => file.size > MAX_IMAGE_BYTES) || files.reduce((total, file) => total + file.size, 0) > MAX_BATCH_BYTES) return t('uiImagesCanBeUpTo10MBEach');
+  return '';
+}
+
+export async function readNoteImageHtml(files: File[]): Promise<string> {
+  const error = noteImageFilesError(files);
+  if (error) throw new Error(error);
+  const images = await Promise.all(files.map(file => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reader.onabort = () => reject(new Error(t('uiTheImageCouldNotBeReadPleaseTry')));
+    reader.readAsDataURL(file);
+  })));
+  return images.map(src => `<p><img src="${src}"></p>`).join('');
+}
+
 interface ImageDropContext {
   generation: () => number | null;
   reportError: (message: string) => void;
@@ -30,14 +48,8 @@ export function bindNoteImageDrop(quill: any, surface: HTMLElement, context: Ima
     if (disposed || generation === null || !quill.isEnabled() || !files.length) return;
     const isCurrent = () => !disposed && context.generation() === generation && quill.isEnabled();
     context.reportError('');
-    if (files.some(file => !IMAGE_TYPES.includes(file.type))) {
-      context.reportError(t('uiChooseAPNGJPEGGIFOrWebPImage'));
-      return;
-    }
-    if (files.some(file => file.size > MAX_IMAGE_BYTES) || files.reduce((total, file) => total + file.size, 0) > MAX_BATCH_BYTES) {
-      context.reportError(t('uiImagesCanBeUpTo10MBEach'));
-      return;
-    }
+    const error = noteImageFilesError(files);
+    if (error) { context.reportError(error); return; }
     try {
       const images = await Promise.all(files.map(readImage));
       if (!isCurrent()) return;

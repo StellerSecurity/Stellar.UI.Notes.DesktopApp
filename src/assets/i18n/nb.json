@@ -83,6 +83,7 @@
   "areYouSureYouWantToRemoveThePasswordForTheNote": "Vil du fjerne passordet til notatet? Når låsen fjernes, blir notatet lagret ukryptert på enheten din.",
   "thePasswordIsWeakPleaseMakeYourPasswordStronger": "Passordet er svakt. Velg et sterkere passord.",
   "enterYourCurrentPassword": "Skriv inn det gjeldende passordet",
+  "theNoteHasBeenDeleted": "Notatet er slettet.",
   "theSelectedNotesHasBeenDeleted": "De valgte notatene er slettet.",
   "secretDeletedSuccessfully": "Den hemmelige meldingen er slettet.",
   "shareNote": "Del notat",

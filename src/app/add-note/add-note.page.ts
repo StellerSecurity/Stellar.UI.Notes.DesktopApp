@@ -220,6 +220,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         if (requestedFolder) {
           this.currentNote = { id: this.notes_id as string, base_version: 0, text: "", title: t('uiUntitledNote'), favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
         }
+        this.importDroppedImageNote();
         return;
       }
 
@@ -252,6 +253,14 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         this.titleFocusTimer = setTimeout(() => { if (this.viewActive) void this.openLockModal(); }, 0);
       }
     });
+  }
+
+  private importDroppedImageNote(): void {
+    const draft = this.notesService.pendingImageNote;
+    if (!draft) return;
+    this.notesService.pendingImageNote = null;
+    this.note_text = draft.html;
+    this.save(null, true);
   }
 
   ngOnDestroy(): void {
