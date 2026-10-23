@@ -28,6 +28,53 @@ class WindowFixture { page=home(); }
 
 describe('Desktop keyboard and large note lists',()=>{
   beforeEach(()=>TestBed.configureTestingModule({imports:[CommonModule,TranslateModule.forRoot()],declarations:[WindowFixture,DeleteNoteModalComponent],providers:[{provide:ModalController,useValue:{dismiss:jasmine.createSpy().and.resolveTo(true)}}]}));
+  for (const reason of ['enter','realtime','online','manual']) {
+    it(`preserves selections and filters changed during ${reason} sync`,async()=>{
+      const p=home(); let finish!:(value:boolean)=>void;
+      p.authService={isLoggedIn:true}; p.noteService.shouldAskForPassword=()=>false;
+      p.noteService.getNotesAppPassword=()=>'';
+      p.dataService={setForceDownloadOnHome:()=>{}};
+      p.remoteDownloadSync={requestImmediateSync:()=>new Promise<boolean>(resolve=>finish=resolve)};
+      p.hasInternetConnection=()=>true;
+      p.restoreUiState=()=>{p.listOfCheckedCheckboxes=['0'];p.search_query='old search';};
+      p.setData=()=>{p.notes=p.notes.map((note:any)=>({...note,last_modified:note.last_modified+100}));p.applyFilters();};
+      const sync=p.requestImmediateSync(reason);
+      // These interactions happen after the request starts, before it completes.
+      p.listOfCheckedCheckboxes=['2','3'];p.selectionAnchor='2';p.focusedNoteId='3';p.search_query='body';
+      finish(true);await sync;
+      expect(p.listOfCheckedCheckboxes).toEqual(['2','3']);expect(p.search_query).toBe('body');
+      expect(p.selectionAnchor).toBe('2');expect(p.focusedNoteId).toBe('3');
+      expect(p.router.navigate).not.toHaveBeenCalled();
+    });
+  }
+  it('retains selected IDs when synced records are replaced and removes only unavailable notes',()=>{
+    const p=home();p.listOfCheckedCheckboxes=['0','1','3'];
+    p.notes=p.notes.filter((note:any)=>note.id!=='1').map((note:any)=>({...note,last_modified:100}));
+    p.applyFilters();expect(p.listOfCheckedCheckboxes).toEqual(['0','3']);
+  });
+  it('restores multi-selection by ID on sidebar re-entry and drops deleted IDs',()=>{
+    const old=localStorage.getItem('home_ui_state_v1');
+    try {
+      const p=home();p.listOfCheckedCheckboxes=['0','2','3'];
+      (HomePage.prototype as any).persistUiState.call(p);
+      const restored=home();restored.listOfCheckedCheckboxes=[];
+      restored.notes=restored.notes.filter((note:any)=>note.id!=='2');
+      (HomePage.prototype as any).restoreUiState.call(restored);
+      expect(restored.listOfCheckedCheckboxes).toEqual(['0','3']);
+    } finally {
+      if(old===null)localStorage.removeItem('home_ui_state_v1');else localStorage.setItem('home_ui_state_v1',old);
+    }
+  });
+
+  it('opens a note directly without instantiating a second sidebar through dummy-route',()=>{
+    const p=home();p.activatedRoute={snapshot:{paramMap:{get:()=>null}}};
+    p.checkboxOpened=false;p.navController={navigateForward:jasmine.createSpy()};
+    HomePage.prototype.openOrCheckbox.call(p,'2');
+    expect(p.listOfCheckedCheckboxes).toEqual(['2']);
+    expect(p.router.navigate).toHaveBeenCalledOnceWith(['/note','2']);
+    expect(p.navController.navigateForward).not.toHaveBeenCalled();
+  });
+
   it('Backspace opens the existing plural confirmation; cancelling preserves every note',async()=>{
     const p=home(); let dismiss!:(value:any)=>void;
     const modal={onDidDismiss:()=>new Promise(resolve=>dismiss=resolve),present:jasmine.createSpy().and.resolveTo()};

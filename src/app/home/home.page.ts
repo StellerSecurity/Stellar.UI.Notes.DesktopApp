@@ -329,6 +329,7 @@ export class HomePage implements AfterViewInit {
       const payload = {
         activeFolderName: this.activeFolderName || '__all__',
         activeFilter: this.activeFilter,
+        selectedNoteIds: [...this.listOfCheckedCheckboxes],
         trashSelectionIds:this.activeFilter==='trash'?this.listOfCheckedCheckboxes:[],
         searchQuery: this.search_query ?? '',
         searchMode: !!this.searchMode,
@@ -352,7 +353,8 @@ export class HomePage implements AfterViewInit {
     const hasSavedFolder = savedFolderName === '__all__' || this.folders.some((folder) => folder.name === savedFolderName);
 
     this.activeFilter = savedFilter;
-    if(savedFilter==='trash')this.listOfCheckedCheckboxes=Array.isArray(saved?.trashSelectionIds)?saved.trashSelectionIds.filter((id:unknown)=>typeof id==='string'):[];
+    const selection = savedFilter === 'trash' ? saved?.trashSelectionIds : saved?.selectedNoteIds;
+    if (Array.isArray(selection)) this.listOfCheckedCheckboxes = selection.filter((id: unknown) => typeof id === 'string');
     this.activeFolderName = hasSavedFolder ? savedFolderName : '__all__';
     this.search_query = typeof saved?.searchQuery === 'string' ? saved.searchQuery : '';
     this.searchMode = !!saved?.searchMode && this.search_query.trim().length > 0;
@@ -452,8 +454,9 @@ export class HomePage implements AfterViewInit {
       const didSync = await this.remoteDownloadSync.requestImmediateSync(reason === 'enter' ? 'resume' : reason);
 
       if (didSync) {
+        // Refresh records against the current selection and filters. Restoring a
+        // saved view here can overwrite interactions made while the request ran.
         this.setData(this.noteService.getNotesAppPassword());
-        this.restoreUiState();
         this.clearSyncUiState({ clearForceDownload: true });
         return;
       }
@@ -671,8 +674,7 @@ export class HomePage implements AfterViewInit {
       this.restoreUiState();
       await this.restoreLastOpenNote();
       if (this.shouldAttemptRemoteDownload()) {
-        await this.requestImmediateSync('enter'); // immediate refresh with latest notes on open/re-open
-        this.restoreUiState();
+        await this.requestImmediateSync('enter'); // keep interactions made while the download ran
       } else {
         this.clearSyncUiState({ clearForceDownload: this.authService.isLoggedIn ? false : true });
       }
@@ -1773,10 +1775,7 @@ export class HomePage implements AfterViewInit {
       this.setSelectedNoteId(note_id);
       this.listOfCheckedCheckboxes = [note_id];
       this.persistUiState();
-      // this.navController.navigateForward("/note/" + note_id).then((r) => {});
-      this.navController.navigateForward('/dummy-route').then(() => {
-        this.navController.navigateForward("/note/" + note_id);
-      });
+      void this.router.navigate(['/note', note_id]);
     }
   }
 
