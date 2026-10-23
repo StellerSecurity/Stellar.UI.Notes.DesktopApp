@@ -1,73 +1,25 @@
-<ion-header [translucent]="true" class="header-border-bottom-0 no-border ion-padding-start ion-padding-end"
-  style="background: #F6F6FD; --background: #F6F6FD">
-  <ion-toolbar>
-    <div *ngIf="!note_locked">
-      <ng-container *ngIf="!isEditingTitle; else editing">
-        <ion-title class="editable-title" (click)="enableEditingTitle()">
-          {{ note_title || 'Untitled Note' }}
-        </ion-title>
-      </ng-container>
-
-      <ng-template #editing>
-        <ion-title class="editable-title-input-wrapper">
-          <ion-input #titleInput [(ngModel)]="note_title" (ionInput)="noteTitleChange($event)"
-            (blur)="isEditingTitle = false" (keyup.enter)="isEditingTitle = false" placeholder="Enter title"
-            class="editable-title-input"></ion-input>
-        </ion-title>
-      </ng-template>
+<div class="desktop-note-editor-body" *ngIf="!note_locked">
+  <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text" [noteId]="notes_id" [noteTitle]="note_title" [autoFocusNewNote]="isNewNote" [modifiedAt]="modifiedAt"
+    (titleChange)="noteTitleChange({detail: {value: $event}})" (noteChange)="onSave($event, 'note_text')" (editorFocusChange)="onEditorFocusChange($event)">
+    <div editor-actions class="editor-note-actions">
+      <button type="button" class="icon-button" (click)="openLockModal()" [title]="getProtected() ? ('removeLock' | translate) : ('lockNote' | translate)" [attr.aria-label]="getProtected() ? ('removeLock' | translate) : ('lockNote' | translate)"><ion-icon [name]="getProtected() ? 'lock-open-outline' : 'lock-closed-outline'"></ion-icon></button>
+      <button type="button" class="icon-button" (click)="shareStellarSecret()" [title]="'shareNote' | translate" [attr.aria-label]="'shareNote' | translate"><ion-icon name="share-social-outline"></ion-icon></button>
+      <button type="button" class="icon-button" (click)="toggleFavorite()" [title]="'uiFavorite' | translate" [attr.aria-label]="'uiFavorite' | translate" [attr.aria-pressed]="isFavorite()" [class.active]="isFavorite()"><ion-icon [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon></button>
+      <button type="button" class="icon-button" (click)="openActionsPopover($event)" [title]="'uiMoreActions' | translate" [attr.aria-label]="'uiMoreNoteActions' | translate"><ion-icon name="ellipsis-horizontal"></ion-icon></button>
     </div>
-
-    <ion-buttons slot="end" *ngIf="!note_locked" class="note-actions-menu-trigger">
-      <ion-button fill="clear" (click)="openActionsPopover($event)">
-        <ion-icon name="settings-outline"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-    </ion-toolbar>
-
-  <ion-popover
-    [isOpen]="actionsPopoverOpen"
-    [event]="actionsPopoverEvent"
-    side="bottom"
-    alignment="end"
-    class="desktop-note-actions-popover"
-    (didDismiss)="closeActionsPopover()">
-    <ng-template>
-      <div class="desktop-note-actions-list">
-        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('pin')">
-          <ion-icon [name]="isPinned() ? 'bookmark' : 'bookmark-outline'"></ion-icon>
-          <span>{{ isPinned() ? 'Unpin' : 'Pin' }}</span>
-        </button>
-
-        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('favorite')">
-          <ion-icon [name]="isFavorite() ? 'star' : 'star-outline'"></ion-icon>
-          <span>{{ isFavorite() ? 'Remove favorite' : 'Favorite' }}</span>
-        </button>
-
-        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('folder')">
-          <ion-icon name="folder-open-outline"></ion-icon>
-          <span>Move to folder</span>
-        </button>
-
-        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('lock')">
-          <ion-icon [name]="note_locked ? 'lock-closed-outline' : 'lock-open-outline'"></ion-icon>
-          <span>{{ note_locked ? 'Unlock' : 'Lock note' }}</span>
-        </button>
-
-        <button type="button" class="desktop-note-action-item" (click)="handlePopoverAction('share')">
-          <ion-icon name="share-social-outline"></ion-icon>
-          <span>Share</span>
-        </button>
-
-        <button type="button" class="desktop-note-action-item danger" (click)="handlePopoverAction('delete')">
-          <ion-icon name="trash-outline"></ion-icon>
-          <span>Delete</span>
-        </button>
-      </div>
-    </ng-template>
-  </ion-popover>
-</ion-header>
-
-<ion-content [fullscreen]="true" scroll-y="false" style="height: 100vh; --height: 100vh">
+  </app-rich-text-editor>
+</div>
+<div class="locked-note-view" *ngIf="note_locked">
+  <div class="locked-toolbar"><button class="icon-button" (click)="askforNotePassword()" [title]="'uiUnlockNote' | translate" [attr.aria-label]="'uiUnlockNote' | translate"><ion-icon name="lock-closed-outline"></ion-icon></button></div>
+  <div class="locked-note-message"><ion-icon name="lock-closed-outline"></ion-icon><h2>{{'uiLockedNote' | translate}}</h2><p>{{'uiEnterThisNoteSPasswordToViewOr' | translate}}</p><button class="sn-button primary" (click)="askforNotePassword()">{{'uiUnlockNote' | translate}}</button></div>
+</div>
+<ion-popover [isOpen]="actionsPopoverOpen" [event]="actionsPopoverEvent" side="bottom" alignment="end" class="desktop-note-actions-popover" (didDismiss)="closeActionsPopover()">
+  <ng-template><div class="sn-menu">
+    <button (click)="handlePopoverAction('pin')"><ion-icon name="pin-outline"></ion-icon>{{isPinned() ? ('uiUnpin' | translate) : ('uiPin' | translate)}}</button>
+    <button (click)="handlePopoverAction('folder')"><ion-icon name="folder-open-outline"></ion-icon>{{'uiMoveToFolder' | translate}}</button>
+    <button class="danger" (click)="handlePopoverAction('delete')"><ion-icon name="trash-outline"></ion-icon>{{'delete' | translate}}</button>
+  </div></ng-template>
+</ion-popover>
   <!-- app lock modal -->
   <ion-modal #modal trigger="open-modal" class="lock-note-modal">
     <ng-template>
@@ -105,7 +57,7 @@
           </div>
         </div>
         <div *ngIf="!note_locked && !getProtected()" class="pass-info-box">
-          <p *ngif="!strongPass" class="pass-note">{{'passwordCharacters' | translate}}</p>
+          <p *ngIf="!strongPass" class="pass-note">{{'passwordCharacters' | translate}}</p>
           <span style="font-size: 12px; font-weight: 600; color: #0B0C19;">{{passwordStrengthHelperText}}</span>
           <password-strength-meter [password]="notes_password_input"></password-strength-meter>
           <h4 style="color: #0B0C19; font-size: 12px; font-weight: 400; font-family: 'Poppins';">{{'itsBetterToHave' |
@@ -115,13 +67,14 @@
               {{'upperAndLowerCaseLetters' | translate}}</li>
             <li [ngClass]="{'active': specialChar}"><ion-icon name="checkmark-outline"></ion-icon> {{'aSymbol' |
               translate}} (#&$)</li>
-            <li [ngClass]="{'active': passwordStrength >= 3}">
-              <ion-icon name="checkmark-outline"></ion-icon> {{'longerPassword' | translate}}
+            <li [ngClass]="{'active': notes_password_input.length >= 10}">
+              <ion-icon name="checkmark-outline"></ion-icon> {{'longerPassword' | translate}} (10+)
             </li>
           </ul>
         </div>
+        <p class="sn-error" role="alert" *ngIf="lockError">{{lockError}}</p>
         <ion-button style="text-transform: none;" expand="block" class="p" *ngIf="!getProtected()"
-          (click)="lockNote()">{{'lockNote' |
+          [disabled]="notes_password_input.length < 6 || notes_password_input !== notes_password_confirm" (click)="lockNote()">{{'lockNote' |
           translate}}</ion-button>
 
         <p *ngIf="getProtected()">{{'changeTheNotePasswordMsg' | translate}}</p>
@@ -131,10 +84,3 @@
       </ion-content>
     </ng-template>
   </ion-modal>
-
-  <div *ngIf="!note_locked" class="desktop-note-editor-body">
-    <app-rich-text-editor #richTextEditorComponentRef [note_text]="note_text" [noteId]="notes_id"
-      (noteChange)="onSave($event, 'note_text')"
-      (editorFocusChange)="onEditorFocusChange($event)"></app-rich-text-editor>
-  </div>
-</ion-content>

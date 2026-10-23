@@ -97,5 +97,12 @@
     "burnSecret": "Burn Secret",
     "burningSecret": "Burning Secret...",
     "createSecret": "Create Secret",
-    "passwordAtLeastLength": "Lösenord måste vara minst 6 tecken"
+    "passwordAtLeastLength": "Lösenord måste vara minst 6 tecken",
+  "notesKeyMissing": "Din Notes-nyckel saknas eller kan inte läsas. Behåll dina andra enheter och lokala anteckningar. Kontakta supporten; ingen ersättningsnyckel har skapats.",
+  "notesKeyUnlockFailed": "Ditt kontolösenord fungerade men kunde inte låsa upp dina anteckningar. Om du har återställt lösenordet anger du ditt tidigare Notes-lösenord nedan. Utan det eller en enhet som kan öppna anteckningarna kan den här versionen inte återställa dem.",
+  "notesClientUpgradeRequired": "Det här kontot kräver en nyare Notes-app eller dess återställningsflöde. Inga nycklar har ändrats.",
+  "notesPreviousPassword": "Tidigare Notes-lösenord (används bara på den här enheten)",
+  "notesPasswordResetNotice": "Återställning av ditt Stellar ID-lösenord låser inte upp dina befintliga krypterade anteckningar. Behåll en enhet som kan öppna dem och ditt tidigare Notes-lösenord. Återställning via e-post kan inte återställa din Notes-nyckel.",
+  "notesSignOutFirst": "Logga ut från det aktuella kontot innan du loggar in på ett annat.",
+  "notesUnlockAppFirst": "Lås upp appen innan du loggar in."
 }

@@ -1,3 +1,4 @@
+import { translateText as t } from '../../i18n';
 import { wrapLocalAppKey } from '../../utils/local-app-key';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -28,6 +29,7 @@ import { Location } from '@angular/common';
   styleUrls: ['./create-account.component.scss'],
 })
 export class CreateAccountComponent implements OnInit {
+  public formError = '';
   email = 'peter_parker@gmail.com';
   password = '';
   showPassword = false;
@@ -96,12 +98,12 @@ export class CreateAccountComponent implements OnInit {
           if (response.response_code == 200) {
             this.showVerificationSection = true;
           } else {
-            this.toastMessageService.showError(response.response_message);
+            this.formError = (response.response_message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
           }
         },
         error: (error) => {
           this.isSaving = false;
-          this.toastMessageService.showError(error?.error?.message);
+          this.formError = (error?.error?.message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
         },
       });
     }
@@ -111,6 +113,7 @@ export class CreateAccountComponent implements OnInit {
     if (!this.createUserForm.valid) return;
 
     if (this.isSaving) return;
+    this.formError = '';
 
     this.isSaving = true;
 
@@ -132,10 +135,7 @@ export class CreateAccountComponent implements OnInit {
       const response = await firstValueFrom(this.authService.createAccount(payload));
 
       if (response.response_code == 200) {
-        // this.showVerificationSection = true;
-        await this.secureStorageService.setItem('ssToken', response.token);
-        await this.secureStorageService.setItem('ssUser', JSON.stringify(response.user));
-
+        if (typeof response.token !== 'string' || !response.token) throw new Error('Invalid account response');
         const user = response.user;
 
         const serverBundle = {
@@ -159,6 +159,11 @@ export class CreateAccountComponent implements OnInit {
           await this.secureStorageService.setItem('ssEakB64', eakB64);
         }
 
+        // Publish the same session state as login, after the Notes key is ready.
+        await this.secureStorageService.setItem('ssUser', JSON.stringify(user));
+        await this.secureStorageService.setItem('ssToken', response.token);
+        this.authService.setLoggedInState(true);
+
         let notes = this.notesService.getNotes();
 
         if (this.notesService.getDecryptedNotes() !== null) {
@@ -176,11 +181,11 @@ export class CreateAccountComponent implements OnInit {
           await this.router.navigate(['/']);
         }
       } else {
-        await this.toastMessageService.showError(response.response_message);
+        this.formError = (response.response_message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
       }
     } catch (error: any) {
       console.log('some error', error);
-      await this.toastMessageService.showError(error?.error?.message ?? error?.message ?? error);
+      this.formError = (error?.error?.message ?? error?.message ?? error) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
     } finally {
       this.isSaving = false;
     }

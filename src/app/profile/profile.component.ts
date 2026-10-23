@@ -1,3 +1,4 @@
+import { translateText as t } from '../i18n';
 import { OutboxStorage } from '../services/outbox-storage.service';
 import { NotesService } from '../services/notes.service';
 import { Component, OnInit } from '@angular/core';
@@ -51,16 +52,16 @@ export class ProfileComponent implements OnInit {
 
   async confirmLogout() {
     const alert = await this.alertController.create({
-      header: 'Confirm Logout',
-      message: 'Are you sure you want to logout?',
+      header: t('confirmLogout'),
+      message: t('areYoSureYouWantToLogout'),
       buttons: [
         {
-          text: 'Cancel',
+          text: t('cancel'),
           role: 'cancel',
           cssClass: 'secondary',
         },
         {
-          text: 'Logout',
+          text: t('logout'),
           handler: () => {
             this.logout();
           },
@@ -74,9 +75,9 @@ export class ProfileComponent implements OnInit {
   private async logout() {
     if (this.notesState.hasPendingMutations() || (await this.outbox.getAll()).length > 0) {
       const alert = await this.alertController.create({
-        header: 'Notes not synced',
-        message: 'Your notes are still saved on this device. Let syncing finish before logging out.',
-        buttons: ['OK'],
+        header: t('uiNotesNotSynced'),
+        message: t('uiYourNotesAreStillSavedOnThisDevice'),
+        buttons: [t('ok')],
       });
       await alert.present();
       return;

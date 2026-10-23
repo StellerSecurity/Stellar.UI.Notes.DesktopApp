@@ -13,7 +13,7 @@ import { TranslatorService } from "../services/translator.service";
   styleUrls: ["./user-menu.component.scss"],
 })
 export class UserMenuComponent implements OnInit, AfterViewInit {
-  isUserIsLoggedIn = false;
+  get isUserIsLoggedIn(): boolean { return this.authService.isLoggedIn; }
   user: any = {};
   allTranslations: any;
 
@@ -44,12 +44,11 @@ export class UserMenuComponent implements OnInit, AfterViewInit {
   }
 
   private async loadUserData() {
+    await this.authService.initializeAuthState();
     const user = await this.secureStorageService.getItem('ssUser');
     if (user) {
       this.user = JSON.parse(user);
     }
-    const token = await this.secureStorageService.getItem('ssToken');
-    this.isUserIsLoggedIn = !!token;
   }
 
   async confirmLogout() {
@@ -106,7 +105,7 @@ export class UserMenuComponent implements OnInit, AfterViewInit {
 
     const modal = await this.modalController.create({
       component: AppSettingsPage,
-      cssClass: "centered-modal",
+      cssClass: "sn-compact-modal settings-modal",
       backdropDismiss: true,
       showBackdrop: true,
       animated: true,

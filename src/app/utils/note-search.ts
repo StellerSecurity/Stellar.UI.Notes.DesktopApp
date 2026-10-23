@@ -3,7 +3,7 @@ import { normalize } from './home-normalize.util';
 /** Extract searchable text without giving note markup to a browser HTML parser.
  * This is a text extractor, not an HTML sanitizer or rendering API.
  */
-export function noteSearchText(html: string): string {
+export function notePreviewText(html: string): string {
   const hidden = new Set(['script', 'style', 'template', 'iframe', 'object']);
   const blocks = new Set(['br', 'p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote']);
   const suppressed: string[] = [];
@@ -48,10 +48,17 @@ export function noteSearchText(html: string): string {
     cursor = end + 1;
   }
   // normalize decodes entities only after escaping every literal '<'.
-  return normalize(parts.join(''));
+  const text = parts.join('');
+  const decoder = document.createElement('textarea');
+  decoder.innerHTML = text.replace(/</g, '&lt;');
+  return decoder.value.replace(/\s+/g, ' ').trim();
 }
 
 export function matchesNoteSearch(terms: string[], title: string, folder: string, text: string, protectedNote: boolean): boolean {
   const fields = protectedNote ? [title, folder] : [title, folder, text];
   return terms.every(term => fields.some(field => field.includes(term)));
+}
+
+export function noteSearchText(html: string): string {
+  return normalize(notePreviewText(html));
 }

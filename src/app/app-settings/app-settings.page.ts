@@ -1,3 +1,4 @@
+import { translateText as t } from '../i18n';
 import { wrapLocalAppKey, unwrapLocalAppKey } from '../utils/local-app-key';
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
 import {
@@ -36,6 +37,12 @@ export class AppSettingsPage implements AfterViewInit {
   public allTranslations: any;
   public shouldShowPasswordOnAppContent: boolean = false;
   public useBiometrics = true;
+  public get languagePreference() { return this.translatorService.preference; }
+  public changeLanguage(language: string): void {
+    this.translatorService.selectLanguage(language);
+    if (this.notesAppPassword) this.notesAppPasswordChange();
+    else this.passwordStrengthHelperText = this.translatorService.allTranslations['passwordAtLeastLength'];
+  }
 
   @ViewChild(IonModal) modal: IonModal;
 
@@ -153,26 +160,12 @@ export class AppSettingsPage implements AfterViewInit {
     await this.navController.navigateRoot("/home");
   }
 
-  public async save() {
-    if (!this.notesAppPassword || this.notesAppPassword.length < 3) {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.thePasswordIsWeakPleaseMakeYourPasswordStronger,
-        duration: 3000,
-        position: "bottom",
-      });
-      await toast.present();
-      return;
-    }
+  public passwordError = '';
 
-    if (this.notesAppPassword !== this.confirmPassword) {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.theTwoPasswordsDoesNotMatch,
-        duration: 3000,
-        position: "bottom",
-      });
-      await toast.present();
-      return;
-    }
+  public async save() {
+    this.passwordError = '';
+    if (!this.notesAppPassword || this.notesAppPassword.length < 6) { this.passwordError = t('uiUseAtLeast6Characters'); return; }
+    if (this.notesAppPassword !== this.confirmPassword) { this.passwordError = t('uiThePasswordsDoNotMatch'); return; }
 
     try {
       let notes = this.noteService.getNotes();
@@ -214,7 +207,7 @@ export class AppSettingsPage implements AfterViewInit {
       console.error("Error while saving app password", err);
 
       const toast = await this.toastController.create({
-        message: "Something went wrong while saving the password.",
+        message: t('uiSomethingWentWrongWhileSavingThePassword'),
         duration: 3000,
         position: "bottom",
       });
@@ -241,7 +234,7 @@ export class AppSettingsPage implements AfterViewInit {
               decryptedNotes = this.cryptoService.decrypt(notes, inputValue);
             } catch (e) {
               const toast = await this.toastController.create({
-                message: "The entered password was not correct.",
+                message: t('uiTheEnteredPasswordWasNotCorrect'),
                 duration: 3000,
                 position: "bottom",
               });
@@ -309,7 +302,7 @@ export class AppSettingsPage implements AfterViewInit {
           decryptedNotes = this.cryptoService.decrypt(notes, inputValue);
         } catch (e) {
           const toast = await this.toastController.create({
-            message: "The entered password was not correct.",
+            message: t('uiTheEnteredPasswordWasNotCorrect'),
             duration: 3000,
             position: "bottom",
           });
@@ -347,7 +340,7 @@ export class AppSettingsPage implements AfterViewInit {
         console.error("Error while removing password", err);
 
         const toast = await this.toastController.create({
-          message: "Something went wrong while removing the password.",
+          message: t('uiSomethingWentWrongWhileRemovingThePassword'),
           duration: 3000,
           position: "bottom",
         });
@@ -438,7 +431,7 @@ export class AppSettingsPage implements AfterViewInit {
         console.error("Error clearing app storage", err);
 
         const toast = await this.toastController.create({
-          message: "Something went wrong while clearing the app data.",
+          message: t('uiSomethingWentWrongWhileClearingTheAppData'),
           duration: 3000,
           position: "bottom",
         });

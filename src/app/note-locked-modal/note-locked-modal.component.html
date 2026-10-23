@@ -9,8 +9,9 @@
     <ion-icon slot="end" [name]="showPassword ? 'eye-off' : 'eye'"
               (click)="togglePasswordVisibility()"></ion-icon>
   </div>
+  <p class="sn-error" role="alert">{{error}}</p>
   <div class="buttons">
-    <p class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</p>
-    <p class="blue-btn" (click)="dismiss(true)">{{'confirm' | translate}}</p>
+    <button type="button" class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</button>
+    <button type="button" class="blue-btn" [disabled]="checking" (click)="dismiss(true)">{{'unlock' | translate}}</button>
   </div>
 </div>

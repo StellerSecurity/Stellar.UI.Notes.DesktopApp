@@ -1,3 +1,4 @@
+import { translateText as t } from '../i18n';
 import { Component, Input } from '@angular/core';
 import { LoadingController, ModalController, ToastController } from '@ionic/angular';
 import { SecretapiService } from '../services/secretapi.service';
@@ -123,14 +124,14 @@ export class ShareSecretModalComponent {
       // ✅ Native share on mobile
       await Share.share({
         title: 'Stellar Secret',
-        text: 'Here is your secret link',
+        text: t('hereIsYourSecretLink'),
         url: this.secretUrl,
         dialogTitle: 'Stellar Note',
       });
     } else if ((window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(this.secretUrl);
       const toast = await this.toastController.create({
-        message: 'Link opened in your default browser.',
+        message: t('uiLinkOpenedInYourDefaultBrowser'),
         duration: 3000,
         position: 'bottom',
       });

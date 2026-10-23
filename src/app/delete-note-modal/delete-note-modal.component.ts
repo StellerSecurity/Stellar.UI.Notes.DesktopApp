@@ -7,6 +7,7 @@ import { ModalController } from '@ionic/angular';
   styleUrls: ['./delete-note-modal.component.scss'],
 })
 export class DeleteNoteModalComponent {
+  @Input() count = 0;
   @Input() isSingleDelete: boolean = false; 
 
   constructor(private modalCtrl: ModalController) { }

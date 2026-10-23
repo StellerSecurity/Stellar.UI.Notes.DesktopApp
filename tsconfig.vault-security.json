@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {"allowSyntheticDefaultImports": true},
+  "files": ["src/test.ts", "src/polyfills.ts"],
+  "include": ["src/app/utils/vault-envelope-v2.spec.ts", "src/**/*.d.ts"]
+}

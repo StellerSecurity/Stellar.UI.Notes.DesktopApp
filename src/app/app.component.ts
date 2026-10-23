@@ -1,3 +1,4 @@
+import { translateText as t } from './i18n';
 import { NoteConflictService } from './services/note-conflict.service';
 import { RealtimeNotesService } from './services/realtime-notes.service';
 import { Capacitor } from '@capacitor/core';
@@ -29,7 +30,7 @@ export class AppComponent {
     private remoteDownloadSync: RemoteDownloadSyncService,
   ) {
     this.notesState.syncNeedsAttention$.pipe(distinctUntilChanged(), filter(Boolean)).subscribe(() => {
-      void this.toastMessages.showError('Notes are saved on this device, but synchronization is not confirmed. We will retry automatically.');
+      void this.toastMessages.showError(t('uiNotesAreSavedOnThisDeviceButSynchronization'));
     });
     this.syncWorker.init();
     this.realtimeNotes.init();

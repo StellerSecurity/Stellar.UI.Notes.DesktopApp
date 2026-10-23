@@ -6,12 +6,12 @@
   </ng-container>
 
   <ng-container *ngIf="!isSingleDelete">
-    <h2>{{'deleteNotes' | translate}}?</h2>
+    <h2>{{'deleteNotes' | translate}}<ng-container *ngIf="count"> ({{count}})</ng-container>?</h2>
     <p>{{'confirmDeleteMsg' | translate}}</p>
   </ng-container>
 
   <div class="buttons">
-    <p class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</p>
-    <p class="blue-btn" (click)="dismiss(true)">{{'delete' | translate}}</p>
+    <button type="button" class="blue-btn transparent-btn" (click)="dismiss(false)">{{'cancel' | translate}}</button>
+    <button type="button" class="blue-btn destructive" (click)="dismiss(true)">{{'delete' | translate}}</button>
   </div>
 </div>

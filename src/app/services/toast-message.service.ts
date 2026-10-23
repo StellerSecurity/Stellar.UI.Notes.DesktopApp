@@ -1,3 +1,4 @@
+import { translateText as t } from '../i18n';
 import { Injectable } from '@angular/core';
 import { ToastController } from '@ionic/angular';
 
@@ -8,7 +9,7 @@ export class ToastMessageService {
 
   constructor(private toastController: ToastController) { }
 
-  async showSuccess(message: string = 'Operation Successful!') {
+  async showSuccess(message: string = t('uiOperationSuccessful')) {
     const toast = await this.toastController.create({
       message: message,
       duration: 3000,
@@ -18,7 +19,7 @@ export class ToastMessageService {
     await toast.present();
   }
 
-  async showError(message: string = 'Operation Failed!') {
+  async showError(message: string = t('uiOperationFailed')) {
     const toast = await this.toastController.create({
       message: message,
       duration: 3000,

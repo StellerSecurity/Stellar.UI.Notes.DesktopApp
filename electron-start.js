@@ -1,3 +1,4 @@
+const { createDesktopLocalization } = require('./desktop-localization.cjs');
 const { app, BrowserWindow, ipcMain, shell, dialog, protocol } = require("electron");
 const { registerRealtimeProtocol, redactRealtimeSecrets } = require('./desktop-realtime-protocol.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'stellar-notes', privileges: {
@@ -20,6 +21,9 @@ function isSafeExternalUrl(value) {
 }
 
 let mainWindow;
+let desktopLocalization;
+const t = (key, params) => desktopLocalization.text(key, params);
+const escapeUiHtml = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 let startupUpdateCheckScheduled = false;
 let mainFrameReloadAttempts = 0;
 
@@ -93,7 +97,7 @@ function createUpdateProgressWindow(parent) {
     parent: parent || undefined,
     show: false,
     backgroundColor: "#111111",
-    title: "Updating…",
+    title: t('nativeUpdating'),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -124,7 +128,7 @@ function createUpdateProgressWindow(parent) {
 </head>
 <body>
   <div class="wrap" id="root">
-    <div class="title" id="phase">Preparing…</div>
+    <div class="title" id="phase">${escapeUiHtml(t('nativePreparing'))}</div>
     <div class="bar"><div class="fill" id="fill"></div></div>
     <div class="meta">
       <div class="left" id="detail"></div>
@@ -346,12 +350,12 @@ async function maybeOfferLinuxInstall() {
 
   const choice = dialog.showMessageBoxSync(mainWindow, {
     type: "question",
-    buttons: ["Install", "Later"],
+    buttons: [t('nativeInstall'), t('uiLater')],
     defaultId: 0,
     cancelId: 1,
-    message: "Install Stellar Notes on this computer?",
+    message: t('nativeInstallQuestion'),
     detail:
-      "This will add Stellar Notes to Applications and your app menu so future launches and updates feel like a normal installed app."
+      t('nativeInstallDetail')
   });
 
   if (choice !== 0) return;
@@ -361,10 +365,10 @@ async function maybeOfferLinuxInstall() {
 
     dialog.showMessageBoxSync(mainWindow, {
       type: "info",
-      buttons: ["OK"],
+      buttons: [t('ok')],
       defaultId: 0,
-      message: "Stellar Notes was installed.",
-      detail: "The app will now relaunch from the installed location."
+      message: t('nativeInstalled'),
+      detail: t('nativeRelaunch')
     });
 
     spawn(installedPath, [], {
@@ -377,9 +381,9 @@ async function maybeOfferLinuxInstall() {
   } catch (e) {
     dialog.showMessageBoxSync(mainWindow, {
       type: "error",
-      buttons: ["OK"],
+      buttons: [t('ok')],
       defaultId: 0,
-      message: "Install failed",
+      message: t('nativeInstallFailed'),
       detail: String(e && e.message ? e.message : e)
     });
   }
@@ -564,18 +568,18 @@ async function fetchSignedManifest(progressWin = null, platform = process.platfo
     const sigUrl = manifestUrl + ".sig";
 
     try {
-      setUpdateProgress(progressWin, "Fetching update manifest…", null, name);
+      setUpdateProgress(progressWin, t('nativeFetchingManifest'), null, name);
       const manifestBytes = await httpsGetBuffer(manifestUrl);
 
       setUpdateProgress(
         progressWin,
-        "Fetching manifest signature…",
+        t('nativeFetchingSignature'),
         null,
         `${name}.sig`
       );
       const sigText = (await httpsGetBuffer(sigUrl)).toString("utf8");
 
-      setUpdateProgress(progressWin, "Verifying manifest signature…", null, "");
+      setUpdateProgress(progressWin, t('nativeVerifyingSignature'), null, "");
       await verifyManifestOrThrow(manifestBytes, sigText);
 
       return { manifestBytes, manifestUrl, manifestName: name, updateBaseUrl };
@@ -621,18 +625,18 @@ async function secureLinuxUpdateFlow() {
 
     const choice = dialog.showMessageBoxSync({
       type: "info",
-      buttons: ["Update", "Later"],
+      buttons: [t('nativeUpdate'), t('uiLater')],
       defaultId: 0,
       cancelId: 1,
-      message: `Update available: ${localVersion} → ${remoteVersion}`,
+      message: t('nativeUpdateAvailable', {from: localVersion, to: remoteVersion}),
       detail:
-        "Update is verified (Ed25519 signed manifest + sha512 file hash) before launch."
+        t('nativeUpdateVerification')
     });
 
     if (choice !== 0) return;
 
     progressWin = createUpdateProgressWindow(mainWindow);
-    setUpdateProgress(progressWin, "Preparing download…", null, "");
+    setUpdateProgress(progressWin, t('nativePreparingDownload'), null, "");
     setMainProgress(0.01);
 
     const fullFileUrl = normalizeUrl(getUpdateBaseUrl("linux"), fileUrl);
@@ -652,7 +656,7 @@ async function secureLinuxUpdateFlow() {
           const pct = (transferred / total) * 100;
           setUpdateProgress(
             progressWin,
-            "Downloading update…",
+            t('nativeDownloadingUpdate'),
             pct,
             `${formatMB(transferred)} / ${formatMB(total)}`
           );
@@ -662,7 +666,7 @@ async function secureLinuxUpdateFlow() {
         } else {
           setUpdateProgress(
             progressWin,
-            "Downloading update…",
+            t('nativeDownloadingUpdate'),
             null,
             `${formatMB(transferred)}`
           );
@@ -671,7 +675,7 @@ async function secureLinuxUpdateFlow() {
       }
     );
 
-    setUpdateProgress(progressWin, "Verifying download…", null, "sha512 check");
+    setUpdateProgress(progressWin, t('nativeVerifyingDownload'), null, "SHA-512");
     setMainProgress(0.99);
 
     const actualSha512 = await sha512Base64(outPath);
@@ -696,7 +700,7 @@ async function secureLinuxUpdateFlow() {
       });
     }
 
-    setUpdateProgress(progressWin, "Launching update…", 100, "");
+    setUpdateProgress(progressWin, t('nativeLaunchingUpdate'), 100, "");
     setMainProgress(-1);
 
     logLine("Launching Linux AppImage", { launchPath, remoteVersion });
@@ -857,13 +861,13 @@ function scheduleStartupUpdateCheck() {
         autoUpdater.verifyUpdateCodeSignature = verifyDownloadedWindowsUpdate;
         await secureWindowsUpdatePreflight();
         logLine("Starting Windows update check after Stellar signature preflight");
-        autoUpdater.checkForUpdatesAndNotify();
+        autoUpdater.checkForUpdatesAndNotify({title: t('nativeUpdateDownloaded'), body: t('nativeUpdateReady')});
         return;
       }
 
       if (process.platform === "darwin") {
         logLine("Starting macOS update check");
-        autoUpdater.checkForUpdatesAndNotify();
+        autoUpdater.checkForUpdatesAndNotify({title: t('nativeUpdateDownloaded'), body: t('nativeUpdateReady')});
         return;
       }
 
@@ -878,7 +882,7 @@ function scheduleStartupUpdateCheck() {
       if (process.platform === "linux") {
         dialog.showMessageBox({
           type: "warning",
-          message: "Update check failed",
+          message: t('nativeUpdateCheckFailed'),
           detail: String(e && e.message ? e.message : e)
         });
       }
@@ -993,8 +997,10 @@ function createWindow() {
   const windowOptions = {
     width: 1024,
     height: 768,
+    minWidth: 1024,
+    minHeight: 640,
     show: false,
-    backgroundColor: "#111111",
+    backgroundColor: "#F6F6FD",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -1102,7 +1108,14 @@ ipcMain.on("open-external", (_event, urlToOpen) => {
   }
 });
 
+ipcMain.on('set-app-language', (event, preference) => {
+  // Accept only the trusted main frame and a fixed language identifier.
+  if (!desktopLocalization || !mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) return;
+  desktopLocalization.setPreference(preference);
+});
+
 app.whenReady().then(() => {
+  desktopLocalization = createDesktopLocalization(app);
   registerRealtimeProtocol(protocol);
   logLine("App ready", {
     version: app.getVersion(),

@@ -1,8 +1,9 @@
+import { translateText as t, formatAppDate } from '../i18n';
 import { unwrapLocalAppKey } from '../utils/local-app-key';
 import { RemoteDownloadSyncService } from '../services/remote-download-sync.service';
 import { SyncWorkerService } from '../services/sync-worker.service';
 import { nextNoteVersion } from '../utils/note-version';
-import { Component, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
+import { Component, ViewChild, OnDestroy, AfterViewInit, HostListener } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import {
   AlertController,
@@ -47,6 +48,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   @ViewChild('titleInput', { static: false }) titleInputRef!: IonInput;
   @ViewChild('richTextEditorComponentRef') richTextEditorComponent!: RichTextEditorComponent;
 
+  public lockError = '';
+  private unlockPromptOpen = false;
+  public get isNewNote(): boolean { return this.newlyCreatedNote; }
+  public get modifiedAt(): number | null { return this.currentNote?.last_modified || null; }
   public notes_password_input = '';
   public note_locked = false;
   public notes_password_stored = '';
@@ -96,6 +101,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.notes_password_input = '';
     this.notes_password_confirm = '';
     this.notesService.notesPasswordStored = null;
+    this.notesService.isNoteTemporaryDescripted = false;
   }
 
   // 🔐 Master key held in RAM (derived from EAK)
@@ -190,7 +196,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         if (!Array.isArray(parsedNotes)) throw new Error('Invalid notes storage');
       } catch {
         this.note_locked = true;
-        const toast = await this.toastController.create({message: 'Saved notes could not be read. Please unlock the app and try again.', duration: 5000, color: 'danger'});
+        const toast = await this.toastController.create({message: t('uiSavedNotesCouldNotBeReadPleaseUnlock'), duration: 5000, color: 'danger'});
         await toast.present();
         return;
       }
@@ -210,7 +216,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
         this.notes_id = uuidv4();
         const requestedFolder = (this.activatedRoute.snapshot.queryParamMap.get("folder") ?? "").trim();
         if (requestedFolder) {
-          this.currentNote = { id: this.notes_id as string, base_version: 0, text: "", title: "Untitled", favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
+          this.currentNote = { id: this.notes_id as string, base_version: 0, text: "", title: t('uiUntitledNote'), favorite: false, pinned: false, folder: requestedFolder, folder_id: this.folders.find((folder) => folder.name === requestedFolder)?.id ?? null, last_modified: Date.now(), protected: false, auto_wipe: true };
         }
         return;
       }
@@ -221,7 +227,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       if (!this.currentNote) {
         this.note_locked = true;
         await this.navController.navigateRoot('/home');
-        const toast = await this.toastController.create({message: 'This note is no longer available on this device.', duration: 3500});
+        const toast = await this.toastController.create({message: t('uiThisNoteIsNoLongerAvailableOnThis'), duration: 3500});
         await toast.present();
         return;
       }
@@ -236,10 +242,13 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.currentNote.folder = (this.currentNote.folder ?? "").trim();
       this.currentNote.folder_id = this.currentNote.folder_id ?? null;
       this.note_text = this.currentNote.text ?? '';
-      this.note_title = this.currentNote.title !== undefined ? this.currentNote.title : 'Untitled';
+      this.note_title = this.currentNote.title !== undefined ? this.currentNote.title : t('uiUntitledNote');
 
       await this.ensureMkLoaded();
       this.startLiveNotePolling();
+      if (!this.note_locked && this.activatedRoute.snapshot.queryParamMap.get('action') === 'lock') {
+        this.titleFocusTimer = setTimeout(() => { if (this.viewActive) void this.openLockModal(); }, 0);
+      }
     });
   }
 
@@ -412,6 +421,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   public async shareStellarSecret() {
+    if (this.note_locked) return;
     if (this.richTextEditorComponent?.onLeave) {
       this.richTextEditorComponent.onLeave();
     }
@@ -579,22 +589,22 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   public async selectFolder(): Promise<void> {
     const inputs: any[] = [
-      { label: 'All Notes', type: 'radio', value: '__all__', checked: !(this.currentNote?.folder ?? '').trim() },
+      { label: t('uiAllNotes'), type: 'radio', value: '__all__', checked: !(this.currentNote?.folder ?? '').trim() },
       ...this.folders.map((folder) => ({ label: folder.name, type: 'radio', value: folder.name, checked: (this.currentNote?.folder ?? '') === folder.name })),
     ];
     const alert = await this.alertCtrl.create({
-      header: 'Move to folder',
+      header: t('uiMoveToFolder'),
       inputs,
       buttons: [
-        { text: 'New folder', handler: () => { this.createFolder(); return false; } },
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('uiNewFolder'), handler: () => { this.createFolder(); return false; } },
+        { text: t('cancel'), role: 'cancel' },
         {
-          text: 'Save',
+          text: t('uiSave'),
           handler: (selectedFolder: string) => {
             const target = selectedFolder === '__all__' ? '' : selectedFolder;
             const folderId = this.folders.find((folder) => folder.name === target)?.id ?? null;
             if (!this.currentNote) {
-              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: target, folder_id: folderId, protected: false, auto_wipe: true, last_modified: Date.now() };
+              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? t('uiUntitledNote'), favorite: false, pinned: false, folder: target, folder_id: folderId, protected: false, auto_wipe: true, last_modified: Date.now() };
             } else {
               this.currentNote.folder = target;
               this.currentNote.folder_id = folderId;
@@ -612,12 +622,12 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   public async createFolder(): Promise<void> {
     const alert = await this.alertCtrl.create({
-      header: 'New folder',
-      inputs: [{ name: 'name', type: 'text', placeholder: 'Folder name' }],
+      header: t('uiNewFolder'),
+      inputs: [{ name: 'name', type: 'text', placeholder: t('uiFolderName') }],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('cancel'), role: 'cancel' },
         {
-          text: 'Create',
+          text: t('uiCreate'),
           handler: (data: any) => {
             const name = String(data?.name ?? '').trim();
             if (!name) return false;
@@ -639,7 +649,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
             this.folders = [...this.folders.filter((item) => item.name.toLowerCase() !== name.toLowerCase()), folder].sort((a, b) => a.name.localeCompare(b.name));
             this.syncFoldersManifest();
             if (!this.currentNote) {
-              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: name, folder_id: folder.id, protected: false, auto_wipe: true, last_modified: Date.now() };
+              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? t('uiUntitledNote'), favorite: false, pinned: false, folder: name, folder_id: folder.id, protected: false, auto_wipe: true, last_modified: Date.now() };
             } else {
               this.currentNote.folder = name;
               this.currentNote.folder_id = folder.id;
@@ -660,7 +670,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   public async togglePinned(): Promise<void> {
     if (!this.currentNote) {
-      this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
+      this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? t('uiUntitledNote'), favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
     }
     this.currentNote.pinned = !this.currentNote.pinned;
     this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
@@ -669,7 +679,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
 
   public async toggleFavorite(): Promise<void> {
     if (!this.currentNote) {
-      this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? 'Untitled', favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
+      this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? t('uiUntitledNote'), favorite: false, pinned: false, folder: '', folder_id: null, protected: false, auto_wipe: true, last_modified: Date.now() };
     }
     this.currentNote.favorite = !this.currentNote.favorite;
     this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
@@ -685,7 +695,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   public folderDisplayName(): string {
-    return (this.currentNote?.folder ?? '').trim() || 'All Notes';
+    return (this.currentNote?.folder ?? '').trim() || t('uiAllNotes');
   }
 
   // should be called on key enter.
@@ -710,15 +720,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     let protectedNote = false;
     if (this.currentNote !== null) protectedNote = !!this.currentNote.protected;
 
-    const now = new Date();
-    const datePart = now.toLocaleDateString(undefined, {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    const timePart = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
-    const formattedDate = `${datePart} at ${timePart}`;
+    const formattedDate = formatAppDate(Date.now(), {weekday: 'long', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'});
 
     const note: NoteV1 = {
       base_version: this.currentNote?.base_version,
@@ -743,7 +745,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       if (!Array.isArray(current)) throw new Error('Invalid notes storage');
       this.notes = current;
     } catch {
-      void this.toastController.create({message: 'Saved notes could not be read. Keep this window open and try again.', duration: 5000, color: 'danger'}).then(toast => toast.present());
+      void this.toastController.create({message: t('uiSavedNotesCouldNotBeReadKeepThis'), duration: 5000, color: 'danger'}).then(toast => toast.present());
       return;
     }
 
@@ -765,7 +767,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.currentNote = note;
     this.notesService.currentNote = this.currentNote;
     this.storeNoteInStorage(true, false, immediateSync).catch(async () => {
-      const toast = await this.toastController.create({message: 'The note could not be saved. Keep this window open and try again.', duration: 5000, color: 'danger'});
+      const toast = await this.toastController.create({message: t('uiTheNoteCouldNotBeSavedKeepThis'), duration: 5000, color: 'danger'});
       await toast.present();
     });
     this.notesService.setNoteIsUpdatedSubject(true)
@@ -801,48 +803,28 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     this.navController.back();
   }
 
-  private async wrongPasswordEntered() {
-    const toast = await this.toastController.create({
-      message: this.allTranslations.passwordIsNotCorrectTryAgain,
-      duration: 3000,
-      position: 'bottom',
-    });
-    await toast.present();
-    await this.askforNotePassword();
-  }
-
   public async askforNotePassword() {
-    const modal = await this.modalCtrl.create({
-      component: NoteLockedModalComponent,
-      cssClass: 'confirmation-popup',
-    });
-
-    modal.onDidDismiss().then(async (data) => {
-      if (data && data.data) {
-        const { confirm, inputValue } = data.data || {};
-        console.log('confirm', confirm)
-        if (confirm) {
-          this.notes_password_stored = inputValue ?? '';
-          this.notesService.notesPasswordStored = this.notes_password_stored;
-
-          const ok = this.decryptNote(this.notes_password_stored, this.currentNote);
-          if (!ok) {
-            await this.wrongPasswordEntered();
-          } else {
+    if (this.unlockPromptOpen || !this.viewActive) return;
+    this.unlockPromptOpen = true;
+    const noteId = this.notes_id;
+    try {
+      const modal = await this.modalCtrl.create({
+        component: NoteLockedModalComponent,
+        cssClass: 'confirmation-popup',
+        componentProps: { validatePassword: async (password: string) => {
+          if (!this.viewActive || this.notes_id !== noteId) return false;
+          const ok = this.decryptNote(password, this.currentNote);
+          if (ok) {
+            this.notes_password_stored = password;
+            this.notesService.notesPasswordStored = password;
             this.notesService.isNoteTemporaryDescripted = true;
-            await modal.dismiss();
           }
-        } else {
-          // this.back();
-          await modal?.dismiss(); // added additionally
-        }
-      }
-      if (data.role === 'backdrop') {
-        this.back();
-      }
-    });
-
-    return await modal.present();
+          return ok;
+        } },
+      });
+      await modal.present();
+      await modal.onDidDismiss();
+    } finally { this.unlockPromptOpen = false; }
   }
 
   private decryptNote(notePassword: string, noteToDecrypt: NoteV1 | any): boolean {
@@ -922,25 +904,9 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   public async lockNote() {
-    if (this.notes_password_input !== this.notes_password_confirm) {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.theTwoPasswordsDoesNotMatch,
-        duration: 2500,
-        position: 'bottom',
-      });
-      await toast.present();
-      return;
-    }
-
-    if (this.notes_password_input.length < 2) {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.thePasswordIsTooWeakPleaseMakeItStronger,
-        duration: 3000,
-        position: 'bottom',
-      });
-      await toast.present();
-      return;
-    }
+    this.lockError = '';
+    if (this.notes_password_input.length < 6) { this.lockError = t('uiUseAtLeast6Characters'); return; }
+    if (this.notes_password_input !== this.notes_password_confirm) { this.lockError = t('uiThePasswordsDoNotMatch'); return; }
 
     this.notes_password_stored = this.notes_password_input;
 
@@ -1028,7 +994,14 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     await alert.present();
   }
 
+  @HostListener('window:stellar:note-lock-request', ['$event'])
+  public onLockRequest(event: Event): void {
+    if (this.viewActive && (event as CustomEvent).detail?.id === this.notes_id) void this.openLockModal();
+  }
+
   public async openLockModal() {
+    if (this.note_locked) { await this.askforNotePassword(); return; }
+    this.lockError = '';
     this.save(null);
     await this.modal.present();
   }
@@ -1073,6 +1046,7 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
   }
 
   onSave(event: any, type: string = 'note_text'): void {
+    this.notesService.selectedNoteId = this.notes_id;
     if (type === 'note_text') {
       this.note_text = event;
     } else {

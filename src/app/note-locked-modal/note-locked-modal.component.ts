@@ -1,4 +1,5 @@
-import { Component, ViewChild } from '@angular/core';
+import { translateText as t } from '../i18n';
+import { Component, Input, ViewChild } from '@angular/core';
 import { IonInput, ModalController } from '@ionic/angular';
 
 @Component({ standalone: false,
@@ -10,6 +11,9 @@ export class NoteLockedModalComponent {
   private focusTimer?: ReturnType<typeof setTimeout>;
   ngOnDestroy(): void { clearTimeout(this.focusTimer); }
   public showPassword: boolean = false;
+  public error = '';
+  public checking = false;
+  @Input() validatePassword?: (password: string) => Promise<boolean>;
   @ViewChild('passwordInput', { static: false }) passwordInput!: IonInput;
 
   constructor(private modalCtrl: ModalController) { }
@@ -21,11 +25,21 @@ export class NoteLockedModalComponent {
   }
 
   // Dismiss the modal with the confirmation result
-  public dismiss(confirm: boolean): void {
+  public async dismiss(confirm: boolean): Promise<void> {
+    if (this.checking) return;
+    const inputValue = String(this.passwordInput.value || '');
+    if (confirm && this.validatePassword) {
+      this.checking = true;
+      try {
+        if (!await this.validatePassword(inputValue)) {
+          this.error = t('uiIncorrectPasswordPleaseTryAgain');
+          return;
+        }
+      } catch { this.error = t('uiTheNoteCouldNotBeUnlockedPleaseTry'); return; }
+      finally { this.checking = false; }
+    }
     this.ngOnDestroy();
-    // Get the input value before dismissing the modal
-    const inputValue = this.passwordInput.value;
-    this.modalCtrl.dismiss({ confirm, inputValue });
+    await this.modalCtrl.dismiss({ confirm, inputValue });
   }
 
   // Toggle password visibility

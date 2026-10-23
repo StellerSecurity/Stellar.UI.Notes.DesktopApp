@@ -6,9 +6,10 @@ import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 import { FormsModule } from '@angular/forms';
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
-import { TranslateHttpLoader } from '@ngx-translate/http-loader';
+import { of } from 'rxjs';
+import { appCatalog, resolveAppLanguage } from './i18n';
 import { ShareSecretModalComponent } from './share-secret-modal/share-secret-modal.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
@@ -17,8 +18,8 @@ import { IonicStorageModule, Storage as IonicStorage } from '@ionic/storage-angu
 import { Drivers } from '@ionic/storage';
 import { UserMenuComponent } from './user-menu/user-menu.component';
 
-export function HttpLoaderFactory(http: HttpClient) {
-  return new TranslateHttpLoader(http);
+export class BundledTranslationLoader implements TranslateLoader {
+  getTranslation(language: string) { return of(appCatalog(resolveAppLanguage(language))); }
 }
 
 export function initSodium() {
@@ -47,7 +48,7 @@ export function initSodium() {
     CommonModule,
     FormsModule,
     TranslateModule.forRoot({
-      loader: { provide: TranslateLoader, useFactory: HttpLoaderFactory, deps: [HttpClient] },
+      loader: { provide: TranslateLoader, useClass: BundledTranslationLoader },
     }),
   ],
   providers: [provideZoneChangeDetection(), { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],

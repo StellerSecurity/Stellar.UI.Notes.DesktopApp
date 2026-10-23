@@ -1,0 +1,45 @@
+{
+  "source": "Existing bundled Mobile-main/src/assets/fonts/poppins assets",
+  "version": "4.004",
+  "license": "SIL OFL 1.1",
+  "files": [
+    {
+      "name": "OFL.txt",
+      "bytes": 4384,
+      "gitBlob": "76df3b565672e3248a5715339d092d4cb6c75019",
+      "sha256": "8503c30a4d7e09c4c09015fee42f829f18acbe6330755e9930ba50ea44eaa157",
+      "source_sha256": "6be04893d770899a015649c7aa3b582f871b272f8747a92b78b17c3e5c8b2573",
+      "normalization": "Trailing whitespace removed from license text."
+    },
+    {
+      "name": "Poppins-Regular.ttf",
+      "bytes": 158240,
+      "gitBlob": "9f0c71b70a49664ced448c63edc9c4ff2bf8cf4a",
+      "sha256": "707fdc5c8bab57a90061c6a8ed7b70d5ffb82fc810e994e79f90bace890c255a"
+    },
+    {
+      "name": "Poppins-Medium.ttf",
+      "bytes": 156520,
+      "gitBlob": "6bcdcc27f22e001e46defdfd9e23f224ff65dd67",
+      "sha256": "8d909883de81344e0fbcfef30e931872e92d9aeecdf85b6dcf6e0b28c078e98e"
+    },
+    {
+      "name": "Poppins-SemiBold.ttf",
+      "bytes": 155232,
+      "gitBlob": "74c726e32781bc2c0a83170f6800c0ef4cb9ddcf",
+      "sha256": "248c0244b350ec68880996aa6be6d7796274b49992d5fcbbefe251906aa4ea36"
+    },
+    {
+      "name": "Poppins-Bold.ttf",
+      "bytes": 153944,
+      "gitBlob": "00559eeb290fb8036f10633ff0640447d827b27c",
+      "sha256": "7219547ee25334cbac0fe4b3acf0bf631e48ebb622c71af038edaaa652c60875"
+    },
+    {
+      "name": "Poppins-Italic.ttf",
+      "bytes": 182012,
+      "gitBlob": "12b7b3c40b5c8dd7d90968d43bac7bc673a6c221",
+      "sha256": "3225cec6a018310497ea9ee116aa43b2a833464fed6156dceb9a3a4424bb8613"
+    }
+  ]
+}

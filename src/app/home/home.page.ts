@@ -1,7 +1,10 @@
+import { translateText as t } from '../i18n';
+import { desktopNoteDate, selectionRange } from '../utils/desktop-note-presentation';
+import { AppSettingsPage } from '../app-settings/app-settings.page';
 import { nextNoteVersion } from '../utils/note-version';
 import { unwrapLocalAppKey, wrapLocalAppKey, isModernLocalAppKey } from '../utils/local-app-key';
 import { NoteV1 } from '../models/NoteV1';
-import { matchesNoteSearch, noteSearchText } from '../utils/note-search';
+import { matchesNoteSearch, noteSearchText, notePreviewText } from '../utils/note-search';
 import {
   AfterViewInit,
   ChangeDetectorRef,
@@ -81,7 +84,22 @@ export class HomePage implements AfterViewInit {
   // --------------------------------------------------
   // State
   // --------------------------------------------------
-  public notes: any;
+  public sidebarHidden = localStorage.getItem('stellarNotesSidebar') === 'hidden';
+  public accountEmail = '';
+  public appUnlockError = '';
+  public selectionAnchor = '';
+  public focusedNoteId = '';
+  public folderDialogOpen = false;
+  public folderDialogName = '';
+  public folderDialogError = '';
+  public folderDialogTarget: Folder | null = null;
+  public moveDialogOpen = false;
+  public moveTarget = '__all__';
+  private moveIds: string[] = [];
+  private createThenMove = false;
+  private displayCache = new WeakMap<object, {title: string; text: string; preview: string; heading: string}>();
+  public readonly noteDate = desktopNoteDate;
+  public notes: any[] = [];
 
   public should_display = true;
   public checkboxOpened = false;
@@ -147,7 +165,10 @@ export class HomePage implements AfterViewInit {
   private pendingRenameFolder: Folder | null = null;
   public renamingFolderId: string | null = null;
   public renamingFolderName = '';
-  public draggingNoteId: string | null = null;
+  public draggingNoteIds: string[] = [];
+  public dragPreviewX = 0;
+  public dragPreviewY = 0;
+  private dragGhost?: HTMLCanvasElement;
   public draggingFolderTarget: string | null = null;
 
   private readonly realtimeHint = () => { void this.syncFromServer('realtime').catch(() => {}); };
@@ -491,6 +512,9 @@ export class HomePage implements AfterViewInit {
   // Lifecycle
   // --------------------------------------------------
   async ionViewWillEnter() {
+    await this.authService.initializeAuthState();
+    try { this.accountEmail = JSON.parse(await this.secureStorageService.getItem('ssUser') || '{}').email || ''; }
+    catch { this.accountEmail = ''; }
     window.addEventListener('stellar:notes-changed', this.realtimeHint);
     if (this.pauseSync) this.pauseSync = false;
 
@@ -548,6 +572,7 @@ export class HomePage implements AfterViewInit {
   }
 
   ionViewWillLeave() {
+    this.onNoteDragEnd();
     window.removeEventListener('stellar:notes-changed', this.realtimeHint);
     this.persistUiState();
     this.exitSearchMode();
@@ -579,9 +604,10 @@ export class HomePage implements AfterViewInit {
         .pipe(filter((event) => event instanceof NavigationEnd))
         .subscribe(() => {
           this.userPopover?.dismiss();
-          const urlParts = this.router.url.split("/");
-          const id = urlParts[urlParts.length - 1]; // assuming the id is the last segment
+          const match = this.router.url.match(/\/note\/([^?/#]+)/);
+          const id = match ? decodeURIComponent(match[1]) : null;
           this.noteId = this.noteService.selectedNoteId = id;
+          if (id && this.listOfCheckedCheckboxes.length < 2) this.listOfCheckedCheckboxes = [id];
           if (this.noteId) {
             setTimeout(() => {
               localStorage.setItem("recentOpenedNoteId", this.noteId);
@@ -875,16 +901,10 @@ export class HomePage implements AfterViewInit {
 
   // @ts-ignore
   public async unlockNotesApp() {
-    if (this.input_password_app_unlock.length == 0) {
-      const toast = await this.toastController.create({
-        message: "Please enter your password.",
-        duration: 3000,
-        position: "bottom",
-      });
-
-      await toast.present();
-
-      return;
+    this.appUnlockError = '';
+    if (!this.input_password_app_unlock.length) {
+      this.appUnlockError = t('uiPleaseEnterYourPassword');
+      return false;
     }
 
     this.noteService.increaseAppNoteAttemptsFailedPasswords();
@@ -951,15 +971,7 @@ export class HomePage implements AfterViewInit {
         this.cdr.detectChanges();
       }, 200);
     } else {
-      const toast = await this.toastController.create({
-        message: this.allTranslations.passwordIsNotCorrectTryAgain,
-        duration: 3000,
-        position: "bottom",
-      });
-
-      this.input_password_app_unlock = "";
-
-      await toast.present();
+      this.appUnlockError = this.allTranslations?.passwordIsNotCorrectTryAgain || t('uiIncorrectPasswordPleaseTryAgain');
       return false;
     }
 
@@ -1033,93 +1045,161 @@ export class HomePage implements AfterViewInit {
   }
 
   private async assignNoteToFolder(noteId: string, folderName: string): Promise<void> {
-    const targetNote = (this.notes ?? []).find((note: any) => note.id === noteId);
-    if (!targetNote) {
-      return;
-    }
+    await this.assignNotesToFolder([noteId], folderName);
+  }
 
+  private async assignNotesToFolder(noteIds: readonly string[], folderName: string): Promise<void> {
+    const ids = new Set(noteIds);
+    if (!ids.size) return;
+    const stored = this.noteService.getNotes();
+    const raw = this.noteService.appHasPasswordChallenge()
+      ? this.cryptoService.decrypt(stored, this.noteService.getNotesAppPassword()) : stored;
+    const latest = JSON.parse(raw || '[]');
+    if (!Array.isArray(latest)) throw new Error('Invalid notes storage');
+    this.notes = latest;
     const nextFolderName = folderName === '__all__' ? '' : String(folderName ?? '').trim();
     const folderId = nextFolderName
       ? this.folders.find((folder) => folder.name === nextFolderName)?.id ?? null
       : null;
 
-    if ((targetNote?.folder ?? '') === nextFolderName && this.normalizeFolderId(targetNote?.folder_id) === this.normalizeFolderId(folderId)) {
-      return;
-    }
-
     const now = nextNoteVersion(this.notes ?? []);
-    this.notes = (this.notes ?? []).map((note: any) => note.id === noteId ? { ...note, folder: nextFolderName, folder_id: folderId, last_modified: now } : note);
-    this.noteService.markPendingMutation(noteId, 'move', now);
+    const changedIds: string[] = [];
+    this.notes = this.notes.map((note: any) => {
+      if (!ids.has(note.id) || note.deleted || ((note.folder ?? '') === nextFolderName && this.normalizeFolderId(note.folder_id) === this.normalizeFolderId(folderId))) return note;
+      changedIds.push(note.id);
+      return { ...note, folder: nextFolderName, folder_id: folderId, last_modified: now };
+    });
+    if (!changedIds.length) return;
+    for (const id of changedIds) this.noteService.markPendingMutation(id, 'move', now);
     this.rebuildFolders();
     this.syncFoldersManifest();
+    // Persist the entire group together before filtering can remove moved rows.
     this.persistNotes();
+    if (changedIds.includes(this.noteService.currentNote?.id)) {
+      Object.assign(this.noteService.currentNote, { folder: nextFolderName, folder_id: folderId, last_modified: now });
+    }
+  }
+
+  public toggleSidebar(): void {
+    this.sidebarHidden = !this.sidebarHidden;
+    localStorage.setItem('stellarNotesSidebar', this.sidebarHidden ? 'hidden' : 'shown');
+  }
+
+  public shortcut(key: string): string {
+    return /Mac/i.test(navigator.platform) ? key.replace('Ctrl+', '⌘').replace('Alt+', '⌥') : key;
+  }
+
+  public isNoteSelected(id: string): boolean {
+    return this.listOfCheckedCheckboxes.length ? this.listOfCheckedCheckboxes.includes(id) : this.noteService.selectedNoteId === id;
+  }
+
+  public selectedNotes(): any[] { return this.getNotes().filter(note => this.isNoteSelected(note.id)); }
+  public allSelectedFavorite(): boolean { return this.selectedNotes().every(note => note.favorite); }
+  public isNoteLocked(note: any): boolean {
+    return !!note.protected && !(note.id === this.noteService.selectedNoteId && this.noteService.isNoteTemporaryDescripted);
+  }
+  private noteDisplay(note: any) {
+    let cached = this.displayCache.get(note);
+    if (!cached || cached.title !== note.title || cached.text !== note.text) {
+      cached = { title: note.title, text: note.text, heading: notePreviewText(note.title || ''), preview: notePreviewText(note.text || '') };
+      this.displayCache.set(note, cached);
+    }
+    return cached;
+  }
+  public noteHeading(note: any): string { return this.isNoteLocked(note) ? t('uiLockedNote') : (this.noteDisplay(note).heading || t('uiUntitledNote')); }
+  public notePreview(note: any): string { return this.isNoteLocked(note) ? '' : this.noteDisplay(note).preview; }
+  public viewCount(): number {
+    return (this.notes || []).filter(note => !note.deleted && (this.activeFolderName === '__all__' || note.folder === this.activeFolderName) && (this.activeFilter !== 'favorites' || note.favorite)).length;
+  }
+  public searchAllNotes(): void { this.activeFolderName = '__all__'; this.activeFilter = 'all'; this.applyFilters(); }
+
+  public selectDesktopNote(event: MouseEvent | KeyboardEvent, note: any): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const previous = this.listOfCheckedCheckboxes.length ? this.listOfCheckedCheckboxes : [this.noteService.selectedNoteId].filter(Boolean) as string[];
+    if (event.shiftKey) {
+      this.listOfCheckedCheckboxes = selectionRange(this.getNotes().map(n => n.id), this.selectionAnchor || previous[0], note.id);
+    } else if (event.metaKey || event.ctrlKey) {
+      this.listOfCheckedCheckboxes = previous.includes(note.id) ? previous.filter(id => id !== note.id) : [...previous, note.id];
+      this.selectionAnchor = note.id;
+    } else {
+      this.listOfCheckedCheckboxes = [note.id];
+      this.selectionAnchor = note.id;
+    }
+    this.focusedNoteId = note.id;
+    this.applyDesktopSelection();
+  }
+
+  private applyDesktopSelection(): void {
+    this.checkboxOpened = false;
+    if (this.listOfCheckedCheckboxes.length === 1) {
+      const id = this.listOfCheckedCheckboxes[0];
+      if (this.noteService.selectedNoteId !== id || !this.router.url.includes('/note/')) this.openOrCheckbox(id);
+    } else {
+      // Leaving the editor destroys its plaintext view and relocks protected notes.
+      this.noteService.isNoteTemporaryDescripted = false;
+      this.noteService.notesPasswordStored = null;
+      void this.router.navigate(['/home'], { queryParams: { selection: 'multiple' } });
+    }
+  }
+
+  public onListKeydown(event: KeyboardEvent): void {
+    const notes = this.getNotes();
+    if (!notes.length) return;
+    const ids = notes.map(n => n.id);
+    const index = Math.max(0, ids.indexOf(this.focusedNoteId || this.noteService.selectedNoteId));
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+      event.preventDefault(); event.stopPropagation();
+      this.listOfCheckedCheckboxes = ids;
+      this.applyDesktopSelection();
+      return;
+    }
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? notes.length - 1 : event.key === 'ArrowDown' ? Math.min(index + 1, notes.length - 1) : event.key === 'ArrowUp' ? Math.max(index - 1, 0) : -1;
+    if (next >= 0) {
+      this.selectDesktopNote(event, notes[next]);
+      document.getElementById(notes[next].id)?.focus();
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      this.selectDesktopNote(event, notes[index]);
+    } else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+      event.preventDefault(); event.stopPropagation();
+      void this.openContextMenu(event as any, notes[index]);
+    }
   }
 
   @HostListener('window:keydown', ['$event'])
   public handleDesktopShortcuts(event: KeyboardEvent): void {
-    if (!this.should_display || this.app_requires_password) {
-      return;
+    if (!this.should_display || document.querySelector('ion-modal.show-modal, ion-alert, ion-popover.show-popover')) return;
+    const key = event.key.toLowerCase();
+    const command = event.metaKey || event.ctrlKey;
+    if (command && event.altKey && key === 's') { event.preventDefault(); this.toggleSidebar(); return; }
+    if (command && key === ',') { event.preventDefault(); void this.settings(); return; }
+    if (command && key === 'n') { event.preventDefault(); this.goToCreateNewNote(); return; }
+    if (command && (key === 'f' || key === 'k')) { event.preventDefault(); this.enterSearchMode(); return; }
+    if (this.isTypingTarget(event.target as HTMLElement)) return;
+    if (key === 'escape' && this.listOfCheckedCheckboxes.length > 1) {
+      event.preventDefault(); this.listOfCheckedCheckboxes = [this.focusedNoteId || this.listOfCheckedCheckboxes[0]]; this.applyDesktopSelection();
+    } else if ((key === 'delete' || (event.metaKey && key === 'backspace')) && this.selectedNotes().length) {
+      event.preventDefault(); this.listOfCheckedCheckboxes = this.selectedNotes().map(n => n.id); void this.deleteSelectedNotes();
+    } else if (key === '/') { event.preventDefault(); this.enterSearchMode(); }
+  }
+
+  public async favoriteSelection(ids = this.selectedNotes().map(n => n.id)): Promise<void> {
+    const all = (this.notes || []).filter(n => ids.includes(n.id)).every(n => n.favorite);
+    for (const id of ids) {
+      const note = (this.notes || []).find(n => n.id === id);
+      if (note && !!note.favorite === all) await this.toggleNoteFlag(id, 'favorite');
     }
+  }
 
-    const target = event.target as HTMLElement | null;
-    const isTyping = this.isTypingTarget(target);
-    const metaOrCtrl = event.metaKey || event.ctrlKey;
-
-    if (metaOrCtrl && event.key.toLowerCase() === 'n') {
-      event.preventDefault();
-      this.goToCreateNewNote();
-      return;
-    }
-
-    if (metaOrCtrl && event.key.toLowerCase() === 'k') {
-      event.preventDefault();
-      this.enterSearchMode();
-      return;
-    }
-
-    if (!isTyping && event.key === '/') {
-      event.preventDefault();
-      this.enterSearchMode();
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      if (this.searchMode) {
-        event.preventDefault();
-        this.exitSearchMode();
-        return;
-      }
-
-      if (this.renamingFolderId) {
-        event.preventDefault();
-        this.cancelRenameFolder();
-        return;
-      }
-    }
-
-    if (isTyping || this.checkboxOpened || metaOrCtrl || event.altKey) {
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      this.selectRelativeNote(1);
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      this.selectRelativeNote(-1);
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      const selectedId = String(this.noteService.selectedNoteId ?? '').trim();
-      if (selectedId) {
-        event.preventDefault();
-        this.openOrCheckbox(selectedId);
-      }
-    }
+  public openMoveDialog(ids = this.selectedNotes().map(n => n.id)): void {
+    this.moveIds = [...ids]; this.moveTarget = '__all__'; this.moveDialogOpen = true;
+  }
+  public async confirmMove(): Promise<void> {
+    await this.assignNotesToFolder(this.moveIds, this.moveTarget);
+    this.moveDialogOpen = false;
+  }
+  public newFolderForMove(): void {
+    this.moveDialogOpen = false; this.createThenMove = true; void this.promptCreateFolder();
   }
 
   public folderChipCount(folderName: string): number {
@@ -1153,6 +1233,7 @@ export class HomePage implements AfterViewInit {
       return Number(b?.last_modified ?? 0) - Number(a?.last_modified ?? 0);
     });
     this.filteredResults = scoped;
+    this.listOfCheckedCheckboxes = (this.listOfCheckedCheckboxes || []).filter(id => scoped.some(note => note.id === id));
     this.persistUiState();
     this.restoreNotesListScroll();
   }
@@ -1170,6 +1251,7 @@ export class HomePage implements AfterViewInit {
 
   public setActiveFilter(filter: string | number | undefined | null): void {
     this.activeFilter = filter === 'favorites' ? 'favorites' : 'all';
+    if (this.activeFilter === 'favorites') this.activeFolderName = '__all__';
     this.applyFilters();
     this.persistUiState();
   }
@@ -1190,8 +1272,9 @@ export class HomePage implements AfterViewInit {
   }
 
   public requestRenameFolder(folder: Folder): void {
-    this.pendingRenameFolder = folder;
     this.closeFolderActions();
+    this.folderDialogTarget = folder; this.folderDialogName = folder.name;
+    this.folderDialogError = ''; this.folderDialogOpen = true;
   }
 
   public handleFolderActionsDidDismiss(): void {
@@ -1260,7 +1343,9 @@ export class HomePage implements AfterViewInit {
       this.activeFolderName = nextName;
     }
 
-    this.noteService.setFolders(JSON.stringify(this.folders));
+    const rawFolders = JSON.stringify(this.folders);
+    this.noteService.setFolders(this.noteService.appHasPasswordChallenge()
+      ? this.cryptoService.encrypt(rawFolders, this.noteService.getNotesAppPassword()) : rawFolders);
     this.syncFoldersManifest();
     this.persistNotes();
     this.cancelRenameFolder();
@@ -1279,52 +1364,52 @@ export class HomePage implements AfterViewInit {
   }
 
   public async promptCreateFolder(): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: 'New folder',
-      inputs: [{ name: 'name', type: 'text', placeholder: 'Folder name' }],
-      buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        {
-          text: 'Create',
-          handler: (data: any) => {
-            const name = String(data?.name ?? '').trim();
-            if (!name) return false;
-            if (this.folders.some((folder) => folder.name.toLowerCase() === name.toLowerCase())) {
-              this.selectFolder(this.folders.find((folder) => folder.name.toLowerCase() === name.toLowerCase())?.name ?? '__all__');
-              return true;
-            }
-            const now = nextNoteVersion(this.notes ?? []);
-            const storedFolders = this.getStoredFolders(this.noteService.getNotesAppPassword());
-            const existing = storedFolders.find((folder) => (folder.name ?? '').toLowerCase() === name.toLowerCase());
-            const folder = existing
-              ? { ...existing, name, last_modified: now, deleted: false }
-              : { id: crypto?.randomUUID?.() ?? String(now), name, last_modified: now, deleted: false };
-            const nextFolders = [...storedFolders.filter((item) => (item.name ?? '').toLowerCase() !== name.toLowerCase()), folder];
-            const rawFolders = JSON.stringify(nextFolders);
-            if (this.noteService.appHasPasswordChallenge()) {
-              this.noteService.setFolders(this.cryptoService.encrypt(rawFolders, this.noteService.getNotesAppPassword()));
-            } else {
-              this.noteService.setFolders(rawFolders);
-            }
-            this.rebuildFolders();
-            this.syncFoldersManifest();
-            this.selectFolder(name);
-            return true;
-          }
-        }
-      ]
-    });
-    await alert.present();
+    this.folderDialogTarget = null; this.folderDialogName = ''; this.folderDialogError = ''; this.folderDialogOpen = true;
+  }
+
+  public focusFolderName(event: Event): void {
+    const input = (event.target as HTMLElement | null)?.querySelector<HTMLInputElement>('#folder-name');
+    input?.focus();
+    if (this.folderDialogTarget) input?.select();
+  }
+
+  public closeFolderDialog(): void {
+    this.folderDialogOpen = false; this.createThenMove = false;
+  }
+
+  public async saveFolderDialog(): Promise<void> {
+    const name = this.folderDialogName.trim();
+    if (!name) { this.folderDialogError = t('uiEnterAFolderName'); return; }
+    if (this.folders.some(folder => folder.id !== this.folderDialogTarget?.id && folder.name.toLowerCase() === name.toLowerCase())) {
+      this.folderDialogError = t('uiAFolderWithThisNameAlreadyExists'); return;
+    }
+    if (this.folderDialogTarget) {
+      this.renamingFolderName = name;
+      await this.submitRenameFolder(this.folderDialogTarget);
+    } else {
+      const now = nextNoteVersion(this.notes || []);
+      const stored = this.getStoredFolders(this.noteService.getNotesAppPassword());
+      const previous = stored.find(folder => folder.name.toLowerCase() === name.toLowerCase());
+      const folder = { id: previous?.id || crypto.randomUUID(), name, last_modified: now, deleted: false };
+      const raw = JSON.stringify([...stored.filter(item => item.id !== folder.id), folder]);
+      this.noteService.setFolders(this.noteService.appHasPasswordChallenge() ? this.cryptoService.encrypt(raw, this.noteService.getNotesAppPassword()) : raw);
+      this.rebuildFolders(); this.syncFoldersManifest();
+      if (this.createThenMove) {
+        await this.assignNotesToFolder(this.moveIds, name);
+      }
+      this.selectFolder(name);
+    }
+    this.closeFolderDialog();
   }
 
   public async promptDeleteFolder(folderName: string): Promise<void> {
     const alert = await this.alertCtrl.create({
-      header: 'Delete folder',
-      message: `Delete "${folderName}"? Notes will be moved to All Notes.`,
+      header: t('uiDeleteFolder'),
+      message: t('uiDeleteFolderNotice'),
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('cancel'), role: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           role: 'destructive',
           handler: async () => {
             const now = nextNoteVersion(this.notes ?? []);
@@ -1386,56 +1471,74 @@ export class HomePage implements AfterViewInit {
     } catch {
       this.noteService.syncNeedsAttention$.next(true);
       const toast = await this.toastController.create({
-        message: 'The change could not be synced. Please try again.', duration: 5000, color: 'danger',
+        message: t('uiTheChangeCouldNotBeSyncedPleaseTry'), duration: 5000, color: 'danger',
       });
       await toast.present();
     }
   }
 
   public async moveNoteToFolderFromHome(event: Event, noteId: string): Promise<void> {
-    event.stopPropagation();
-    const inputs: any[] = [
-      { label: 'All Notes', type: 'radio', value: '__all__', checked: true },
-      ...this.folders.map((folder) => ({ label: folder.name, type: 'radio', value: folder.name, checked: false })),
-    ];
-    const alert = await this.alertCtrl.create({
-      header: 'Move to folder',
-      inputs,
-      buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        {
-          text: 'Move',
-          handler: (selectedFolder: string) => {
-            this.assignNoteToFolder(noteId, selectedFolder).then(() => {});
-          }
-        }
-      ]
-    });
-    await alert.present();
+    event.stopPropagation(); this.openMoveDialog([noteId]);
   }
 
   public onNoteDragStart(event: DragEvent, note: any): void {
+    this.onNoteDragEnd();
     if (!note?.id || this.checkboxOpened) {
       event.preventDefault();
       return;
     }
 
-    this.draggingNoteId = note.id;
-    this.draggingFolderTarget = null;
+    // Capture the group now: filtering or sync updates must not change a drag.
+    this.draggingNoteIds = this.isNoteSelected(note.id) ? this.selectedNotes().map(item => item.id) : [note.id];
+    if (!this.draggingNoteIds.length) this.draggingNoteIds = [note.id];
 
+    this.onNoteDragMove(event);
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', note.id);
+      event.dataTransfer.setData('application/x-stellar-note-ids', JSON.stringify(this.draggingNoteIds));
+      if (this.draggingNoteIds.length > 1) this.setNoteStackDragImage(event.dataTransfer, this.draggingNoteIds.length);
     }
   }
 
+  @HostListener('document:dragover', ['$event'])
+  public onNoteDragMove(event: DragEvent): void {
+    if (!this.draggingNoteIds.length) return;
+    // Handle internal drops throughout the app, including cancellation on empty
+    // space. Otherwise macOS waits for its rejected-drop animation before dragend.
+    if (event.type === 'dragover') {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    }
+    this.dragPreviewX = Math.max(8, Math.min(event.clientX + 6, window.innerWidth - 256));
+    this.dragPreviewY = Math.max(8, Math.min(event.clientY + 6, window.innerHeight - 90));
+  }
+
+  @HostListener('document:drop', ['$event'])
+  public onNoteBackgroundDrop(event: DragEvent): void {
+    if (!this.draggingNoteIds.length) return;
+    event.preventDefault();
+    this.onNoteDragEnd();
+  }
+
+  private setNoteStackDragImage(transfer: DataTransfer, _count: number): void {
+    // Render the stack in the app: WebKit may omit a detached canvas drag image.
+    // Suppress the native row ghost so it does not duplicate the visible stack.
+    this.dragGhost = document.createElement('canvas');
+    this.dragGhost.width = this.dragGhost.height = 1;
+    this.dragGhost.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none';
+    document.body.appendChild(this.dragGhost);
+    transfer.setDragImage(this.dragGhost, 0, 0);
+  }
+
   public onNoteDragEnd(): void {
-    this.draggingNoteId = null;
+    this.dragGhost?.remove();
+    this.dragGhost = undefined;
+    this.draggingNoteIds = [];
     this.draggingFolderTarget = null;
   }
 
   public onFolderDragOver(event: DragEvent, folderName: string): void {
-    if (!this.draggingNoteId) {
+    if (!this.draggingNoteIds.length) {
       return;
     }
 
@@ -1452,19 +1555,25 @@ export class HomePage implements AfterViewInit {
     }
   }
 
-  public onFolderDrop(event: DragEvent, folderName: string): void {
+  public async onFolderDrop(event: DragEvent, folderName: string): Promise<void> {
     event.preventDefault();
-    const noteId = event.dataTransfer?.getData('text/plain') || this.draggingNoteId;
+    event.stopPropagation();
+    const ids = [...this.draggingNoteIds];
     const targetFolder = folderName === '__all__' ? '' : folderName;
-
-    this.draggingFolderTarget = null;
-    this.draggingNoteId = null;
-
-    if (!noteId) {
-      return;
+    this.onNoteDragEnd();
+    // Remove the stack before storage/encryption work can occupy this frame.
+    this.cdr.detectChanges();
+    // Only accept a drag started in this window and a current destination.
+    if (!ids.length || (targetFolder && !this.folders.some(folder => folder.name === targetFolder))) return;
+    try {
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+      if (targetFolder && !this.folders.some(folder => folder.name === targetFolder)) return;
+      await this.assignNotesToFolder(ids, targetFolder);
+    } catch {
+      this.noteService.syncNeedsAttention$.next(true);
+      const toast = await this.toastController.create({ message: t('uiTheNotesCouldNotBeMovedPleaseTry'), duration: 5000, color: 'danger' });
+      await toast.present();
     }
-
-    this.assignNoteToFolder(noteId, targetFolder).then(() => {});
   }
 
   private syncFoldersManifest(): void {
@@ -1482,8 +1591,9 @@ export class HomePage implements AfterViewInit {
     this.noteService.setNoteIsUpdatedSubject(true);
   }
 
-  public settings() {
-    this.navController.navigateForward("app-settings").then((r) => {});
+  public async settings(): Promise<void> {
+    const modal = await this.modalCtrl.create({ component: AppSettingsPage, cssClass: 'sn-compact-modal settings-modal' });
+    await modal.present();
   }
 
   goToProfile() {
@@ -1492,8 +1602,8 @@ export class HomePage implements AfterViewInit {
 
   public openOrCheckbox(note_id: string) {
     if (!this.checkboxOpened) {
-      this.noteId = note_id;
-      this.noteService.selectedNoteId = note_id;
+      this.setSelectedNoteId(note_id);
+      this.listOfCheckedCheckboxes = [note_id];
       this.persistUiState();
       // this.navController.navigateForward("/note/" + note_id).then((r) => {});
       this.navController.navigateForward('/dummy-route').then(() => {
@@ -1526,6 +1636,7 @@ export class HomePage implements AfterViewInit {
       cssClass: "confirmation-popup",
       componentProps: {
         isSingleDelete: this.listOfCheckedCheckboxes?.length == 1 || false,
+        count: this.listOfCheckedCheckboxes.length,
       },
     });
 
@@ -1551,7 +1662,7 @@ export class HomePage implements AfterViewInit {
     const loading = await this.loadingController.create();
     await loading.present();
 
-    const idsToDelete = new Set(this.listOfCheckedCheckboxes);
+    const idsToDelete = new Set<string>(id ? [id] : this.listOfCheckedCheckboxes);
 
     // delete the selected notes from notes[]
     for (let j = this.notes.length - 1; j >= 0; j--) {
@@ -1590,7 +1701,7 @@ export class HomePage implements AfterViewInit {
     // 🔐 delete on server if logged in (from main branch)
     if (this.authService.isLoggedIn) {
       this.notesApiServiceV1
-        .deleteNotes(this.listOfCheckedCheckboxes)
+        .deleteNotes([...idsToDelete])
         .then(async () => {
           this.listOfCheckedCheckboxes = [];
           this.checkboxOpened = false;
@@ -1604,6 +1715,9 @@ export class HomePage implements AfterViewInit {
         });
     }
 
+    this.listOfCheckedCheckboxes = [];
+    this.applyFilters();
+    if (idsToDelete.has(this.noteService.selectedNoteId || '')) await this.router.navigate(['/home']);
     const toast = await this.toastController.create({
       message: this.allTranslations.theSelectedNotesHasBeenDeleted,
       duration: 2500,
@@ -1637,7 +1751,7 @@ export class HomePage implements AfterViewInit {
     // If user confirmed reset
     if (data?.confirm) {
       const loading = await this.loadingController.create({
-        message: 'Resetting app…',
+        message: t('uiResettingApp'),
         spinner: 'crescent',
       });
       await loading.present();
@@ -1702,52 +1816,30 @@ export class HomePage implements AfterViewInit {
   }
 
   async openContextMenu(event: MouseEvent, note: any) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if(note.protected) {
-      return
-    }
-
+    event.preventDefault(); event.stopPropagation();
+    const ids = this.isNoteSelected(note.id) && this.selectedNotes().length > 1 ? this.selectedNotes().map(n => n.id) : [note.id];
     const popover = await this.popoverController.create({
       component: NoteContextMenuComponent,
-      componentProps: { note },
-      event: event,
-      side: 'end',
-      alignment: 'start',
-      showBackdrop: true,
-      translucent: false,
-      cssClass: 'note-context-popover',
+      componentProps: { note, multiple: ids.length > 1, locked: this.isNoteLocked(note), allFavorite: (this.notes || []).filter(n => ids.includes(n.id)).every(n => n.favorite) },
+      event, side: 'bottom', alignment: 'start', showBackdrop: true, cssClass: 'note-context-popover',
     });
-
     await popover.present();
-
     const { data } = await popover.onDidDismiss();
-
-    if (!data) return;
-
-    switch (data.action) {
-      case 'select':
-        this.openOrCheckbox(note.id);
+    switch (data?.action) {
+      case 'pin': await this.toggleNoteFlag(note.id, 'pinned'); break;
+      case 'favorite': await this.favoriteSelection(ids); break;
+      case 'move': this.openMoveDialog(ids); break;
+      case 'lock':
+        this.listOfCheckedCheckboxes = [note.id];
+        if (this.noteService.selectedNoteId === note.id) window.dispatchEvent(new CustomEvent('stellar:note-lock-request', { detail: { id: note.id } }));
+        else await this.router.navigate(['/note', note.id], { queryParams: { action: 'lock' } });
         break;
-
-      // case 'lock':
-      //   this.lockNote(note);
-      //   break;
-
-      case 'share':
-        this.shareNote(note);
-        break;
-
+      case 'share': if (!this.isNoteLocked(note)) await this.shareNote(note); break;
       case 'delete':
-        this.deleteNote(note.id);
+        if (ids.length === 1) await this.deleteNote(ids[0]);
+        else { this.listOfCheckedCheckboxes = ids; await this.deleteSelectedNotes(); }
         break;
     }
-  }
-
-  lockNote(note: any) {
-    console.log('Lock note', note);
-    // Your lock logic
   }
 
   async shareNote(note: any) {
@@ -1784,7 +1876,6 @@ export class HomePage implements AfterViewInit {
       if (data && data.data) {
         const { confirm } = data.data;
         if (confirm) {
-          this.selectNote(null, id);
           this.deleteNotesConfirm(id);
         }
       }
@@ -1807,6 +1898,8 @@ export class HomePage implements AfterViewInit {
   // Extra navigation helpers (from current branch)
   // --------------------------------------------------
   goToCreateNewNote(): void {
+    this.listOfCheckedCheckboxes = [];
+    this.noteService.isNoteTemporaryDescripted = false;
     const extras = this.activeFolderName !== "__all__" ? { queryParams: { folder: this.activeFolderName } } : undefined;
     this.router.navigate(["/dummy-route"]);
     setTimeout(() => {
@@ -1818,11 +1911,12 @@ export class HomePage implements AfterViewInit {
     this.userPopover = await this.popoverController.create({
       component: UserMenuComponent,
       event: ev,
-      side: "bottom",
+      side: "top",
       alignment: "end",
       translucent: true,
       showBackdrop: false,
       cssClass: "user-menu-popover",
+      arrow: false,
     });
     await this.userPopover.present();
   }
