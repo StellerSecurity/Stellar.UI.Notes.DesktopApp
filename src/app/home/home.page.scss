@@ -1,7 +1,7 @@
 :host { display: block; height: 100%; }
 .desktop-layout { display: grid; grid-template-columns: var(--folders-pane-width,220px) 1px var(--notes-pane-width,300px) 1px minmax(0,1fr); height: 100dvh; overflow: hidden; background: #fff; color: #0b0c19; font-size: 14px; transition: grid-template-columns 220ms cubic-bezier(.2,.8,.2,1); }
 .desktop-layout.sidebar-hidden { grid-template-columns: 0px 0px var(--notes-pane-width,300px) 1px minmax(0,1fr); }
-.desktop-folders-pane { width: var(--folders-pane-width,220px); min-width: 0; overflow: hidden; transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; background: #f6f6fd; border-right: 1px solid #eaeaf0; min-height: 0; }
+.desktop-folders-pane { width: var(--folders-pane-width,220px); min-width: 0; overflow: hidden; transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; background: #f6f6fd; min-height: 0; }
 .folders-header { display: flex; align-items: center; gap: 6px; height: 56px; flex-shrink: 0; padding: 0 12px; strong { font-size: 13px; } }
 .brand-icon { width: 24px; height: 24px; object-fit: contain; }
 .folders-scroll { flex: 1; overflow: auto; padding: 0 12px; }
@@ -63,8 +63,8 @@
 
 .pane-divider { position:relative; z-index:5; width:9px; margin-left:-4px; background:transparent; cursor:col-resize; touch-action:none; outline:none; }
 .pane-divider::after { content:''; position:absolute; top:0; bottom:0; left:4px; width:1px; background:#eaeaf0; transition:background 120ms; }
-.pane-divider:hover::after, .pane-divider:focus-visible::after, .pane-resizing .pane-divider::after { background:#2761fc; width:2px; }
-.pane-divider:focus-visible { outline:2px solid #2761fc; outline-offset:-3px; }
+.pane-divider:hover::after, .pane-resizing .pane-divider::after { background:#c9c9d1; }
+.pane-divider:focus-visible::after { background:#858592; }
 .desktop-layout.pane-resizing { transition:none; }
 .desktop-layout.pane-resizing, .desktop-layout.pane-resizing * { cursor:col-resize !important; user-select:none !important; }
 
