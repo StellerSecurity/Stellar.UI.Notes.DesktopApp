@@ -32,6 +32,14 @@ quill-editor { display: flex; flex-direction: column; height: 100%; overflow-y: 
   .ql-container { flex: 1 0 auto; min-height: 200px; border: 0; background: white; }
   .ql-container.image-drop-target { background: #f6f8ff; outline: 2px dashed #2761fc; outline-offset: -4px; }
   .ql-editor { height: auto; min-height: 200px; overflow: visible; padding: 0 var(--document-inset) 80px; font-family: var(--ion-font-family); font-size: 14px; line-height: 1.65; color: #0b0c19; }
+  // Hang list markers in the document gutter instead of shifting the text twice.
+  .ql-editor ol, .ql-editor ul { padding-inline-start: 0; }
+  .ql-editor li:not(.ql-direction-rtl) { padding-left: 0; }
+  .ql-editor li.ql-direction-rtl { padding-right: 0; }
+  @for $level from 1 through 9 {
+    .ql-editor li.ql-indent-#{$level}:not(.ql-direction-rtl) { padding-left: $level * 3em; }
+    .ql-editor li.ql-indent-#{$level}.ql-direction-rtl.ql-align-right { padding-right: $level * 3em; }
+  }
   .ql-editor img { max-width: 100%; cursor: zoom-in; }
   .ql-editor.ql-blank::before { left: var(--document-inset); right: var(--document-inset); font-style: normal; }
   .ql-picker.ql-header { width: 102px; height: 28px; font-family: var(--ion-font-family); font-size: 12px; flex-shrink: 0; }

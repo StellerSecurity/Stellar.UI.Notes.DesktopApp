@@ -116,6 +116,26 @@ describe('RichTextEditorComponent', () => {
     loaded.destroy();
   });
 
+  for(const type of ['bullet','ordered']) it(`keeps ${type} text on the body margin while retaining nested list levels`,async()=>{
+    await fixture.whenStable();fixture.nativeElement.style.cssText='display:block;width:500px;height:600px';
+    const quill=component.quill;quill.setText('First item\nNested item\nOrdinary text\n','silent');
+    const textLeft=(element:HTMLElement)=>{
+      const node=Array.from(element.childNodes).find(child=>child.nodeType===Node.TEXT_NODE)!;
+      const range=document.createRange();range.setStart(node,0);range.setEnd(node,1);return range.getBoundingClientRect().left;
+    };
+    const left=textLeft(quill.root.querySelector('p'));
+    quill.formatLine(0,10,'list',type,'user');
+    quill.formatLine(11,11,'list',type,'user');quill.formatLine(11,11,'indent',1,'user');
+    const items=quill.root.querySelectorAll('li');
+    expect(textLeft(items[0])).toBeCloseTo(left,0);
+    const size=parseFloat(getComputedStyle(items[1]).fontSize);
+    expect(textLeft(items[1])-left).toBeCloseTo(size*3,0);
+    expect(quill.getFormat(11,1).indent).toBe(1);expect(quill.getText()).toBe('First item\nNested item\nOrdinary text\n');
+    const exported=component.editorValueGetter(quill);expect(exported).toContain(type==='bullet'?'<ul':'<ol');
+    quill.formatLine(0,10,'list',false,'user');
+    expect(textLeft(quill.root.querySelector('p'))).toBeCloseTo(left,0);
+  });
+
   const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j7XkAAAAASUVORK5CYII=';
   function imageTransfer(): DataTransfer {
     const transfer = new DataTransfer();
