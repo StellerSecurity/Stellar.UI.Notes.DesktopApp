@@ -598,81 +598,59 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     }
   }
 
+  public folderPickerOpen = false;
+  public folderPickerCreating = false;
+  public folderPickerQuery = '';
+  public folderPickerTarget = '__all__';
+  public folderPickerName = '';
+
+  public get filteredMoveFolders(): Folder[] {
+    const query = this.folderPickerQuery.trim().toLocaleLowerCase();
+    return this.folders.filter(folder => folder.name.toLocaleLowerCase().includes(query));
+  }
+
   public async selectFolder(): Promise<void> {
-    const inputs: any[] = [
-      { label: t('uiAllNotes'), type: 'radio', value: '__all__', checked: !(this.currentNote?.folder ?? '').trim() },
-      ...this.folders.map((folder) => ({ label: folder.name, type: 'radio', value: folder.name, checked: (this.currentNote?.folder ?? '') === folder.name })),
-    ];
-    const alert = await this.alertCtrl.create({
-      header: t('uiMoveToFolder'),
-      inputs,
-      buttons: [
-        { text: t('uiNewFolder'), handler: () => { this.createFolder(); return false; } },
-        { text: t('cancel'), role: 'cancel' },
-        {
-          text: t('uiSave'),
-          handler: (selectedFolder: string) => {
-            const target = selectedFolder === '__all__' ? '' : selectedFolder;
-            const folderId = this.folders.find((folder) => folder.name === target)?.id ?? null;
-            if (!this.currentNote) {
-              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? t('uiUntitledNote'), favorite: false, pinned: false, folder: target, folder_id: folderId, protected: false, auto_wipe: true, last_modified: Date.now() };
-            } else {
-              this.currentNote.folder = target;
-              this.currentNote.folder_id = folderId;
-              this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
-            }
-            this.syncFoldersManifest();
-            this.save(null);
-            return true;
-          }
-        }
-      ]
-    });
-    await alert.present();
+    this.folderPickerTarget = this.currentNote?.folder?.trim() || '__all__';
+    this.folderPickerQuery = ''; this.folderPickerName = '';
+    this.folderPickerCreating = false; this.folderPickerOpen = true;
+  }
+
+  public focusFolderPicker(event: Event): void {
+    const modal = event.target as HTMLElement;
+    modal.querySelector<HTMLInputElement>(this.folderPickerCreating ? '[name="newFolderName"]' : '[name="folderSearch"]')?.focus();
   }
 
   public async createFolder(): Promise<void> {
-    const alert = await this.alertCtrl.create({
-      header: t('uiNewFolder'),
-      inputs: [{ name: 'name', type: 'text', placeholder: t('uiFolderName') }],
-      buttons: [
-        { text: t('cancel'), role: 'cancel' },
-        {
-          text: t('uiCreate'),
-          handler: (data: any) => {
-            const name = String(data?.name ?? '').trim();
-            if (!name) return false;
-            const existing = this.folders.find((folder) => folder.name.toLowerCase() === name.toLowerCase());
-            if (existing) {
-              if (this.currentNote) {
-                this.currentNote.folder = existing.name;
-                this.currentNote.folder_id = existing.id ?? null;
-              }
-              this.save(null);
-              return true;
-            }
-            const now = Date.now();
-            const storedFolders = this.getStoredFolders();
-            const existingStored = storedFolders.find((folder: any) => String(folder?.name ?? '').trim().toLowerCase() === name.toLowerCase());
-            const folder = existingStored
-              ? { ...existingStored, name, last_modified: now, deleted: false }
-              : { id: uuidv4(), name, last_modified: now, deleted: false };
-            this.folders = [...this.folders.filter((item) => item.name.toLowerCase() !== name.toLowerCase()), folder].sort((a, b) => a.name.localeCompare(b.name));
-            this.syncFoldersManifest();
-            if (!this.currentNote) {
-              this.currentNote = { id: this.notes_id as string, text: this.note_text ?? '', title: this.note_title ?? t('uiUntitledNote'), favorite: false, pinned: false, folder: name, folder_id: folder.id, protected: false, auto_wipe: true, last_modified: Date.now() };
-            } else {
-              this.currentNote.folder = name;
-              this.currentNote.folder_id = folder.id;
-              this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
-            }
-            this.save(null);
-            return true;
-          }
-        }
-      ]
-    });
-    await alert.present();
+    if (!this.folderPickerOpen) await this.selectFolder();
+    this.folderPickerCreating = true; this.folderPickerName = '';
+    setTimeout(() => document.querySelector<HTMLInputElement>('ion-modal.folder-picker-modal [name="newFolderName"]')?.focus());
+  }
+
+  public confirmFolderPicker(): void {
+    let target = this.folderPickerTarget === '__all__' ? '' : this.folderPickerTarget;
+    if (this.folderPickerCreating) {
+      const name = this.folderPickerName.trim();
+      if (!name || name.length > 80) return;
+      const existing = this.folders.find(folder => folder.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+      if (existing) target = existing.name;
+      else {
+        const stored = this.getStoredFolders().find(folder => folder.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+        const folder = {...stored, id: stored?.id ?? uuidv4(), name, last_modified: Date.now(), deleted:false};
+        this.folders = [...this.folders, folder].sort((a,b) => a.name.localeCompare(b.name));
+        target = name;
+      }
+    }
+    const folderId = this.folders.find(folder => folder.name === target)?.id ?? null;
+    if (target && !folderId) return;
+    if (!this.currentNote) {
+      this.currentNote = {id:this.notes_id as string, text:this.note_text ?? '', title:this.note_title ?? t('uiUntitledNote'), folder:target, folder_id:folderId, protected:false, auto_wipe:true, last_modified:Date.now()};
+    } else {
+      this.currentNote.folder = target;
+      this.currentNote.folder_id = folderId;
+      this.currentNote.last_modified = nextNoteVersion([this.currentNote]);
+    }
+    this.folderPickerOpen = false;
+    this.syncFoldersManifest(); this.save(null);
   }
 
   private syncFoldersManifest(): void {

@@ -4,3 +4,22 @@
 .locked-toolbar { height: 44px; padding: 8px; display: flex; justify-content: flex-end; border-bottom: 1px solid #eaeaf0; color: #2761fc; }
 .locked-note-message { text-align: center; padding: 100px 24px; color: #62626a; > ion-icon { font-size: 40px; } h2 { font-size: 20px; color: #0b0c19; } p { font-size: 13px; margin-bottom: 20px; } }
 .input-group { position: relative; margin: 12px 0; ion-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 2; } }
+
+.folder-picker { padding: 22px; }
+.folder-search { display:flex; align-items:center; gap:8px; padding:10px 12px; background:#f5f5fa; border-radius:10px; color:#858591; }
+.folder-search input { min-width:0; width:100%; border:0; background:transparent; outline:0; font-size:13px; color:#0b0c19; }
+.folder-search:focus-within { box-shadow:0 0 0 2px #2761fc; }
+.folder-picker-list { margin:12px -4px 0; max-height:min(300px,45dvh); overflow:auto; padding:4px; }
+.folder-picker-row { position:relative; display:flex; align-items:center; gap:10px; min-height:42px; padding:10px 12px; border-radius:9px; font-size:13px; color:#333440; }
+.folder-picker-row:hover { background:#f5f5fa; }
+.folder-picker-row.chosen { background:#eaf0ff; color:#2458e5; }
+.folder-picker-row:focus-within { outline:2px solid #2761fc; outline-offset:-2px; }
+.folder-picker-row input { position:absolute; opacity:0; width:1px; height:1px; }
+.folder-picker-row span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.folder-picker-row ion-icon { font-size:19px; flex-shrink:0; }
+.folder-check { visibility:hidden; }.chosen .folder-check { visibility:visible; }
+.folder-picker-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; border-top:1px solid #eeeef3; padding-top:16px; margin-top:16px; }
+.folder-picker-footer .sn-dialog-actions { margin:0; margin-left:auto; }
+.folder-picker-footer .text-link { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+.folder-picker-footer .sn-button { min-width:84px; }
+.folder-create-field { padding:4px 0 12px; }.folder-create-field label { display:block; font-size:12px; margin-bottom:8px; color:#62626a; }

@@ -222,3 +222,35 @@ describe('Create a note by dropping local images on the empty editor',()=>{
     await component.onImageDrop(drop([new File(['png'],'a.png',{type:'image/png'})]));expect(service.pendingImageNote).toBeNull();expect(component.imageDropError).toBeTruthy();
   });
 });
+
+describe('Desktop folder picker',()=>{
+  const editor=()=>{
+    const page:any=Object.create(AddNotePage.prototype);
+    page.folders=[{id:'a',name:'Work'},{id:'b',name:'Personal'}];
+    page.currentNote={id:'note',folder:'Work',folder_id:'a',text:'body',protected:true};
+    page.getStoredFolders=()=>page.folders;
+    page.syncFoldersManifest=jasmine.createSpy('folders');page.save=jasmine.createSpy('save');
+    return page;
+  };
+  it('opens with the current folder selected and searches without changing the note',async()=>{
+    const page=editor();await page.selectFolder();
+    expect(page.folderPickerOpen).toBeTrue();expect(page.folderPickerTarget).toBe('Work');
+    page.folderPickerQuery=' PER ';expect(page.filteredMoveFolders.map((f:any)=>f.name)).toEqual(['Personal']);
+    page.folderPickerOpen=false;expect(page.currentNote.folder).toBe('Work');expect(page.save).not.toHaveBeenCalled();
+  });
+  it('moves only on confirmation and preserves protected content',async()=>{
+    const page=editor();await page.selectFolder();page.folderPickerTarget='Personal';page.confirmFolderPicker();
+    expect(page.currentNote.folder_id).toBe('b');expect(page.currentNote.text).toBe('body');expect(page.currentNote.protected).toBeTrue();
+    expect(page.save).toHaveBeenCalledOnceWith(null);expect(page.folderPickerOpen).toBeFalse();
+  });
+  it('creates a new folder inline and reuses existing names case insensitively',async()=>{
+    const page=editor();await page.selectFolder();page.folderPickerCreating=true;page.folderPickerName='  Projects  ';page.confirmFolderPicker();
+    expect(page.currentNote.folder).toBe('Projects');expect(page.currentNote.folder_id).toBeTruthy();expect(page.folders.length).toBe(3);
+    page.folderPickerName='personal';page.confirmFolderPicker();expect(page.currentNote.folder_id).toBe('b');expect(page.folders.length).toBe(3);
+  });
+  it('rejects empty names and missing destinations, and supports removing the folder',async()=>{
+    const page=editor();await page.selectFolder();page.folderPickerCreating=true;page.folderPickerName='   ';page.confirmFolderPicker();expect(page.save).not.toHaveBeenCalled();
+    page.folderPickerCreating=false;page.folderPickerTarget='Missing';page.confirmFolderPicker();expect(page.save).not.toHaveBeenCalled();
+    page.folderPickerTarget='__all__';page.confirmFolderPicker();expect(page.currentNote.folder).toBe('');expect(page.currentNote.folder_id).toBeNull();
+  });
+});
