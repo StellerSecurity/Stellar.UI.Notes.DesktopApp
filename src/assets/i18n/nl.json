@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "De app blijft geopend.",
   "resizeNoteList": "Breedte van notitielijst",
   "resizeNoteListHint": "Sleep om de breedte aan te passen. Dubbelklik om te herstellen. Gebruik de pijltjestoetsen om aan te passen.",
-  "resizeFolders": "Breedte van mappenzijbalk"
+  "resizeFolders": "Breedte van mappenzijbalk",
+  "uiRemoveImage": "Afbeelding verwijderen"
 }

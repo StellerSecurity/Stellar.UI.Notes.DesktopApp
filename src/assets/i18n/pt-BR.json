@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "O aplicativo permanecerá aberto.",
   "resizeNoteList": "Largura da lista de notas",
   "resizeNoteListHint": "Arraste para redimensionar. Clique duas vezes para redefinir. Ajuste com as teclas de seta.",
-  "resizeFolders": "Largura da barra de pastas"
+  "resizeFolders": "Largura da barra de pastas",
+  "uiRemoveImage": "Remover imagem"
 }

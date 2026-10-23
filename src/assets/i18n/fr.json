@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "L’application restera ouverte.",
   "resizeNoteList": "Largeur de la liste des notes",
   "resizeNoteListHint": "Faites glisser pour redimensionner. Double-cliquez pour réinitialiser. Ajustez avec les flèches.",
-  "resizeFolders": "Largeur de la barre des dossiers"
+  "resizeFolders": "Largeur de la barre des dossiers",
+  "uiRemoveImage": "Supprimer l’image"
 }

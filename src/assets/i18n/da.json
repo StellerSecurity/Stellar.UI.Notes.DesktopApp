@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "Appen forbliver åben.",
   "resizeNoteList": "Notelistens bredde",
   "resizeNoteListHint": "Træk for at ændre bredden. Dobbeltklik for at nulstille. Brug piletasterne til at justere.",
-  "resizeFolders": "Mappesidebarens bredde"
+  "resizeFolders": "Mappesidebarens bredde",
+  "uiRemoveImage": "Fjern billede"
 }

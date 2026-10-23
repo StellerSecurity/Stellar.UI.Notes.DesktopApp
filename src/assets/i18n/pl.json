@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "Aplikacja pozostanie otwarta.",
   "resizeNoteList": "Szerokość listy notatek",
   "resizeNoteListHint": "Przeciągnij, aby zmienić szerokość. Kliknij dwukrotnie, aby zresetować. Dostosuj klawiszami strzałek.",
-  "resizeFolders": "Szerokość panelu folderów"
+  "resizeFolders": "Szerokość panelu folderów",
+  "uiRemoveImage": "Usuń obraz"
 }

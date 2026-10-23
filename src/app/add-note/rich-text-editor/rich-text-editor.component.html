@@ -37,6 +37,7 @@
       <button type="button" class="zoom-value" [attr.aria-label]="'uiFitImage' | translate" [title]="'uiFitImage0' | translate" (click)="zoomPreview(1)">{{previewZoom * 100 | number:'1.0-0'}}%</button>
       <button type="button" [attr.aria-label]="'uiZoomIn' | translate" [title]="'uiZoomIn' | translate" [disabled]="previewZoom >= 5" (click)="zoomPreview(previewZoom * 1.25)"><ion-icon name="add-outline" aria-hidden="true"></ion-icon></button>
     </div>
+    <button class="image-preview-remove" type="button" aria-keyshortcuts="Backspace Delete" [disabled]="!quill?.isEnabled()" (click)="$event.stopPropagation(); removePreviewImage()"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon><span>{{'uiRemoveImage' | translate}}</span></button>
     <div #previewStage class="image-preview-stage">
       <img #previewImage [src]="previewImageSrc" [alt]="previewImageAlt" draggable="false"
         [class.zoomed]="previewZoom > 1" [class.panning]="previewPanning" [class.animate-zoom]="previewAnimateZoom"

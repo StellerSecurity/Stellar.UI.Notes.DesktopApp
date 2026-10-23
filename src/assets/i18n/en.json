@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "The app will stay open.",
   "resizeNoteList": "Note list width",
   "resizeNoteListHint": "Drag to resize. Double-click to reset. Use arrow keys to adjust.",
-  "resizeFolders": "Folder sidebar width"
+  "resizeFolders": "Folder sidebar width",
+  "uiRemoveImage": "Remove image"
 }

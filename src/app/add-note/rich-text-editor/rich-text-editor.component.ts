@@ -101,6 +101,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   private previewPointer?: {id: number; x: number; y: number; panX: number; panY: number};
   private removePreviewListeners?: () => void;
   private previewSelection?: {index: number; length: number};
+  private previewSourceImage?: HTMLImageElement;
   private active = true;
   private destroyed = false;
   private generation = 0;
@@ -340,6 +341,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
       if (!src || src.startsWith('unsafe:')) return;
       this.resetImagePreview();
       this.previewSelection = this.quill.getSelection() || undefined;
+      this.previewSourceImage = image as HTMLImageElement;
       this.previewImageSrc = src;
       this.previewImageAlt = image.getAttribute('alt') || t('uiEnlargedNoteImage');
       this.cdr.detectChanges();
@@ -365,10 +367,34 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     }
   }
 
+  public removePreviewImage(): void {
+    const image = this.previewSourceImage;
+    const quill = this.quill;
+    if (!this.active || this.destroyed || !this.previewImageSrc) return;
+    // Track the actual embed, not its URL or an old index: duplicate images and
+    // edits received while previewing must never remove a different image/text.
+    if (!image || !quill?.isEnabled() || !quill.root.contains(image) || image.getAttribute('src') !== this.previewImageSrc) {
+      this.closeImagePreview(); return;
+    }
+    const blot = quill.constructor.find(image);
+    if (!blot) { this.closeImagePreview(); return; }
+    const index = quill.getIndex(blot);
+    const embed = quill.getContents(index, 1).ops?.[0]?.insert;
+    if (!embed || typeof embed !== 'object' || embed.image !== this.previewImageSrc) {
+      this.closeImagePreview(); return;
+    }
+    quill.history.cutoff();
+    quill.deleteText(index, 1, 'user');
+    quill.history.cutoff();
+    this.previewSelection = { index: Math.min(index, quill.getLength() - 1), length: 0 };
+    this.closeImagePreview();
+  }
+
   private resetImagePreview(): void {
     this.removePreviewListeners?.();
     this.removePreviewListeners = undefined;
     this.previewImageSrc = null;
+    this.previewSourceImage = undefined;
     this.previewSelection = undefined;
     this.previewZoom = 1;
     this.previewPanX = this.previewPanY = 0;
@@ -444,6 +470,11 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   }
 
   public onPreviewKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault(); event.stopPropagation();
+      if (!event.repeat && !event.isComposing && !event.metaKey && !event.ctrlKey && !event.altKey) this.removePreviewImage();
+      return;
+    }
     if (event.key === 'Escape') this.closeImagePreview();
     else if (event.key === '+' || event.key === '=') this.zoomPreview(this.previewZoom * 1.25);
     else if (event.key === '-') this.zoomPreview(this.previewZoom / 1.25);

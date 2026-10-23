@@ -206,6 +206,62 @@ describe('RichTextEditorComponent', () => {
     component.onLeave(); expect(component.previewImageSrc).toBeNull();
   });
 
+  it('removes only the previewed duplicate image, publishes the edit and supports undo/redo', async () => {
+    await fixture.whenStable(); const quill=component.quill; const src=`data:image/png;base64,${png}`;
+    quill.setContents([{insert:'Before '},{insert:{image:src}},{insert:' middle '},{insert:{image:src}},{insert:' after\n'}],'silent');
+    quill.history.clear();const original=JSON.stringify(quill.getContents());const text=quill.getText();
+    const images=quill.root.querySelectorAll('img'); const first=images[0];images[1].click();fixture.detectChanges();
+    const save=spyOn(component.noteChange,'emit');
+    (fixture.nativeElement.querySelector('.image-preview-remove') as HTMLButtonElement).click();fixture.detectChanges();await fixture.whenStable();
+    expect(component.previewImageSrc).toBeNull();expect(quill.root.querySelectorAll('img').length).toBe(1);
+    expect(quill.root.querySelector('img')).toBe(first);expect(quill.getText()).toBe(text);
+    expect(save).toHaveBeenCalledTimes(1);expect(save.calls.mostRecent().args[0]!.match(/<img\b/g)?.length).toBe(1);
+    expect(document.activeElement).toBe(quill.root);
+    component.undo();expect(JSON.stringify(quill.getContents())).toBe(original);
+    component.redo();expect(quill.root.querySelectorAll('img').length).toBe(1);
+  });
+
+  for(const key of ['Backspace','Delete']) it(`${key} removes the previewed image without reaching note deletion shortcuts`,async()=>{
+    await fixture.whenStable();const quill=component.quill;
+    quill.setContents([{insert:'Keep '},{insert:{image:`data:image/png;base64,${png}`}},{insert:' text\n'}],'silent');quill.history.clear();
+    quill.root.querySelector('img').click();fixture.detectChanges();
+    const globalKey=jasmine.createSpy('global note shortcut');window.addEventListener('keydown',globalKey);
+    try {
+      const event=new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true});
+      (fixture.nativeElement.querySelector('.image-preview-close') as HTMLButtonElement).dispatchEvent(event);fixture.detectChanges();
+      expect(event.defaultPrevented).toBeTrue();expect(globalKey).not.toHaveBeenCalled();
+      expect(quill.root.querySelector('img')).toBeNull();expect(quill.getText()).toBe('Keep  text\n');
+      expect(fixture.nativeElement.querySelector('.image-preview')).toBeNull();
+      component.removePreviewImage();expect(quill.getText()).toBe('Keep  text\n');
+      component.undo();expect(quill.root.querySelector('img')).not.toBeNull();
+    } finally {window.removeEventListener('keydown',globalKey);}
+  });
+
+  it('finds the current embed position after edits received while previewing',async()=>{
+    await fixture.whenStable();const quill=component.quill;
+    quill.setContents([{insert:'Before '},{insert:{image:`data:image/png;base64,${png}`}},{insert:' after\n'}],'silent');
+    quill.root.querySelector('img').click();quill.insertText(0,'New text ','silent');
+    component.removePreviewImage();expect(quill.getText()).toBe('New text Before  after\n');expect(quill.root.querySelector('img')).toBeNull();
+  });
+
+  it('does not remove another identical image if the original embed has disappeared',async()=>{
+    await fixture.whenStable();const quill=component.quill;const src=`data:image/png;base64,${png}`;
+    quill.setContents([{insert:{image:src}},{insert:' middle '},{insert:{image:src}},{insert:'\n'}],'silent');
+    const target=quill.root.querySelectorAll('img')[1];target.click();
+    const index=quill.getIndex(quill.constructor.find(target));quill.deleteText(index,1,'silent');
+    const expected=JSON.stringify(quill.getContents());component.removePreviewImage();
+    expect(JSON.stringify(quill.getContents())).toBe(expected);expect(quill.root.querySelectorAll('img').length).toBe(1);
+  });
+
+  it('never removes an image from a disabled editor or after switching notes',async()=>{
+    await fixture.whenStable();const quill=component.quill;
+    quill.insertEmbed(0,'image',`data:image/png;base64,${png}`,'silent');quill.root.querySelector('img').click();quill.disable();
+    component.removePreviewImage();expect(quill.root.querySelector('img')).not.toBeNull();
+    quill.enable();quill.root.querySelector('img').click();
+    component.noteId='next';component.ngOnChanges({noteId:new SimpleChange('previous','next',false)});
+    const expected=JSON.stringify(quill.getContents());component.removePreviewImage();expect(JSON.stringify(quill.getContents())).toBe(expected);
+  });
+
   async function openLargePreview(): Promise<HTMLElement> {
     await fixture.whenStable();
     fixture.nativeElement.style.cssText = 'display:block;width:500px;height:600px';

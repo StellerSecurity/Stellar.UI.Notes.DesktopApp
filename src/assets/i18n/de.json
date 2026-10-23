@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "Die App bleibt geöffnet.",
   "resizeNoteList": "Breite der Notizliste",
   "resizeNoteListHint": "Zum Anpassen ziehen. Zum Zurücksetzen doppelklicken. Mit den Pfeiltasten anpassen.",
-  "resizeFolders": "Breite der Ordnerleiste"
+  "resizeFolders": "Breite der Ordnerleiste",
+  "uiRemoveImage": "Bild entfernen"
 }

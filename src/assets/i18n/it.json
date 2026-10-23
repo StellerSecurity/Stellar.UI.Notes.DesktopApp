@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "L’app rimarrà aperta.",
   "resizeNoteList": "Larghezza elenco note",
   "resizeNoteListHint": "Trascina per ridimensionare. Fai doppio clic per ripristinare. Regola con i tasti freccia.",
-  "resizeFolders": "Larghezza barra delle cartelle"
+  "resizeFolders": "Larghezza barra delle cartelle",
+  "uiRemoveImage": "Rimuovi immagine"
 }

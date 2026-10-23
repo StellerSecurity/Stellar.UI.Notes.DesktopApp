@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "Appen förblir öppen.",
   "resizeNoteList": "Anteckningslistans bredd",
   "resizeNoteListHint": "Dra för att ändra bredden. Dubbelklicka för att återställa. Justera med piltangenterna.",
-  "resizeFolders": "Mappsidofältets bredd"
+  "resizeFolders": "Mappsidofältets bredd",
+  "uiRemoveImage": "Ta bort bild"
 }

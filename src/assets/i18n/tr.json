@@ -344,5 +344,6 @@
   "updateStatusErrorHint": "Uygulama açık kalacak.",
   "resizeNoteList": "Not listesi genişliği",
   "resizeNoteListHint": "Boyutlandırmak için sürükleyin. Sıfırlamak için çift tıklayın. Ok tuşlarıyla ayarlayın.",
-  "resizeFolders": "Klasör kenar çubuğu genişliği"
+  "resizeFolders": "Klasör kenar çubuğu genişliği",
+  "uiRemoveImage": "Resmi kaldır"
 }
