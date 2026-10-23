@@ -210,6 +210,7 @@ describe('RichTextEditorComponent', () => {
     await fixture.whenStable();
     fixture.nativeElement.style.cssText = 'display:block;width:500px;height:600px';
     const canvas=document.createElement('canvas'); canvas.width=1000; canvas.height=600;
+    const context=canvas.getContext('2d')!; context.fillStyle='#fff'; context.fillRect(0,0,canvas.width,canvas.height);
     component.quill.insertEmbed(0,'image',canvas.toDataURL(),'silent');
     component.quill.root.querySelector('img').click(); fixture.detectChanges();
     const preview=fixture.nativeElement.querySelector('.image-preview') as HTMLElement;
@@ -230,6 +231,28 @@ describe('RichTextEditorComponent', () => {
     expect(background).toBe(stage);
     image.click(); fixture.detectChanges(); expect(component.previewImageSrc).not.toBeNull();
     background.click(); fixture.detectChanges(); expect(component.previewImageSrc).toBeNull();
+  });
+
+  it('keeps controls readable and clickable over a zoomed white image', async () => {
+    const preview=await openLargePreview();
+    component.zoomPreview(5); fixture.detectChanges();
+    for (const selector of ['.image-preview-close','.image-preview-zoom']) {
+      const control=preview.querySelector(selector) as HTMLElement;
+      const style=getComputedStyle(control);
+      const background=style.backgroundColor.match(/[\d.]+/g)!.map(Number);
+      // Opaque dark chrome keeps white labels legible regardless of image content.
+      expect(background.length===3 || background[3]===1).toBeTrue();
+      expect(Math.max(...background.slice(0,3))).toBeLessThan(80);
+      expect(style.color).toBe('rgb(255, 255, 255)');
+      const button=(control.querySelector('.zoom-value') || control) as HTMLElement;
+      const bounds=button.getBoundingClientRect();
+      const target=document.elementFromPoint(bounds.left+bounds.width/2,bounds.top+bounds.height/2);
+      expect(target===button || button.contains(target)).toBeTrue();
+    }
+    (preview.querySelector('.zoom-value') as HTMLButtonElement).click();
+    expect(component.previewZoom).toBe(1);
+    (preview.querySelector('.image-preview-close') as HTMLButtonElement).click();
+    expect(component.previewImageSrc).toBeNull();
   });
 
   it('zooms on one click and with controls or trackpad events without changing note HTML', async () => {
