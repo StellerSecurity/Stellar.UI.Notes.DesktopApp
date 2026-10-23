@@ -169,6 +169,43 @@ export class HomePage implements AfterViewInit {
   public input_password_app_unlock = "";
 
   public timezone = "UTC";
+  public trashBusy=false;
+  public get trashAvailable():boolean {return !!this.noteService.trashEnabled || this.trashEntries.length>0;}
+  public get trashEntries(){return this.noteService.getTrash?.() ?? [];}
+  public async openTrash():Promise<void> {
+    await this.noteService.expireTrash();
+    this.activeFilter='trash';this.activeFolderName='__all__';this.search_query='';this.searchType='all';this.listOfCheckedCheckboxes=[];
+    this.noteService.selectedNoteId=null;this.noteService.isNoteTemporaryDescripted=false;
+    localStorage.removeItem('recentOpenedNoteId');this.applyFilters();
+    await this.router.navigate(['/home'],{queryParams:{view:'trash'}});
+  }
+  public get selectedTrashNote():any {const selected=this.selectedNotes();return selected.length===1?selected[0]:null;}
+  public trashDaysLeft(note:any):number {return Math.max(0,Math.ceil((30*86400000-(Date.now()-note.last_modified))/86400000));}
+
+  public async restoreTrashEntries(ids:string[]):Promise<void> {
+    if(this.trashBusy)return;this.trashBusy=true;
+    try {
+      const restored=await this.noteService.restoreTrash(ids);
+      this.setData(this.noteService.getNotesAppPassword());
+      if(this.authService.isLoggedIn && restored.length)await this.notesApiServiceV1.upload(0,restored,undefined,[],true,true);
+    } catch {const toast=await this.toastController.create({message:t('uiTheNoteCouldNotBeSavedKeepThis'),duration:5000,color:'danger'});await toast.present();}
+    finally {this.trashBusy=false;}
+  }
+  public async permanentlyDeleteTrashSelection(ids=this.selectedNotes().map(note=>note.id)):Promise<void> {
+    if(this.trashBusy || !ids.length)return;
+    const modal=await this.modalCtrl.create({component:DeleteNoteModalComponent,cssClass:'confirmation-popup',componentProps:{isSingleDelete:ids.length===1,count:ids.length}});
+    await modal.present();const result=await modal.onDidDismiss();
+    if(result.data?.confirm) {this.trashBusy=true;try {await this.noteService.removeTrash(ids);this.applyFilters();}finally {this.trashBusy=false;}}
+  }
+  public restoreTrashSelection():void {void this.restoreTrashEntries(this.selectedNotes().map(note=>note.id));}
+  public searchType: 'all'|'images'|'locked' = 'all';
+  public searchFolderFilterOpen=false;
+  public searchFolderQuery='';
+  public searchFolderEvent?:Event;
+  public get searchFolders():Folder[] {return this.folders.filter(folder=>normalize(folder.name).includes(normalize(this.searchFolderQuery)));}
+  public chooseSearchType(type:'all'|'images'|'locked'):void {this.searchType=this.searchType===type?'all':type;this.search();}
+  public clearSearchFilters():void {this.searchType='all';this.activeFolderName='__all__';if(this.activeFilter!=='trash')this.activeFilter='all';this.search();}
+  public chooseSearchFolder(name:string):void {this.searchFolderFilterOpen=false;this.selectFolder(name);this.search();}
   public search_query = "";
   public filteredResults: any = [];
   public isSearching = false;
@@ -217,7 +254,7 @@ export class HomePage implements AfterViewInit {
   public folders: Folder[] = [];
   private allFoldersState: Folder[] = [];
   public activeFolderName = '__all__';
-  public activeFilter: 'all' | 'favorites' = 'all';
+  public activeFilter: 'all' | 'favorites' | 'trash' = 'all';
   public folderActionsOpen = false;
   public folderActionsEvent: Event | null = null;
   public folderActionsTarget: Folder | null = null;
@@ -291,7 +328,8 @@ export class HomePage implements AfterViewInit {
       const container = this.notesListScroll?.nativeElement;
       const payload = {
         activeFolderName: this.activeFolderName || '__all__',
-        activeFilter: this.activeFilter === 'favorites' ? 'favorites' : 'all',
+        activeFilter: this.activeFilter,
+        trashSelectionIds:this.activeFilter==='trash'?this.listOfCheckedCheckboxes:[],
         searchQuery: this.search_query ?? '',
         searchMode: !!this.searchMode,
         selectedNoteId: this.noteService.selectedNoteId ?? this.noteId ?? null,
@@ -307,13 +345,14 @@ export class HomePage implements AfterViewInit {
       return;
     }
 
-    const savedFilter = saved?.activeFilter === 'favorites' ? 'favorites' : 'all';
+    const savedFilter = saved?.activeFilter === 'trash' && this.trashAvailable ? 'trash' : saved?.activeFilter === 'favorites' ? 'favorites' : 'all';
     const savedFolderName = typeof saved?.activeFolderName === 'string' && saved.activeFolderName.trim().length > 0
       ? saved.activeFolderName.trim()
       : '__all__';
     const hasSavedFolder = savedFolderName === '__all__' || this.folders.some((folder) => folder.name === savedFolderName);
 
     this.activeFilter = savedFilter;
+    if(savedFilter==='trash')this.listOfCheckedCheckboxes=Array.isArray(saved?.trashSelectionIds)?saved.trashSelectionIds.filter((id:unknown)=>typeof id==='string'):[];
     this.activeFolderName = hasSavedFolder ? savedFolderName : '__all__';
     this.search_query = typeof saved?.searchQuery === 'string' ? saved.searchQuery : '';
     this.searchMode = !!saved?.searchMode && this.search_query.trim().length > 0;
@@ -332,6 +371,21 @@ export class HomePage implements AfterViewInit {
     this.restoreNotesListScroll();
   }
 
+  private async restoreLastOpenNote():Promise<void> {
+    if(this.noteService.restoreLastNoteAttempted || this.noteService.shouldAskForPassword())return;
+    this.noteService.restoreLastNoteAttempted=true;
+    if(!/^\/(?:home)?(?:[?#]|$)/.test(this.router.url))return;
+    const id=localStorage.getItem('recentOpenedNoteId');
+    const note=(this.notes ?? []).find(note=>note.id===id && !note.deleted);
+    if(!note) {if(id)localStorage.removeItem('recentOpenedNoteId');return;}
+    if(!this.getNotes().some(item=>item.id===id)) {
+      this.activeFilter='all';this.activeFolderName='__all__';this.search_query='';this.searchType='all';this.applyFilters();
+    }
+    this.noteId=this.noteService.selectedNoteId=note.id;this.listOfCheckedCheckboxes=[note.id];this.focusedNoteId=note.id;
+    await this.router.navigate(['/note',note.id],{replaceUrl:true});
+    this.pendingRestoreScrollTop=null;this.focusNoteRow(note.id);this.persistUiState();
+  }
+
   private restoreNotesListScroll(): void {
     if (this.pendingRestoreScrollTop == null) {
       return;
@@ -339,6 +393,7 @@ export class HomePage implements AfterViewInit {
 
     const scrollTop = this.pendingRestoreScrollTop;
     setTimeout(() => {
+      if(this.pendingRestoreScrollTop!==scrollTop)return;
       const container = this.notesListScroll?.nativeElement;
       if (!container) {
         return;
@@ -614,6 +669,7 @@ export class HomePage implements AfterViewInit {
     } else {
       this.setData(this.noteService.getNotesAppPassword()); // will send a password, if the app is encrypted.
       this.restoreUiState();
+      await this.restoreLastOpenNote();
       if (this.shouldAttemptRemoteDownload()) {
         await this.requestImmediateSync('enter'); // immediate refresh with latest notes on open/re-open
         this.restoreUiState();
@@ -637,6 +693,7 @@ export class HomePage implements AfterViewInit {
   }
 
   ionViewDidEnter() {
+    void this.noteService.expireTrash?.().catch(()=>{});
     this.initializePressGesture();
     this.subscribeNoteIdOnRouteChange();
   }
@@ -680,11 +737,8 @@ export class HomePage implements AfterViewInit {
           const id = match ? decodeURIComponent(match[1]) : null;
           this.noteId = this.noteService.selectedNoteId = id;
           if (id && this.listOfCheckedCheckboxes.length < 2) this.listOfCheckedCheckboxes = [id];
-          if (this.noteId) {
-            setTimeout(() => {
-              localStorage.setItem("recentOpenedNoteId", this.noteId);
-            }, 300);
-          }
+          if (this.noteId) localStorage.setItem("recentOpenedNoteId",this.noteId);
+          this.persistUiState();
         })
     );
   }
@@ -983,6 +1037,7 @@ export class HomePage implements AfterViewInit {
 
     this.noteService.increaseAppNoteAttemptsFailedPasswords();
     if (this.noteService.shouldWipeAllNotesOrNot()) {
+      await this.noteService.clearLocalPersistence();
       localStorage.clear();
       // @ts-ignore
       navigator["app"].exitApp();
@@ -1002,6 +1057,9 @@ export class HomePage implements AfterViewInit {
 
       // 🔐 store the notes app password in a service.
       this.noteService.setNotesAppPassword(this.input_password_app_unlock);
+      await this.noteService.flushPersistence();
+      await this.noteService.expireTrash();
+      await this.restoreLastOpenNote();
 
       // 🔐 load & import MK (from main branch)
       try {
@@ -1186,6 +1244,7 @@ export class HomePage implements AfterViewInit {
   public noteHeading(note: any): string { return this.isNoteLocked(note) ? t('uiLockedNote') : (this.noteDisplay(note).heading || t('uiUntitledNote')); }
   public notePreview(note: any): string { return this.isNoteLocked(note) ? '' : this.noteDisplay(note).preview; }
   public viewCount(): number {
+    if(this.activeFilter==='trash')return this.trashEntries.length;
     return (this.notes || []).filter(note => !note.deleted && (this.activeFolderName === '__all__' || note.folder === this.activeFolderName) && (this.activeFilter !== 'favorites' || note.favorite)).length;
   }
   public searchAllNotes(): void { this.activeFolderName = '__all__'; this.activeFilter = 'all'; this.applyFilters(); }
@@ -1210,6 +1269,7 @@ export class HomePage implements AfterViewInit {
 
   private applyDesktopSelection(): void {
     this.checkboxOpened = false;
+    if(this.activeFilter==='trash'){this.cdr.detectChanges();return;}
     if (this.listOfCheckedCheckboxes.length === 1) {
       const id = this.listOfCheckedCheckboxes[0];
       if (this.noteService.selectedNoteId !== id || !this.router.url.includes('/note/')) this.openOrCheckbox(id);
@@ -1239,6 +1299,7 @@ export class HomePage implements AfterViewInit {
     } else if (event.key === 'Enter') {
       event.preventDefault(); event.stopPropagation();
       if (this.listOfCheckedCheckboxes.length !== 1 || !this.isNoteSelected(notes[index].id)) this.selectDesktopNote(event, notes[index]);
+      if(this.activeFilter==='trash')return;
       this.noteService.editorFocusNoteId = notes[index].id;
       this.cdr.detectChanges();
     } else if (event.key === ' ') {
@@ -1279,6 +1340,17 @@ export class HomePage implements AfterViewInit {
   public openMoveDialog(ids = this.selectedNotes().map(n => n.id)): void {
     this.moveIds = [...ids]; this.moveTarget = '__all__'; this.moveDialogOpen = true;
   }
+  public async onMoveFolderPicked(pick:{folderName:string;create:boolean}):Promise<void> {
+    if(pick.create) {
+      const existing=this.folders.find(folder=>folder.name.toLocaleLowerCase()===pick.folderName.toLocaleLowerCase());
+      if(existing)this.moveTarget=existing.name;
+      else {
+        this.folderDialogName=pick.folderName;this.folderDialogTarget=null;this.createThenMove=true;
+        await this.saveFolderDialog();this.moveDialogOpen=false;return;
+      }
+    } else this.moveTarget=pick.folderName;
+    await this.confirmMove();
+  }
   public async confirmMove(): Promise<void> {
     await this.assignNotesToFolder(this.moveIds, this.moveTarget);
     this.moveDialogOpen = false;
@@ -1308,10 +1380,12 @@ export class HomePage implements AfterViewInit {
   }
 
   public applyFilters(): void {
-    const base = Array.isArray(this.notes) ? [...this.notes] : [];
+    const base = this.activeFilter==='trash' ? this.trashEntries.map(entry=>({...entry.note,id:entry.id,last_modified:entry.trashedAt,pinned:false,favorite:false})) : Array.isArray(this.notes) ? [...this.notes] : [];
     const terms = normalize(this.search_query ?? '').split(' ').filter(Boolean);
     const scoped = base.filter((note: any) => {
       if (note?.deleted) return false;
+      if (this.searchType === 'locked' && !note.protected) return false;
+      if (this.searchType === 'images' && (note.protected || !/<img\b/i.test(note.text || ''))) return false;
       if (this.activeFolderName !== '__all__' && (note?.folder ?? '') !== this.activeFolderName) return false;
       if (this.activeFilter === 'favorites' && !note?.favorite) return false;
       if (terms.length > 0) {
@@ -1497,6 +1571,7 @@ export class HomePage implements AfterViewInit {
   public async promptDeleteFolder(folderName: string): Promise<void> {
     const alert = await this.alertCtrl.create({
       header: t('uiDeleteFolder'),
+      cssClass: 'folder-delete-confirm',
       message: t('uiDeleteFolderNotice'),
       buttons: [
         { text: t('cancel'), role: 'cancel' },
@@ -1525,6 +1600,7 @@ export class HomePage implements AfterViewInit {
       ]
     });
     await alert.present();
+    alert.querySelector<HTMLButtonElement>('button.alert-button-role-destructive')?.focus();
   }
 
   public async togglePinnedFromHome(event: Event, noteId: string): Promise<void> {
@@ -1722,6 +1798,7 @@ export class HomePage implements AfterViewInit {
   // Delete notes
   // --------------------------------------------------
   public async deleteSelectedNotes() {
+    if(this.activeFilter==='trash'){await this.permanentlyDeleteTrashSelection();return;}
     // @ts-ignore
     const modal = await this.modalCtrl.create({
       component: DeleteNoteModalComponent,
@@ -1729,6 +1806,7 @@ export class HomePage implements AfterViewInit {
       componentProps: {
         isSingleDelete: this.listOfCheckedCheckboxes?.length == 1 || false,
         count: this.listOfCheckedCheckboxes.length,
+        ...(this.noteService.trashEnabled ? {recoverable:true} : {}),
       },
     });
 
@@ -1753,6 +1831,8 @@ export class HomePage implements AfterViewInit {
   private async deleteNotesConfirm(id:any = '') {
     const idsToDelete = new Set<string>(id ? [id] : this.listOfCheckedCheckboxes);
 
+    const capturedIds = await this.noteService.captureTrash?.(this.notes.filter(note=>idsToDelete.has(note.id))) ?? [];
+    for(const id of idsToDelete)this.noteService.markPendingMutation?.(id,'delete');
     // delete the selected notes from notes[]
     for (let j = this.notes.length - 1; j >= 0; j--) {
       if (idsToDelete.has(this.notes[j].id)) {
@@ -1787,6 +1867,7 @@ export class HomePage implements AfterViewInit {
     // keep decrypted cache consistent
     this.noteService.setDecryptedNotes(this.noteService.getNotes());
 
+    await this.noteService.flushPersistence?.();
     // 🔐 delete on server if logged in (from main branch)
     if (this.authService.isLoggedIn) {
       this.notesApiServiceV1
@@ -1809,9 +1890,10 @@ export class HomePage implements AfterViewInit {
     this.cdr.detectChanges();
     if (idsToDelete.has(this.noteService.selectedNoteId || '')) await this.router.navigate(['/home']);
     const toast = await this.toastController.create({
-      message: idsToDelete.size === 1
+      message: capturedIds.length ? t('movedToTrash') : idsToDelete.size === 1
         ? this.allTranslations.theNoteHasBeenDeleted
         : this.allTranslations.theSelectedNotesHasBeenDeleted,
+      buttons: capturedIds.length ? [{text:t('undo'),handler:()=>{void this.restoreTrashEntries(capturedIds);}}] : [],
       duration: 2500,
       position: "bottom",
     });
@@ -1960,7 +2042,7 @@ export class HomePage implements AfterViewInit {
     const modal = await this.modalCtrl.create({
       component: DeleteNoteModalComponent,
       cssClass: 'confirmation-popup',
-      componentProps: { isSingleDelete: true },
+      componentProps: { isSingleDelete: true, recoverable: !!this.noteService.trashEnabled },
     });
 
     modal.onDidDismiss().then(async (data) => {
@@ -1989,6 +2071,7 @@ export class HomePage implements AfterViewInit {
   // Extra navigation helpers (from current branch)
   // --------------------------------------------------
   goToCreateNewNote(): void {
+    if(this.activeFilter==='trash'){this.activeFilter='all';this.activeFolderName='__all__';this.search_query='';this.searchType='all';this.applyFilters();}
     this.listOfCheckedCheckboxes = [];
     this.noteService.isNoteTemporaryDescripted = false;
     const extras = this.activeFolderName !== "__all__" ? { queryParams: { folder: this.activeFolderName } } : undefined;

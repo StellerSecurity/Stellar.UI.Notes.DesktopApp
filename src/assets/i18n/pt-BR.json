@@ -317,5 +317,22 @@
   "sortFolders": "Ordenar pastas",
   "folderSortAscending": "Nome: A–Z",
   "folderSortDescending": "Nome: Z–A",
-  "folderSortManual": "Ordem personalizada"
+  "folderSortManual": "Ordem personalizada",
+  "searchFilters": "Filtros de pesquisa",
+  "filterImages": "Imagens",
+  "filterLocked": "Bloqueadas",
+  "clearFilters": "Limpar filtros",
+  "trash": "Lixeira",
+  "enableTrash": "Ativar lixeira",
+  "trashOptInDescription": "Desativada por padrão. Mantenha notas excluídas neste dispositivo por 30 dias. A desativação mantém os itens existentes.",
+  "trashDescription": "As notas excluídas ficam neste dispositivo por 30 dias.",
+  "trashEmpty": "A lixeira está vazia.",
+  "restore": "Restaurar",
+  "deletePermanently": "Excluir permanentemente",
+  "movedToTrash": "Movido para a lixeira.",
+  "undo": "Desfazer",
+  "trashConfirmSingle": "Você pode restaurar da lixeira deste dispositivo por 30 dias.",
+  "trashConfirmMultiple": "Você pode restaurar da lixeira deste dispositivo por 30 dias.",
+  "trashDaysLeft": "Restam {{count}} dias",
+  "trashLockedPreview": "Restaure esta nota bloqueada para desbloqueá-la e visualizá-la."
 }

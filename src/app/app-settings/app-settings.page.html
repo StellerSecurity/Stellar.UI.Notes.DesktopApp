@@ -17,6 +17,7 @@
         <app-language-picker [value]="languagePreference" (valueChange)="changeLanguage($event)"></app-language-picker>
       </div>
     </div>
+    <label class="setting-row"><span class="setting-icon"><ion-icon name="trash-outline"></ion-icon></span><span class="setting-text"><strong>{{'enableTrash' | translate}}</strong><p>{{'trashOptInDescription' | translate}}</p></span><input type="checkbox" [checked]="trashEnabled" (change)="toggleTrash($event)" [attr.aria-label]="'enableTrash' | translate"></label>
     <button class="setting-row" type="button" (click)="appPasswordChallengeDialog()">
       <span class="setting-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span>
       <span class="setting-text">
@@ -83,4 +84,5 @@
       </div>
     </ng-container>
   </ng-container>
+  <footer class="settings-version">{{appName}} · v{{appVersion}}</footer>
 </section>

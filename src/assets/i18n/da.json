@@ -317,5 +317,22 @@
   "sortFolders": "Sorter mapper",
   "folderSortAscending": "Navn: A–Å",
   "folderSortDescending": "Navn: Å–A",
-  "folderSortManual": "Egen rækkefølge"
+  "folderSortManual": "Egen rækkefølge",
+  "searchFilters": "Søgefiltre",
+  "filterImages": "Billeder",
+  "filterLocked": "Låste",
+  "clearFilters": "Ryd filtre",
+  "trash": "Papirkurv",
+  "enableTrash": "Slå papirkurv til",
+  "trashOptInDescription": "Fra som standard. Gem slettede noter på denne enhed i 30 dage. Deaktivering bevarer noter, der allerede er i papirkurven.",
+  "trashDescription": "Slettede noter gemmes på denne enhed i 30 dage.",
+  "trashEmpty": "Papirkurven er tom.",
+  "restore": "Gendan",
+  "deletePermanently": "Slet permanent",
+  "movedToTrash": "Flyttet til papirkurven.",
+  "undo": "Fortryd",
+  "trashConfirmSingle": "Du kan gendanne fra papirkurven på denne enhed i 30 dage.",
+  "trashConfirmMultiple": "Du kan gendanne fra papirkurven på denne enhed i 30 dage.",
+  "trashDaysLeft": "{{count}} dage tilbage",
+  "trashLockedPreview": "Gendan den låste note for at låse den op og se indholdet."
 }

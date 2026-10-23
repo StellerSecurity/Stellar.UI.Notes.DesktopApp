@@ -20,3 +20,6 @@ button.setting-row:hover { border-color: #d6d6e0; }
 .enabled-info-box > ion-icon { color: #247943; font-size: 24px; flex-shrink: 0; }
 .enabled-info-box h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
 .enabled-info-box p { margin: 0; }
+
+.settings-version { margin-top:20px; text-align:center; color:#90909d; font-size:10px; line-height:1.4; }
+.setting-row > input[type=checkbox] { width:17px; height:17px; flex-shrink:0; accent-color:#2761fc; }

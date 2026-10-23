@@ -317,5 +317,22 @@
   "sortFolders": "Ordenar carpetas",
   "folderSortAscending": "Nombre: A–Z",
   "folderSortDescending": "Nombre: Z–A",
-  "folderSortManual": "Orden personalizado"
+  "folderSortManual": "Orden personalizado",
+  "searchFilters": "Filtros de búsqueda",
+  "filterImages": "Imágenes",
+  "filterLocked": "Bloqueadas",
+  "clearFilters": "Borrar filtros",
+  "trash": "Papelera",
+  "enableTrash": "Activar papelera",
+  "trashOptInDescription": "Desactivada por defecto. Conserva las notas eliminadas en este dispositivo durante 30 días. Desactivarla conserva los elementos existentes.",
+  "trashDescription": "Las notas eliminadas se guardan en este dispositivo durante 30 días.",
+  "trashEmpty": "La papelera está vacía.",
+  "restore": "Restaurar",
+  "deletePermanently": "Eliminar permanentemente",
+  "movedToTrash": "Se ha movido a la papelera.",
+  "undo": "Deshacer",
+  "trashConfirmSingle": "Puedes restaurar desde la papelera de este dispositivo durante 30 días.",
+  "trashConfirmMultiple": "Puedes restaurar desde la papelera de este dispositivo durante 30 días.",
+  "trashDaysLeft": "Quedan {{count}} días",
+  "trashLockedPreview": "Restaura esta nota bloqueada para desbloquearla y verla."
 }

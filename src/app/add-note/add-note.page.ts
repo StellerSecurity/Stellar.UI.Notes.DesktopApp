@@ -626,6 +626,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     setTimeout(() => document.querySelector<HTMLInputElement>('ion-modal.folder-picker-modal [name="newFolderName"]')?.focus());
   }
 
+  public onFolderPicked(pick:{folderName:string;create:boolean}):void {
+    this.folderPickerCreating=pick.create;this.folderPickerName=pick.folderName;this.folderPickerTarget=pick.folderName;
+    this.confirmFolderPicker();
+  }
   public confirmFolderPicker(): void {
     let target = this.folderPickerTarget === '__all__' ? '' : this.folderPickerTarget;
     if (this.folderPickerCreating) {
@@ -777,6 +781,8 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       this.dataService.setForceDownloadOnHome(true);
     }
 
+    await this.notesService.flushPersistence();
+    if(this.viewActive && this.notes_id && this.notes.some(note=>note.id===this.notes_id))localStorage.setItem('recentOpenedNoteId',this.notes_id);
     const notesToSend = this.notes.filter(note => note.id === this.notes_id).map(note => ({ ...note }));
 
     if (serverSync && this.authService.isLoggedIn && notesToSend.length) {
@@ -1003,15 +1009,17 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
     const modal = await this.modalCtrl.create({
       component: DeleteNoteModalComponent,
       cssClass: 'confirmation-popup',
-      componentProps: { isSingleDelete: true },
+      componentProps: { isSingleDelete: true, recoverable: !!this.notesService.trashEnabled },
     });
 
     modal.onDidDismiss().then(async (data) => {
       if (data && data.data) {
         const { confirm } = data.data;
         if (confirm) {
+          const capturedIds=await this.notesService.captureTrash?.(this.notes.filter(note=>note.id===this.notes_id)) ?? [];
           for (let i = 0; i < this.notes.length; i++) {
             if (this.notes[i].id === this.notes_id) {
+              this.notesService.markPendingMutation?.(this.notes[i].id,'delete');
               this.notes[i].deleted = true;
 
               if (this.authService.isLoggedIn) {
@@ -1027,11 +1035,19 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
           this.currentNote = null;
           this.notesService.setNoteIsUpdatedSubject(true);
           await this.navController.navigateForward('/?hide_ids=' + this.notes_id);
+          if(capturedIds.length) {
+            const toast=await this.toastController.create({message:t('movedToTrash'),duration:5000,buttons:[{text:t('undo'),handler:()=>{void this.undoTrash(capturedIds);}}]});await toast.present();
+          }
         }
       }
     });
 
     return await modal.present();
+  }
+
+  private async undoTrash(ids:string[]):Promise<void> {
+    const restored=await this.notesService.restoreTrash(ids);
+    if(this.authService.isLoggedIn && restored.length)await this.notesApiV1Service.upload(0,restored,undefined,[],true,true);
   }
 
   onSave(event: any, type: string = 'note_text'): void {

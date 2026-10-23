@@ -4,11 +4,14 @@ import { LanguagePickerComponent } from './language-picker.component';
 import { APP_CATALOGS } from '../i18n';
 
 describe('Searchable language picker', () => {
+  let wasHydrated=false;
+  afterEach(()=>{if(!wasHydrated)document.documentElement.classList.remove('hydrated');});
   let fixture: ComponentFixture<LanguagePickerComponent>, picker: LanguagePickerComponent;
   beforeEach(async () => {
+    wasHydrated=document.documentElement.classList.contains('hydrated');document.documentElement.classList.add('hydrated');
     await TestBed.configureTestingModule({imports:[LanguagePickerComponent, TranslateModule.forRoot()]}).compileComponents();
     const translate=TestBed.inject(TranslateService); translate.setTranslation('en',APP_CATALOGS.en); translate.use('en');
-    fixture=TestBed.createComponent(LanguagePickerComponent); picker=fixture.componentInstance; fixture.detectChanges();
+    fixture=TestBed.createComponent(LanguagePickerComponent); picker=fixture.componentInstance; document.body.appendChild(fixture.nativeElement);fixture.detectChanges();
   });
   it('searches native names, English names and accents without changing the preference while typing', () => {
     const emit=spyOn(picker.valueChange,'emit');

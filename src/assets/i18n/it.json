@@ -317,5 +317,22 @@
   "sortFolders": "Ordina cartelle",
   "folderSortAscending": "Nome: A–Z",
   "folderSortDescending": "Nome: Z–A",
-  "folderSortManual": "Ordine personalizzato"
+  "folderSortManual": "Ordine personalizzato",
+  "searchFilters": "Filtri di ricerca",
+  "filterImages": "Immagini",
+  "filterLocked": "Bloccate",
+  "clearFilters": "Cancella filtri",
+  "trash": "Cestino",
+  "enableTrash": "Attiva cestino",
+  "trashOptInDescription": "Disattivato per impostazione predefinita. Conserva le note eliminate su questo dispositivo per 30 giorni. Disattivarlo conserva gli elementi esistenti.",
+  "trashDescription": "Le note eliminate restano su questo dispositivo per 30 giorni.",
+  "trashEmpty": "Il cestino è vuoto.",
+  "restore": "Ripristina",
+  "deletePermanently": "Elimina definitivamente",
+  "movedToTrash": "Spostato nel cestino.",
+  "undo": "Annulla",
+  "trashConfirmSingle": "Puoi ripristinare dal cestino di questo dispositivo per 30 giorni.",
+  "trashConfirmMultiple": "Puoi ripristinare dal cestino di questo dispositivo per 30 giorni.",
+  "trashDaysLeft": "{{count}} giorni rimanenti",
+  "trashLockedPreview": "Ripristina questa nota bloccata per sbloccarla e visualizzarla."
 }

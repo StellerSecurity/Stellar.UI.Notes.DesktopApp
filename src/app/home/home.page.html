@@ -29,6 +29,7 @@
         <ion-icon name="documents-outline"></ion-icon><span>{{'uiAllNotes' | translate}}</span><small>{{(notes || []).length}}</small>
       </button>
       <button class="folder-chip" [class.active]="activeFilter === 'favorites'" (click)="setActiveFilter('favorites')"><ion-icon name="star-outline"></ion-icon><span>{{'uiFavorites' | translate}}</span><small>{{getFavoritesCount()}}</small></button>
+      <button class="folder-chip" *ngIf="trashAvailable" [class.active]="activeFilter === 'trash'" (click)="openTrash()"><ion-icon name="trash-outline"></ion-icon><span>{{'trash' | translate}}</span><small>{{trashEntries.length}}</small></button>
       <div class="sidebar-section-header"><span class="sidebar-section-label">{{'uiFolders' | translate}}</span><div class="folder-header-actions"><button class="icon-button" (click)="folderSortEvent = $event; folderSortOpen = true" [attr.aria-label]="'sortFolders' | translate" [title]="'sortFolders' | translate"><ion-icon name="swap-vertical-outline"></ion-icon></button><button class="icon-button" (click)="promptCreateFolder()" [attr.aria-label]="'uiNewFolder' | translate" [title]="'uiNewFolder' | translate"><ion-icon name="add-outline"></ion-icon></button></div></div>
       <button class="folder-chip" *ngFor="let folder of folders; trackBy: trackFolderById" [attr.data-folder-id]="folder.id" draggable="true" (dragstart)="startFolderDrag($event,folder)" (dragend)="endFolderDrag()" (keydown.enter)="renameFolderFromKeyboard($event,folder)" [class.reorder-before]="folderReorderTarget === folder.id && !folderReorderAfter" [class.reorder-after]="folderReorderTarget === folder.id && folderReorderAfter" [class.active]="activeFolderName === folder.name && activeFilter === 'all'" [class.drop-target]="draggingFolderTarget === folder.name" (click)="selectFolder(folder.name)" (contextmenu)="openFolderActions($event, folder)" (keydown.shift.f10)="openFolderActions($event, folder)" (dragover)="overSidebarFolder($event, folder)" (dragleave)="onFolderDragLeave(folder.name)" (drop)="dropSidebarFolder($event, folder)">
         <ion-icon name="folder-outline"></ion-icon><span [title]="folder.name">{{folder.name}}</span><small>{{folderChipCount(folder.name)}}</small>
@@ -46,25 +47,31 @@
   <section class="desktop-notes-pane" [attr.aria-label]="'uiNotes' | translate">
     <div class="notes-header">
       <button *ngIf="sidebarHidden" class="icon-button" (click)="toggleSidebar()" [title]="('uiShowSidebar' | translate) + ' (' + shortcut('Alt+Ctrl+S') + ')'" [attr.aria-label]="'uiShowSidebar' | translate"><ion-icon name="albums-outline"></ion-icon></button>
-      <div class="notes-heading-copy"><h1>{{activeFilter === 'favorites' ? ('uiFavorites' | translate) : (activeFolderName === '__all__' ? ('uiAllNotes' | translate) : activeFolderName)}}</h1><small>{{'noteCount' | translate:{count:viewCount()} }}</small></div>
-      <button class="icon-button" (click)="goToCreateNewNote()" [title]="('uiNewNote' | translate) + ' (' + shortcut('Ctrl+N') + ')'" [attr.aria-label]="'uiNewNote' | translate"><ion-icon name="create-outline"></ion-icon></button>
+      <div class="notes-heading-copy"><h1>{{activeFilter === 'trash' ? ('trash' | translate) : activeFilter === 'favorites' ? ('uiFavorites' | translate) : (activeFolderName === '__all__' ? ('uiAllNotes' | translate) : activeFolderName)}}</h1><small>{{'noteCount' | translate:{count:viewCount()} }}</small></div>
+      <button *ngIf="activeFilter !== 'trash'" class="icon-button" (click)="goToCreateNewNote()" [title]="('uiNewNote' | translate) + ' (' + shortcut('Ctrl+N') + ')'" [attr.aria-label]="'uiNewNote' | translate"><ion-icon name="create-outline"></ion-icon></button>
     </div>
     <div class="notes-search"><ion-searchbar #searchbar [(ngModel)]="search_query" [debounce]="120" (ionInput)="search()" [placeholder]="'uiSearch' | translate" [attr.aria-label]="'uiSearchNotes' | translate" show-clear-button="focus"></ion-searchbar></div>
+    <div class="search-filters" [attr.aria-label]="'searchFilters' | translate">
+      <button [class.active]="searchType === 'images'" [attr.aria-pressed]="searchType === 'images'" (click)="chooseSearchType('images')"><ion-icon name="image-outline"></ion-icon>{{'filterImages' | translate}}</button>
+      <button [class.active]="searchType === 'locked'" [attr.aria-pressed]="searchType === 'locked'" (click)="chooseSearchType('locked')"><ion-icon name="lock-closed-outline"></ion-icon>{{'filterLocked' | translate}}</button>
+      <button *ngIf="activeFilter !== 'trash'" [class.active]="activeFolderName !== '__all__'" (click)="searchFolderEvent = $event; searchFolderFilterOpen = true"><ion-icon name="folder-outline"></ion-icon>{{activeFolderName === '__all__' ? ('uiFolders' | translate) : activeFolderName}}</button>
+      <button *ngIf="searchType !== 'all' || activeFolderName !== '__all__'" class="clear-search-filters" (click)="clearSearchFilters()" [attr.aria-label]="'clearFilters' | translate"><ion-icon name="close-outline"></ion-icon></button>
+    </div>
     <ion-progress-bar *ngIf="waitForSync && manualSyncRequests > 0" type="indeterminate" color="primary"></ion-progress-bar>
     <div class="notes-empty-state" *ngIf="getNotes().length === 0">
-      <ion-icon [name]="isSearching ? 'search-outline' : activeFilter === 'favorites' ? 'star-outline' : 'document-text-outline'"></ion-icon>
-      <h2>{{isSearching ? ('uiNoSearchResults' | translate:{query:search_query}) : activeFilter === 'favorites' ? ('uiNoFavoritesYet' | translate) : activeFolderName !== '__all__' ? ('uiThisFolderIsEmpty' | translate) : ('uiNoNotesYet' | translate)}}</h2>
-      <p>{{isSearching ? ('TryAnotherSearchQuery' | translate) : activeFilter === 'favorites' ? ('uiStarANoteToFindItHere' | translate) : ('uiCreateANoteToGetStarted' | translate)}}</p>
+      <ion-icon [name]="isSearching ? 'search-outline' : activeFilter === 'trash' ? 'trash-outline' : activeFilter === 'favorites' ? 'star-outline' : 'document-text-outline'"></ion-icon>
+      <h2>{{isSearching ? ('uiNoSearchResults' | translate:{query:search_query}) : activeFilter === 'trash' ? ('trashEmpty' | translate) : activeFilter === 'favorites' ? ('uiNoFavoritesYet' | translate) : activeFolderName !== '__all__' ? ('uiThisFolderIsEmpty' | translate) : ('uiNoNotesYet' | translate)}}</h2>
+      <p>{{isSearching ? ('TryAnotherSearchQuery' | translate) : activeFilter === 'trash' ? ('trashDescription' | translate) : activeFilter === 'favorites' ? ('uiStarANoteToFindItHere' | translate) : ('uiCreateANoteToGetStarted' | translate)}}</p>
       <button class="text-link" *ngIf="isSearching && activeFolderName !== '__all__'" (click)="searchAllNotes()">{{'uiSearchAllNotes' | translate}}</button>
-      <button class="text-link" *ngIf="!isSearching && activeFilter !== 'favorites'" (click)="goToCreateNewNote()">{{'uiNewNote' | translate}}</button>
+      <button class="text-link" *ngIf="!isSearching && activeFilter !== 'favorites' && activeFilter !== 'trash'" (click)="goToCreateNewNote()">{{'uiNewNote' | translate}}</button>
     </div>
     <div class="home-note-list" #notesListScroll (scroll)="onNotesListScroll()" role="listbox" [attr.aria-label]="'uiNotes' | translate" aria-multiselectable="true" (keydown)="onListKeydown($event)">
       <div role="presentation" aria-hidden="true" [style.height.px]="topNoteSpacer"></div>
       <ng-container *ngFor="let row of visibleNoteRows; trackBy: trackVisibleRow">
         <div class="note-group" role="presentation" *ngIf="!row.note">{{row.pinned ? ('uiPinned' | translate) : noteMonth(row.month)}}</div>
-        <div *ngIf="row.note as note" class="note-row" [style.height.px]="row.height" [attr.aria-posinset]="row.index + 1" [attr.aria-setsize]="getNotes().length" role="option" [attr.aria-selected]="isNoteSelected(note.id)" [attr.aria-label]="noteHeading(note)" [class.selected]="isNoteSelected(note.id)" [class.is-dragging]="draggingNoteIds.includes(note.id)" [id]="note.id" [attr.tabindex]="(focusedNoteId ? focusedNoteId === note.id : row.index === 0) ? 0 : -1" (click)="selectDesktopNote($event, note)" (contextmenu)="openContextMenu($event, note)" draggable="true" (dragstart)="onNoteDragStart($event, note)" (dragend)="onNoteDragEnd()">
-          <div class="note-title"><ion-icon *ngIf="note.protected" name="lock-closed-outline"></ion-icon><strong>{{noteHeading(note)}}</strong><ion-icon class="favorite" *ngIf="note.favorite" name="star"></ion-icon></div>
-          <div class="note-excerpt"><time>{{noteDate(note.last_modified)}}</time><span>{{notePreview(note)}}</span></div>
+        <div *ngIf="row.note as note" class="note-row" [style.height.px]="row.height" [attr.aria-posinset]="row.index + 1" [attr.aria-setsize]="getNotes().length" role="option" [attr.aria-selected]="isNoteSelected(note.id)" [attr.aria-label]="noteHeading(note)" [class.selected]="isNoteSelected(note.id)" [class.is-dragging]="draggingNoteIds.includes(note.id)" [id]="note.id" [attr.tabindex]="(focusedNoteId ? focusedNoteId === note.id : row.index === 0) ? 0 : -1" (click)="selectDesktopNote($event, note)" (contextmenu)="activeFilter === 'trash' ? $event.preventDefault() : openContextMenu($event, note)" [draggable]="activeFilter !== 'trash'" (dragstart)="onNoteDragStart($event, note)" (dragend)="onNoteDragEnd()">
+          <div class="note-title"><ion-icon *ngIf="note.protected" name="lock-closed-outline"></ion-icon><strong><app-search-text [text]="noteHeading(note)" [query]="search_query"></app-search-text></strong><ion-icon class="favorite" *ngIf="note.favorite" name="star"></ion-icon></div>
+          <div class="note-excerpt"><time>{{noteDate(note.last_modified)}}</time><span><app-search-text [text]="notePreview(note)" [query]="search_query" [snippet]="true"></app-search-text></span></div>
           <div class="note-folder" *ngIf="note.folder && activeFolderName === '__all__'"><ion-icon name="folder-outline"></ion-icon><span>{{note.folder}}</span></div>
         </div>
       </ng-container>
@@ -73,13 +80,18 @@
   </section>
 
   <section class="desktop-editor-pane" id="main-content" [attr.aria-label]="'uiNoteEditor' | translate">
-    <div class="multi-selection" *ngIf="listOfCheckedCheckboxes.length > 1">
+    <div class="multi-selection" *ngIf="activeFilter !== 'trash' && listOfCheckedCheckboxes.length > 1">
       <div class="empty-toolbar"></div><div class="multi-body"><ion-icon name="documents-outline"></ion-icon><h2>{{'selectedNoteCount' | translate:{count:listOfCheckedCheckboxes.length} }}</h2><p>{{'uiSelectAnActionForTheseNotes' | translate}}</p>
       <ul><li *ngFor="let note of selectedNotes()">{{noteHeading(note)}}</li></ul>
       <div class="multi-actions"><button class="sn-button" (click)="openMoveDialog()"><ion-icon name="folder-open-outline"></ion-icon>{{'uiMoveToFolder' | translate}}</button><button class="sn-button" (click)="favoriteSelection()"><ion-icon name="star-outline"></ion-icon>{{allSelectedFavorite() ? ('uiRemoveFromFavorites' | translate) : ('uiFavorite' | translate)}}</button><button class="sn-button danger" (click)="deleteSelectedNotes()"><ion-icon name="trash-outline"></ion-icon>{{'delete' | translate}}</button></div>
       </div>
     </div>
-    <div class="editor-route" [hidden]="listOfCheckedCheckboxes.length > 1"><router-outlet></router-outlet></div>
+    <div class="trash-editor" *ngIf="activeFilter === 'trash'">
+      <div class="trash-toolbar"><span>{{'trash' | translate}}</span><div *ngIf="selectedNotes().length"><button class="sn-button" [disabled]="trashBusy" (click)="restoreTrashSelection()"><ion-icon name="arrow-undo-outline"></ion-icon>{{'restore' | translate}}</button><button class="sn-button danger" [disabled]="trashBusy" (click)="permanentlyDeleteTrashSelection()"><ion-icon name="trash-outline"></ion-icon>{{'deletePermanently' | translate}}</button></div></div>
+      <div class="trash-document" *ngIf="selectedTrashNote as note; else trashOverview"><div class="trash-note-meta">{{noteDate(note.last_modified)}} · {{'trashDaysLeft' | translate:{count:trashDaysLeft(note)} }}</div><h1>{{noteHeading(note)}}</h1><p class="trash-description" *ngIf="note.protected">{{'trashLockedPreview' | translate}}</p><div *ngIf="!note.protected" class="trash-note-content" [innerHTML]="note.text" (click)="$event.preventDefault()"></div></div>
+      <ng-template #trashOverview><div class="trash-overview"><ion-icon name="trash-outline"></ion-icon><h2>{{selectedNotes().length > 1 ? ('selectedNoteCount' | translate:{count:selectedNotes().length}) : ('trash' | translate)}}</h2><p>{{'trashDescription' | translate}}</p><div class="trash-selection-titles" *ngIf="selectedNotes().length > 1"><span *ngFor="let note of selectedNotes()">{{noteHeading(note)}}</span></div></div></ng-template>
+    </div>
+    <div class="editor-route" [hidden]="activeFilter === 'trash' || listOfCheckedCheckboxes.length > 1"><router-outlet></router-outlet></div>
   </section>
 </div>
 
@@ -91,9 +103,7 @@
 <ion-modal [isOpen]="folderDialogOpen" (didPresent)="focusFolderName($event)" (didDismiss)="closeFolderDialog()" class="sn-compact-modal">
   <ng-template><form class="sn-dialog-content" (ngSubmit)="saveFolderDialog()"><div class="sn-dialog-heading"><h2>{{folderDialogTarget ? ('uiRenameFolder' | translate) : ('uiNewFolder' | translate)}}</h2><button type="button" class="icon-button" (click)="closeFolderDialog()" [attr.aria-label]="'uiClose' | translate"><ion-icon name="close-outline"></ion-icon></button></div><label for="folder-name">{{'uiFolderName' | translate}}</label><input id="folder-name" class="sn-input" name="folderName" [(ngModel)]="folderDialogName" maxlength="80" autofocus [attr.aria-invalid]="!!folderDialogError" aria-describedby="folder-error"><p class="sn-error" id="folder-error" role="alert">{{folderDialogError}}</p><div class="sn-dialog-actions"><button class="sn-button" type="button" (click)="closeFolderDialog()">{{'cancel' | translate}}</button><button class="sn-button primary" type="submit">{{folderDialogTarget ? ('uiSave' | translate) : ('uiCreate' | translate)}}</button></div></form></ng-template>
 </ion-modal>
-<ion-modal [isOpen]="moveDialogOpen" (didDismiss)="moveDialogOpen = false" class="sn-compact-modal">
-  <ng-template><div class="sn-dialog-content"><div class="sn-dialog-heading"><h2>{{'uiMoveToFolder' | translate}}</h2><button class="icon-button" (click)="moveDialogOpen = false" [attr.aria-label]="'uiClose' | translate"><ion-icon name="close-outline"></ion-icon></button></div><div class="move-choices"><label><input type="radio" name="moveTarget" value="__all__" [(ngModel)]="moveTarget">{{'uiNoFolder' | translate}}</label><label *ngFor="let folder of folders; trackBy: trackFolderById"><input type="radio" name="moveTarget" [value]="folder.name" [(ngModel)]="moveTarget"><ion-icon name="folder-outline"></ion-icon>{{folder.name}}</label></div><button class="text-link" (click)="newFolderForMove()">{{'uiNewFolder' | translate}}</button><div class="sn-dialog-actions"><button class="sn-button" (click)="moveDialogOpen = false">{{'cancel' | translate}}</button><button class="sn-button primary" (click)="confirmMove()">{{'uiMove' | translate}}</button></div></div></ng-template>
-</ion-modal>
+<app-folder-picker [open]="moveDialogOpen" (openChange)="moveDialogOpen = $event" [folders]="folders" [initialTarget]="moveTarget" (picked)="onMoveFolderPicked($event)"></app-folder-picker>
 
 <ion-popover [isOpen]="folderSortOpen" [event]="folderSortEvent" (didDismiss)="folderSortOpen = false">
   <ng-template><div class="sn-menu" role="menu" [attr.aria-label]="'sortFolders' | translate">
@@ -101,4 +111,8 @@
     <button role="menuitemradio" [attr.aria-checked]="folderSortMode === 'desc'" (click)="sortFolders('desc')"><ion-icon [name]="folderSortMode === 'desc' ? 'checkmark-outline' : 'text-outline'"></ion-icon>{{'folderSortDescending' | translate}}</button>
     <button role="menuitemradio" [attr.aria-checked]="folderSortMode === 'manual'" (click)="sortFolders('manual')"><ion-icon [name]="folderSortMode === 'manual' ? 'checkmark-outline' : 'reorder-three-outline'"></ion-icon>{{'folderSortManual' | translate}}</button>
   </div></ng-template>
+</ion-popover>
+
+<ion-popover [isOpen]="searchFolderFilterOpen" [event]="searchFolderEvent" (didDismiss)="searchFolderFilterOpen = false">
+  <ng-template><div class="sn-menu search-folder-menu"><input class="sn-input" [(ngModel)]="searchFolderQuery" [placeholder]="'uiSearch' | translate" [attr.aria-label]="'uiFolders' | translate"><button (click)="chooseSearchFolder('__all__')">{{'uiAllNotes' | translate}}</button><button *ngFor="let folder of searchFolders" (click)="chooseSearchFolder(folder.name)"><ion-icon name="folder-outline"></ion-icon>{{folder.name}}</button></div></ng-template>
 </ion-popover>

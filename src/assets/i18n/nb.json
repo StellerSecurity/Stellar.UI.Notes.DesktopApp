@@ -317,5 +317,22 @@
   "sortFolders": "Sorter mapper",
   "folderSortAscending": "Navn: A–Å",
   "folderSortDescending": "Navn: Å–A",
-  "folderSortManual": "Egen rekkefølge"
+  "folderSortManual": "Egen rekkefølge",
+  "searchFilters": "Søkefiltre",
+  "filterImages": "Bilder",
+  "filterLocked": "Låste",
+  "clearFilters": "Fjern filtre",
+  "trash": "Papirkurv",
+  "enableTrash": "Aktiver papirkurven",
+  "trashOptInDescription": "Av som standard. Behold slettede notater på denne enheten i 30 dager. Eksisterende elementer beholdes når funksjonen slås av.",
+  "trashDescription": "Slettede notater lagres på denne enheten i 30 dager.",
+  "trashEmpty": "Papirkurven er tom.",
+  "restore": "Gjenopprett",
+  "deletePermanently": "Slett permanent",
+  "movedToTrash": "Flyttet til papirkurven.",
+  "undo": "Angre",
+  "trashConfirmSingle": "Du kan gjenopprette fra papirkurven på denne enheten i 30 dager.",
+  "trashConfirmMultiple": "Du kan gjenopprette fra papirkurven på denne enheten i 30 dager.",
+  "trashDaysLeft": "{{count}} dager igjen",
+  "trashLockedPreview": "Gjenopprett det låste notatet for å låse det opp og vise det."
 }

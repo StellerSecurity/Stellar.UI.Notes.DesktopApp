@@ -317,5 +317,22 @@
   "sortFolders": "Klasörleri sırala",
   "folderSortAscending": "Ad: A–Z",
   "folderSortDescending": "Ad: Z–A",
-  "folderSortManual": "Özel sıralama"
+  "folderSortManual": "Özel sıralama",
+  "searchFilters": "Arama filtreleri",
+  "filterImages": "Görseller",
+  "filterLocked": "Kilitli",
+  "clearFilters": "Filtreleri temizle",
+  "trash": "Çöp kutusu",
+  "enableTrash": "Çöp kutusunu etkinleştir",
+  "trashOptInDescription": "Varsayılan olarak kapalıdır. Silinen notları bu cihazda 30 gün saklayın. Kapatmak mevcut öğeleri korur.",
+  "trashDescription": "Silinen notlar bu cihazda 30 gün saklanır.",
+  "trashEmpty": "Çöp kutusu boş.",
+  "restore": "Geri yükle",
+  "deletePermanently": "Kalıcı olarak sil",
+  "movedToTrash": "Çöp kutusuna taşındı.",
+  "undo": "Geri al",
+  "trashConfirmSingle": "Bu cihazdaki çöp kutusundan 30 gün boyunca geri yükleyebilirsiniz.",
+  "trashConfirmMultiple": "Bu cihazdaki çöp kutusundan 30 gün boyunca geri yükleyebilirsiniz.",
+  "trashDaysLeft": "{{count}} gün kaldı",
+  "trashLockedPreview": "Bu kilitli notun kilidini açıp görüntülemek için geri yükleyin."
 }

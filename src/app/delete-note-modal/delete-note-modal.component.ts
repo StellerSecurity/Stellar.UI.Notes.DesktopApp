@@ -10,6 +10,7 @@ export class DeleteNoteModalComponent {
   @ViewChild('confirmDeleteButton') confirmDeleteButton?: ElementRef<HTMLButtonElement>;
   private dismissing = false;
   ionViewDidEnter(): void { this.confirmDeleteButton?.nativeElement.focus({preventScroll:true}); }
+  @Input() recoverable = false;
   @Input() count = 0;
   @Input() isSingleDelete: boolean = false; 
 

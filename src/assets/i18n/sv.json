@@ -317,5 +317,22 @@
   "sortFolders": "Sortera mappar",
   "folderSortAscending": "Namn: A–Ö",
   "folderSortDescending": "Namn: Ö–A",
-  "folderSortManual": "Egen ordning"
+  "folderSortManual": "Egen ordning",
+  "searchFilters": "Sökfilter",
+  "filterImages": "Bilder",
+  "filterLocked": "Låsta",
+  "clearFilters": "Rensa filter",
+  "trash": "Papperskorg",
+  "enableTrash": "Aktivera papperskorgen",
+  "trashOptInDescription": "Av som standard. Behåll raderade anteckningar på den här enheten i 30 dagar. Befintliga objekt behålls om du stänger av funktionen.",
+  "trashDescription": "Raderade anteckningar sparas på den här enheten i 30 dagar.",
+  "trashEmpty": "Papperskorgen är tom.",
+  "restore": "Återställ",
+  "deletePermanently": "Radera permanent",
+  "movedToTrash": "Flyttad till papperskorgen.",
+  "undo": "Ångra",
+  "trashConfirmSingle": "Du kan återställa från papperskorgen på den här enheten i 30 dagar.",
+  "trashConfirmMultiple": "Du kan återställa från papperskorgen på den här enheten i 30 dagar.",
+  "trashDaysLeft": "{{count}} dagar kvar",
+  "trashLockedPreview": "Återställ den låsta anteckningen för att låsa upp och visa den."
 }

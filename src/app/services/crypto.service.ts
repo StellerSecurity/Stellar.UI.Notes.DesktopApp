@@ -1,3 +1,4 @@
+import { expandLocalAssets, LOCAL_NOTES_ENVELOPE } from '../utils/local-note-assets';
 import {Injectable} from '@angular/core';
 
 declare var require: any;
@@ -14,7 +15,16 @@ export class CryptoService {
   }
 
   public decrypt(value: any, password: string) {
-    return CryptoJS.AES.decrypt(value, password).toString(CryptoJS.enc.Utf8);
+    const decrypt = (cipher:string,key:string) => CryptoJS.AES.decrypt(cipher,key).toString(CryptoJS.enc.Utf8);
+    if (typeof value === 'string' && value.startsWith('{')) {
+      const envelope = JSON.parse(value);
+      if (envelope[LOCAL_NOTES_ENVELOPE] === 1 && Array.isArray(envelope.records)) {
+        if(envelope.check && decrypt(envelope.check,password)!=='stellar-local-unlock-v1')throw Error('Local notes are locked');
+        const notes = envelope.records.map((cipher:string) => JSON.parse(decrypt(cipher,password)));
+        return JSON.stringify(expandLocalAssets(notes,password,decrypt));
+      }
+    }
+    return decrypt(value,password);
   }
 
 }

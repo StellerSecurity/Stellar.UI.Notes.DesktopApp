@@ -317,5 +317,22 @@
   "sortFolders": "Sort folders",
   "folderSortAscending": "Name: A–Z",
   "folderSortDescending": "Name: Z–A",
-  "folderSortManual": "Custom order"
+  "folderSortManual": "Custom order",
+  "searchFilters": "Search filters",
+  "filterImages": "Images",
+  "filterLocked": "Locked",
+  "clearFilters": "Clear filters",
+  "trash": "Trash",
+  "enableTrash": "Enable Trash",
+  "trashOptInDescription": "Off by default. Keep deleted notes on this device for 30 days. Turning this off keeps notes already in Trash.",
+  "trashDescription": "Deleted notes stay on this device for 30 days.",
+  "trashEmpty": "Trash is empty.",
+  "restore": "Restore",
+  "deletePermanently": "Delete permanently",
+  "movedToTrash": "Moved to Trash.",
+  "undo": "Undo",
+  "trashConfirmSingle": "You can restore this from Trash on this device for 30 days.",
+  "trashConfirmMultiple": "You can restore this from Trash on this device for 30 days.",
+  "trashDaysLeft": "{{count}} days remaining",
+  "trashLockedPreview": "Restore this locked note to unlock and view it."
 }

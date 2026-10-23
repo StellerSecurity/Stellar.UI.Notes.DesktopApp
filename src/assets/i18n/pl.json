@@ -317,5 +317,22 @@
   "sortFolders": "Sortuj foldery",
   "folderSortAscending": "Nazwa: A–Z",
   "folderSortDescending": "Nazwa: Z–A",
-  "folderSortManual": "Własna kolejność"
+  "folderSortManual": "Własna kolejność",
+  "searchFilters": "Filtry wyszukiwania",
+  "filterImages": "Obrazy",
+  "filterLocked": "Zablokowane",
+  "clearFilters": "Wyczyść filtry",
+  "trash": "Kosz",
+  "enableTrash": "Włącz kosz",
+  "trashOptInDescription": "Domyślnie wyłączony. Przechowuj usunięte notatki na tym urządzeniu przez 30 dni. Wyłączenie zachowuje istniejące elementy.",
+  "trashDescription": "Usunięte notatki pozostają na tym urządzeniu przez 30 dni.",
+  "trashEmpty": "Kosz jest pusty.",
+  "restore": "Przywróć",
+  "deletePermanently": "Usuń trwale",
+  "movedToTrash": "Przeniesiono do kosza.",
+  "undo": "Cofnij",
+  "trashConfirmSingle": "Możesz przywrócić z kosza na tym urządzeniu przez 30 dni.",
+  "trashConfirmMultiple": "Możesz przywrócić z kosza na tym urządzeniu przez 30 dni.",
+  "trashDaysLeft": "Pozostało {{count}} dni",
+  "trashLockedPreview": "Przywróć zablokowaną notatkę, aby ją odblokować i wyświetlić."
 }

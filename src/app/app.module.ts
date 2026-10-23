@@ -1,4 +1,5 @@
-import { NgModule, provideZoneChangeDetection } from '@angular/core';
+import { NotesService } from './services/notes.service';
+import { APP_INITIALIZER, NgModule, provideZoneChangeDetection } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -51,7 +52,7 @@ export function initSodium() {
       loader: { provide: TranslateLoader, useClass: BundledTranslationLoader },
     }),
   ],
-  providers: [provideZoneChangeDetection(), { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
+  providers: [{provide:APP_INITIALIZER,multi:true,deps:[NotesService],useFactory:(notes:NotesService)=>()=>notes.initializePersistence()}, provideZoneChangeDetection(), { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

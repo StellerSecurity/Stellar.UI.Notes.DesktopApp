@@ -317,5 +317,22 @@
   "sortFolders": "Mappen sorteren",
   "folderSortAscending": "Naam: A–Z",
   "folderSortDescending": "Naam: Z–A",
-  "folderSortManual": "Eigen volgorde"
+  "folderSortManual": "Eigen volgorde",
+  "searchFilters": "Zoekfilters",
+  "filterImages": "Afbeeldingen",
+  "filterLocked": "Vergrendeld",
+  "clearFilters": "Filters wissen",
+  "trash": "Prullenbak",
+  "enableTrash": "Prullenbak inschakelen",
+  "trashOptInDescription": "Standaard uit. Bewaar verwijderde notities 30 dagen op dit apparaat. Uitschakelen behoudt bestaande items.",
+  "trashDescription": "Verwijderde notities blijven 30 dagen op dit apparaat.",
+  "trashEmpty": "De prullenbak is leeg.",
+  "restore": "Herstellen",
+  "deletePermanently": "Permanent verwijderen",
+  "movedToTrash": "Verplaatst naar de prullenbak.",
+  "undo": "Ongedaan maken",
+  "trashConfirmSingle": "Je kunt dit 30 dagen uit de prullenbak op dit apparaat herstellen.",
+  "trashConfirmMultiple": "Je kunt dit 30 dagen uit de prullenbak op dit apparaat herstellen.",
+  "trashDaysLeft": "Nog {{count}} dagen",
+  "trashLockedPreview": "Herstel deze vergrendelde notitie om deze te ontgrendelen en te bekijken."
 }

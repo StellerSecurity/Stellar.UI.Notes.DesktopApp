@@ -47,3 +47,16 @@
 .folder-chip.reorder-before { box-shadow: inset 0 2px #2761fc; }
 .folder-chip.reorder-after { box-shadow: inset 0 -2px #2761fc; }
 @media (prefers-reduced-motion: reduce) { .desktop-layout, .desktop-folders-pane { transition: none; } }
+
+.search-filters { display:flex; gap:5px; padding:0 12px 8px; align-items:center; flex-wrap:wrap; }
+.search-filters button { display:flex; align-items:center; gap:4px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:5px 8px; border:1px solid #eaeaf0; border-radius:8px; background:white; font-size:11px; color:#62626a; }
+.search-filters button.active { color:#2458e5; background:#eaf0ff; border-color:#d8e3ff; }
+.search-folder-menu { max-height:320px; overflow:auto; }.search-folder-menu input { margin:6px; width:calc(100% - 12px); }
+
+.trash-editor { height:100%;display:flex;flex-direction:column; }
+.trash-toolbar { display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:8px 16px;border-bottom:1px solid #eaeaf0;color:#62626a;font-size:12px; }
+.trash-toolbar > div { display:flex;gap:8px; }.trash-toolbar .sn-button { font-size:12px;min-height:32px;padding:6px 12px; }
+.trash-document { overflow:auto;padding:20px 28px;flex:1; }.trash-note-meta {color:#90909d;font-size:11px;text-align:center;margin-bottom:24px;}.trash-document h1 {font-size:24px;font-weight:600;margin:0 0 12px;}.trash-note-content {font-size:14px;line-height:1.65;overflow-wrap:anywhere;}
+:host ::ng-deep .trash-note-content img {max-width:100%;height:auto;}
+.trash-description,.trash-overview p {font-size:13px;color:#62626a;line-height:1.6;}
+.trash-overview {padding:80px 32px;max-width:520px;margin:auto;text-align:center;}.trash-overview > ion-icon {font-size:44px;color:#a1a1ad;}.trash-overview h2 {font-size:20px;}.trash-selection-titles {display:grid;gap:8px;border:1px solid #eaeaf0;border-radius:12px;padding:16px;text-align:left;font-size:13px;}.trash-selection-titles span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}

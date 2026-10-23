@@ -317,5 +317,22 @@
   "sortFolders": "Trier les dossiers",
   "folderSortAscending": "Nom : A–Z",
   "folderSortDescending": "Nom : Z–A",
-  "folderSortManual": "Ordre personnalisé"
+  "folderSortManual": "Ordre personnalisé",
+  "searchFilters": "Filtres de recherche",
+  "filterImages": "Images",
+  "filterLocked": "Verrouillées",
+  "clearFilters": "Effacer les filtres",
+  "trash": "Corbeille",
+  "enableTrash": "Activer la corbeille",
+  "trashOptInDescription": "Désactivée par défaut. Conserve les notes supprimées sur cet appareil pendant 30 jours. La désactivation conserve les éléments existants.",
+  "trashDescription": "Les notes supprimées restent sur cet appareil pendant 30 jours.",
+  "trashEmpty": "La corbeille est vide.",
+  "restore": "Restaurer",
+  "deletePermanently": "Supprimer définitivement",
+  "movedToTrash": "Déplacé dans la corbeille.",
+  "undo": "Annuler",
+  "trashConfirmSingle": "Vous pouvez restaurer depuis la corbeille de cet appareil pendant 30 jours.",
+  "trashConfirmMultiple": "Vous pouvez restaurer depuis la corbeille de cet appareil pendant 30 jours.",
+  "trashDaysLeft": "{{count}} jours restants",
+  "trashLockedPreview": "Restaurez cette note verrouillée pour la déverrouiller et la consulter."
 }

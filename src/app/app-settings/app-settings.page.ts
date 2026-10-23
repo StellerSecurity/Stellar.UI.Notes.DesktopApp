@@ -1,3 +1,4 @@
+import packageInfo from '../../../package.json';
 import { translateText as t } from '../i18n';
 import { wrapLocalAppKey, unwrapLocalAppKey } from '../utils/local-app-key';
 import { AfterViewInit, Component, ViewChild } from "@angular/core";
@@ -22,6 +23,10 @@ import { SecureStorageService } from "../services/secure-storage.service";
   styleUrls: ["./app-settings.page.scss"],
 })
 export class AppSettingsPage implements AfterViewInit {
+  public readonly appVersion=packageInfo.version;
+  public readonly appName='Stellar Notes';
+  public get trashEnabled():boolean {return this.noteService.trashEnabled;}
+  public toggleTrash(event:Event):void {this.noteService.trashEnabled=(event.target as HTMLInputElement).checked;}
   public appPasswordChallenge: boolean;
   public wipeNotesOnFailedPasswords: boolean = true;
   public notesAppPassword: string;
@@ -128,7 +133,10 @@ export class AppSettingsPage implements AfterViewInit {
         this.notesAppPassword
       );
 
+      localStorage.removeItem("app_password_challenge");
+      this.noteService.setNotesAppPassword("");
       this.noteService.setNotes(decryptedNotes);
+      await this.noteService.flushPersistence();
       this.noteService.setDecryptedNotes(decryptedNotes);
       this.notesAppPassword = "";
       this.confirmPassword = "";
@@ -149,8 +157,9 @@ export class AppSettingsPage implements AfterViewInit {
       this.notesAppPassword
     );
 
-    this.noteService.setNotes(encryptedNotes);
     this.noteService.setNotesAppPassword(this.notesAppPassword);
+    this.noteService.setNotes(encryptedNotes);
+    await this.noteService.flushPersistence();
     this.notesAppPassword = "";
     this.appProtectorService.init();
     this.noteService.setFailedPasswordAppAttempts(0);
@@ -190,8 +199,9 @@ export class AppSettingsPage implements AfterViewInit {
         this.notesAppPassword
       );
 
-      this.noteService.setNotes(encryptedNotes);
       this.noteService.setNotesAppPassword(this.notesAppPassword);
+      this.noteService.setNotes(encryptedNotes);
+      await this.noteService.flushPersistence();
 
       this.notesAppPassword = "";
       this.confirmPassword = "";
@@ -243,7 +253,10 @@ export class AppSettingsPage implements AfterViewInit {
               return;
             }
 
+            localStorage.removeItem("app_password_challenge");
+            this.noteService.setNotesAppPassword("");
             this.noteService.setNotes(decryptedNotes);
+            await this.noteService.flushPersistence();
             this.noteService.setDecryptedNotes(decryptedNotes);
             await this.modal?.dismiss();
             this.notesAppPassword = "";
@@ -321,7 +334,10 @@ export class AppSettingsPage implements AfterViewInit {
           await this.secureStorageService.removeItem("ssEakB64_Encrypted");
         }
 
+        localStorage.removeItem("app_password_challenge");
+        this.noteService.setNotesAppPassword("");
         this.noteService.setNotes(decryptedNotes);
+        await this.noteService.flushPersistence();
         this.noteService.setDecryptedNotes(decryptedNotes);
 
         this.notesAppPassword = "";
@@ -425,6 +441,7 @@ export class AppSettingsPage implements AfterViewInit {
       }
 
       try {
+        await this.noteService.clearLocalPersistence();
         localStorage.clear();
         await this.navController.navigateRoot("/home");
       } catch (err) {

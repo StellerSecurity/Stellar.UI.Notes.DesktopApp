@@ -2,12 +2,12 @@
   <img src="./assets/delete.png" class="burn-img" alt="">
   <ng-container *ngIf="isSingleDelete">
     <h2>{{'deleteNote' | translate}}?</h2>
-    <p>{{'confirmSingleNoteDeleteMsg' | translate}}</p>
+    <p>{{(recoverable ? 'trashConfirmSingle' : 'confirmSingleNoteDeleteMsg') | translate}}</p>
   </ng-container>
 
   <ng-container *ngIf="!isSingleDelete">
     <h2>{{'deleteNotes' | translate}}<ng-container *ngIf="count"> ({{count}})</ng-container>?</h2>
-    <p>{{'confirmDeleteMsg' | translate}}</p>
+    <p>{{(recoverable ? 'trashConfirmMultiple' : 'confirmDeleteMsg') | translate}}</p>
   </ng-container>
 
   <div class="buttons">

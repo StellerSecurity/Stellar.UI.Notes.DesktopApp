@@ -1,3 +1,4 @@
+const { installPersistenceGuard } = require('./desktop-persistence.cjs');
 const { createDesktopLocalization } = require('./desktop-localization.cjs');
 const { app, BrowserWindow, ipcMain, shell, dialog, protocol } = require("electron");
 const { registerRealtimeProtocol, redactRealtimeSecrets } = require('./desktop-realtime-protocol.cjs');
@@ -1016,6 +1017,7 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow(windowOptions);
+  installPersistenceGuard(mainWindow,ipcMain,app);
 
   let didShowWindow = false;
   const showMainWindow = (reason) => {

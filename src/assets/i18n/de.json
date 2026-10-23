@@ -317,5 +317,22 @@
   "sortFolders": "Ordner sortieren",
   "folderSortAscending": "Name: A–Z",
   "folderSortDescending": "Name: Z–A",
-  "folderSortManual": "Eigene Reihenfolge"
+  "folderSortManual": "Eigene Reihenfolge",
+  "searchFilters": "Suchfilter",
+  "filterImages": "Bilder",
+  "filterLocked": "Gesperrt",
+  "clearFilters": "Filter löschen",
+  "trash": "Papierkorb",
+  "enableTrash": "Papierkorb aktivieren",
+  "trashOptInDescription": "Standardmäßig aus. Gelöschte Notizen 30 Tage auf diesem Gerät behalten. Beim Deaktivieren bleiben vorhandene Einträge erhalten.",
+  "trashDescription": "Gelöschte Notizen bleiben 30 Tage auf diesem Gerät.",
+  "trashEmpty": "Der Papierkorb ist leer.",
+  "restore": "Wiederherstellen",
+  "deletePermanently": "Endgültig löschen",
+  "movedToTrash": "In den Papierkorb verschoben.",
+  "undo": "Rückgängig",
+  "trashConfirmSingle": "Sie können dies 30 Tage lang aus dem Papierkorb auf diesem Gerät wiederherstellen.",
+  "trashConfirmMultiple": "Sie können dies 30 Tage lang aus dem Papierkorb auf diesem Gerät wiederherstellen.",
+  "trashDaysLeft": "Noch {{count}} Tage",
+  "trashLockedPreview": "Stellen Sie diese gesperrte Notiz wieder her, um sie zu entsperren und anzusehen."
 }

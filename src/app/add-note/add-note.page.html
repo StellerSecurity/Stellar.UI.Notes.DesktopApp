@@ -85,19 +85,4 @@
     </ng-template>
   </ion-modal>
 
-<ion-modal class="sn-compact-modal folder-picker-modal" [isOpen]="folderPickerOpen" (didDismiss)="folderPickerOpen = false" (didPresent)="focusFolderPicker($event)">
-  <ng-template>
-    <form class="sn-dialog-content folder-picker" (ngSubmit)="confirmFolderPicker()">
-      <div class="sn-dialog-heading"><h2>{{(folderPickerCreating ? 'uiNewFolder' : 'uiMoveToFolder') | translate}}</h2><button type="button" class="icon-button" (click)="folderPickerOpen = false" [attr.aria-label]="'uiClose' | translate"><ion-icon name="close-outline"></ion-icon></button></div>
-      <ng-container *ngIf="!folderPickerCreating">
-        <label class="folder-search"><ion-icon name="search-outline"></ion-icon><input name="folderSearch" [(ngModel)]="folderPickerQuery" [placeholder]="'uiSearch' | translate" [attr.aria-label]="'uiSearch' | translate" autocomplete="off"></label>
-        <div class="folder-picker-list" role="radiogroup" [attr.aria-label]="'uiMoveToFolder' | translate">
-          <label class="folder-picker-row" [class.chosen]="folderPickerTarget === '__all__'"><input type="radio" name="folderTarget" value="__all__" [(ngModel)]="folderPickerTarget"><ion-icon name="documents-outline"></ion-icon><span>{{'uiNoFolder' | translate}}</span><ion-icon class="folder-check" name="checkmark-outline"></ion-icon></label>
-          <label class="folder-picker-row" *ngFor="let folder of filteredMoveFolders" [class.chosen]="folderPickerTarget === folder.name"><input type="radio" name="folderTarget" [value]="folder.name" [(ngModel)]="folderPickerTarget"><ion-icon name="folder-outline"></ion-icon><span>{{folder.name}}</span><ion-icon class="folder-check" name="checkmark-outline"></ion-icon></label>
-        </div>
-      </ng-container>
-      <div class="folder-create-field" *ngIf="folderPickerCreating"><label for="new-move-folder">{{'uiFolderName' | translate}}</label><input id="new-move-folder" class="sn-input" name="newFolderName" [(ngModel)]="folderPickerName" maxlength="80" autocomplete="off" [placeholder]="'uiFolderName' | translate"></div>
-      <div class="folder-picker-footer"><button *ngIf="!folderPickerCreating" type="button" class="text-link" (click)="createFolder()"><ion-icon name="add-outline"></ion-icon>{{'uiNewFolder' | translate}}</button><div class="sn-dialog-actions"><button type="button" class="sn-button" (click)="folderPickerCreating ? folderPickerCreating = false : folderPickerOpen = false">{{'cancel' | translate}}</button><button type="submit" class="sn-button primary" [disabled]="folderPickerCreating && !folderPickerName.trim()">{{(folderPickerCreating ? 'uiCreate' : 'uiMove') | translate}}</button></div></div>
-    </form>
-  </ng-template>
-</ion-modal>
+<app-folder-picker [open]="folderPickerOpen" (openChange)="folderPickerOpen = $event" [folders]="folders" [initialTarget]="folderPickerTarget" (picked)="onFolderPicked($event)"></app-folder-picker>
