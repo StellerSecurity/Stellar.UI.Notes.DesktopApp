@@ -98,7 +98,7 @@
   "share": "Del",
   "burnSecret": "Slett hemmelig melding",
   "burningSecret": "Sletter hemmelig melding…",
-  "createSecret": "Opprett hemmelig melding",
+  "createSecret": "Opprett hemmelig lenke",
   "passwordAtLeastLength": "Passordet må ha minst 6 tegn",
   "stellarPrivateNotes": "Stellar Notes",
   "createStellarID": "Opprett Stellar ID",

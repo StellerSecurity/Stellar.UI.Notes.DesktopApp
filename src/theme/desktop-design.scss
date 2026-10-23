@@ -32,8 +32,8 @@ ion-modal.sn-compact-modal { --height: auto; --width: 440px; --max-width: calc(1
 ion-modal.confirmation-popup { --width: 440px; --border-radius: 18px; --backdrop-opacity: .25 !important; }
 ion-modal.centered-modal { --width: 440px; --height: 560px; --max-height: calc(100dvh - 40px); --border-radius: 18px; --background: #fff; }
 ion-modal.lock-note-modal { --width: 440px; --max-width: calc(100vw - 40px); --min-height: 0; --height: 540px; --max-height: calc(100dvh - 40px); --border-radius: 18px; }
-ion-modal.secret-modal { --width: 440px; --height: 420px; --border-radius: 18px; }
-ion-modal.secretshare-copy-modal { --height: 480px !important; }
+ion-modal.secret-modal { --width: 440px; --max-width: calc(100vw - 40px); --height: auto; --max-height: calc(100dvh - 40px); --border-radius: 18px; }
+
 ion-modal ion-content, ion-modal ion-header, ion-modal ion-toolbar { --background: #fff; --ion-background-color: #fff; background: #fff; }
 ion-modal ion-header { box-shadow: none; }
 ion-modal ion-toolbar { --min-height: 56px; border-bottom: 1px solid #eaeaf0; }

@@ -29,8 +29,8 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     if (!ref) return;
     const surface = ref.nativeElement;
     const wheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
+      event.stopPropagation();
       this.zoomPreview(this.previewZoom * Math.exp(-event.deltaY * .01), event.clientX, event.clientY, false);
     };
     // WebKit uses gesture events for a trackpad pinch; Chromium uses ctrl+wheel.
@@ -41,13 +41,36 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
       const gesture = event as Event & {scale: number; clientX: number; clientY: number};
       this.zoomPreview(gestureZoom * gesture.scale, gesture.clientX, gesture.clientY, false);
     };
-    surface.addEventListener('wheel', wheel, {passive: false});
+    let touchPinch: {distance:number; zoom:number} | undefined;
+    const touchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 2) return;
+      event.preventDefault();
+      const [a,b] = Array.from(event.touches);
+      touchPinch = {distance:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY), zoom:this.previewZoom};
+      this.previewPointer = undefined; this.previewPanning = false; this.previewDragged = true;
+    };
+    const touchMove = (event: TouchEvent) => {
+      if (!touchPinch || event.touches.length !== 2) return;
+      event.preventDefault(); event.stopPropagation();
+      const [a,b] = Array.from(event.touches);
+      if (touchPinch.distance > 0) this.zoomPreview(touchPinch.zoom * Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY) / touchPinch.distance, (a.clientX+b.clientX)/2, (a.clientY+b.clientY)/2, false);
+    };
+    const touchEnd = (event: TouchEvent) => { if (touchPinch) event.preventDefault(); touchPinch = undefined; };
+    surface.addEventListener('touchstart', touchStart, {passive:false});
+    surface.addEventListener('touchmove', touchMove, {passive:false});
+    surface.addEventListener('touchend', touchEnd, {passive:false});
+    surface.addEventListener('touchcancel', touchEnd);
+    surface.addEventListener('wheel', wheel, {passive: false, capture:true});
     surface.addEventListener('gesturestart', gestureStart, {passive: false});
     surface.addEventListener('gesturechange', gestureChange, {passive: false});
     const resize = new ResizeObserver(() => { this.clampPreviewPan(); this.cdr.markForCheck(); });
     resize.observe(surface);
     this.removePreviewListeners = () => {
-      surface.removeEventListener('wheel', wheel);
+      surface.removeEventListener('wheel', wheel, true);
+      surface.removeEventListener('touchstart', touchStart);
+      surface.removeEventListener('touchmove', touchMove);
+      surface.removeEventListener('touchend', touchEnd);
+      surface.removeEventListener('touchcancel', touchEnd);
       surface.removeEventListener('gesturestart', gestureStart);
       surface.removeEventListener('gesturechange', gestureChange);
       resize.disconnect();
@@ -360,8 +383,8 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     const next = Math.max(1, Math.min(5, zoom));
     const bounds = this.previewStage?.nativeElement.getBoundingClientRect();
     if (bounds) {
-      const x = clientX === undefined ? 0 : clientX - bounds.left - bounds.width / 2;
-      const y = clientY === undefined ? 0 : clientY - bounds.top - bounds.height / 2;
+      const x = !Number.isFinite(clientX) ? 0 : clientX! - bounds.left - bounds.width / 2;
+      const y = !Number.isFinite(clientY) ? 0 : clientY! - bounds.top - bounds.height / 2;
       const ratio = next / this.previewZoom;
       this.previewPanX = x - (x - this.previewPanX) * ratio;
       this.previewPanY = y - (y - this.previewPanY) * ratio;
@@ -369,7 +392,9 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     this.previewZoom = next;
     this.previewAnimateZoom = animate;
     this.clampPreviewPan();
-    this.cdr.markForCheck();
+    // Quill can open the preview outside Angular's zone. Native gesture listeners
+    // inherit that zone, so marking dirty alone can leave the image unchanged.
+    if (!this.destroyed) this.cdr.detectChanges();
   }
 
   public togglePreviewZoom(event: MouseEvent): void {

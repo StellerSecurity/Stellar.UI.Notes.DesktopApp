@@ -98,7 +98,7 @@
   "share": "Compartir",
   "burnSecret": "Destruir mensaje secreto",
   "burningSecret": "Destruyendo mensaje secreto…",
-  "createSecret": "Crear mensaje secreto",
+  "createSecret": "Crear enlace secreto",
   "passwordAtLeastLength": "La contraseña debe tener al menos 6 caracteres",
   "stellarPrivateNotes": "Stellar Notes",
   "createStellarID": "Crear Stellar ID",

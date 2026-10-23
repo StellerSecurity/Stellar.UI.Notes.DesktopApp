@@ -453,10 +453,10 @@ export class AddNotePage implements AfterViewInit, OnDestroy {
       component: ShareSecretModalComponent,
       componentProps: { addSecretModal, secret_id },
       cssClass: 'secret-modal',
-      // breakpoints: [0, 0.7],
-      // initialBreakpoint: 0.7,
     });
-
+    void modal.onDidDismiss().then(() => {
+      if (this.viewActive && !this.note_locked) this.richTextEditorComponent?.onEnter();
+    });
     await modal.present();
   }
 

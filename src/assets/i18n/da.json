@@ -98,7 +98,7 @@
   "share": "Del",
   "burnSecret": "Burn Secret",
   "burningSecret": "Burning Secret...",
-  "createSecret": "Create Secret",
+  "createSecret": "Opret hemmeligt link",
   "passwordAtLeastLength": "Adgangskoden skal være mindst 6 tegn",
   "stellarPrivateNotes": "Stellar Notes",
   "createStellarID": "Opret Stellar ID",

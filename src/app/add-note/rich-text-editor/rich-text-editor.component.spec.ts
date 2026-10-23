@@ -246,12 +246,41 @@ describe('RichTextEditorComponent', () => {
     preview.dispatchEvent(pinch); expect(pinch.defaultPrevented).toBeTrue(); expect(component.previewZoom).toBeGreaterThan(2);
     expect(component.previewAnimateZoom).toBeFalse();
     const wheel=new WheelEvent('wheel',{deltaY:20,bubbles:true,cancelable:true});
-    preview.dispatchEvent(wheel); expect(wheel.defaultPrevented).toBeFalse();
+    preview.dispatchEvent(wheel); expect(wheel.defaultPrevented).toBeTrue();
+    const beforeGesture=component.previewZoom;
     preview.dispatchEvent(new Event('gesturestart',{cancelable:true}));
     const gesture=new Event('gesturechange',{cancelable:true}); Object.assign(gesture,{scale:2,clientX:250,clientY:300});
-    preview.dispatchEvent(gesture); expect(gesture.defaultPrevented).toBeTrue(); expect(component.previewZoom).toBeGreaterThan(4);
+    preview.dispatchEvent(gesture); expect(gesture.defaultPrevented).toBeTrue(); expect(component.previewZoom).toBe(Math.min(5,beforeGesture*2));
     component.zoomPreview(100); expect(component.previewZoom).toBe(5);
     component.zoomPreview(-100); expect(component.previewZoom).toBe(1);
+    expect(component.editorValueGetter(component.quill)).toBe(original);
+  });
+
+  it('renders pinch zoom immediately even when the native listener was registered outside Angular', async () => {
+    const preview=await openLargePreview();
+    const image=preview.querySelector('img')!;
+    fixture.ngZone!.runOutsideAngular(()=>{
+      component.previewSurface = {nativeElement:preview};
+      preview.dispatchEvent(new WheelEvent('wheel',{ctrlKey:true,deltaY:-35,bubbles:true,cancelable:true}));
+    });
+    expect(component.previewZoom).toBeGreaterThan(1);
+    expect(new DOMMatrix(image.style.transform).a).toBeCloseTo(component.previewZoom,4);
+    const before=component.previewZoom;
+    fixture.ngZone!.runOutsideAngular(()=>preview.dispatchEvent(new WheelEvent('wheel',{ctrlKey:true,deltaY:15,bubbles:true,cancelable:true})));
+    expect(component.previewZoom).toBeLessThan(before);
+    expect(new DOMMatrix(image.style.transform).a).toBeCloseTo(component.previewZoom,4);
+  });
+
+  it('supports two-finger touch pinch without changing the note',async()=>{
+    const preview=await openLargePreview();const original=component.editorValueGetter(component.quill);
+    const touch=(type:string,distance:number)=>{
+      const event=new Event(type,{bubbles:true,cancelable:true});
+      Object.defineProperty(event,'touches',{value:[{clientX:200,clientY:200},{clientX:200+distance,clientY:200}]});
+      preview.dispatchEvent(event);return event;
+    };
+    touch('touchstart',100);expect(touch('touchmove',200).defaultPrevented).toBeTrue();expect(component.previewZoom).toBe(2);
+    touch('touchmove',150);expect(component.previewZoom).toBe(1.5);
+    preview.dispatchEvent(new Event('touchend'));
     expect(component.editorValueGetter(component.quill)).toBe(original);
   });
 

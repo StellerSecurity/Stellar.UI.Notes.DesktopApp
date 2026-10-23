@@ -1,3 +1,5 @@
+import { ShareSecretModalComponent } from './share-secret-modal/share-secret-modal.component';
+import { Subject } from 'rxjs';
 import { InitialComponent } from './initial/initial.component';
 import { AddNotePage } from './add-note/add-note.page';
 import { DeleteNoteModalComponent } from './delete-note-modal/delete-note-modal.component';
@@ -252,5 +254,32 @@ describe('Desktop folder picker',()=>{
     const page=editor();await page.selectFolder();page.folderPickerCreating=true;page.folderPickerName='   ';page.confirmFolderPicker();expect(page.save).not.toHaveBeenCalled();
     page.folderPickerCreating=false;page.folderPickerTarget='Missing';page.confirmFolderPicker();expect(page.save).not.toHaveBeenCalled();
     page.folderPickerTarget='__all__';page.confirmFolderPicker();expect(page.currentNote.folder).toBe('');expect(page.currentNote.folder_id).toBeNull();
+  });
+});
+
+describe('Share note without stacked loading overlays',()=>{
+  function setup() {
+    const response=new Subject<any>();
+    const api:any={create:jasmine.createSpy('create').and.returnValue(response)};
+    const component=new ShareSecretModalComponent({dismiss:jasmine.createSpy()} as any,{} as any,api,{} as any,{allTranslations:{}} as any);
+    component.secret_id='synthetic-test-id';component.addSecretModal={message:'synthetic ciphertext'};
+    return {component,api,response};
+  }
+  it('shows inline busy state, prevents duplicate creation and transitions in the same dialog',async()=>{
+    const {component,api,response}=setup();await component.createSecret();await component.createSecret();
+    expect(component.isLoading).toBeTrue();expect(api.create).toHaveBeenCalledTimes(1);expect(component.step).toBe(1);
+    response.next({id:'server-id'});response.complete();
+    expect(component.isLoading).toBeFalse();expect(component.step).toBe(2);expect(component.secretUrl).toBe('https://stellarsecret.io/synthetic-test-id');
+    await component.createSecret();expect(api.create).toHaveBeenCalledTimes(1);
+  });
+  it('keeps creation errors inside the dialog and allows retry',async()=>{
+    const {component,api,response}=setup();await component.createSecret();response.error(new Error('offline'));
+    expect(component.isLoading).toBeFalse();expect(component.step).toBe(1);expect(component.errorMessage).toBeTruthy();
+    api.create.and.returnValue(new Subject());await component.createSecret();expect(component.errorMessage).toBe('');expect(api.create).toHaveBeenCalledTimes(2);
+    component.ngOnDestroy();
+  });
+  it('detaches the pending response after the dialog is destroyed',async()=>{
+    const {component,response}=setup();await component.createSecret();component.ngOnDestroy();response.next({id:'late'});
+    expect(component.step).toBe(1);expect(component.secretUrl).toBe('');
   });
 });

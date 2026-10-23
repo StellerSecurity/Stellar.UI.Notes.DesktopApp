@@ -98,7 +98,7 @@
   "share": "Paylaş",
   "burnSecret": "Gizli mesajı yok et",
   "burningSecret": "Gizli mesaj yok ediliyor…",
-  "createSecret": "Gizli mesaj oluştur",
+  "createSecret": "Gizli bağlantı oluştur",
   "passwordAtLeastLength": "Parola en az 6 karakter olmalıdır",
   "stellarPrivateNotes": "Stellar Notes",
   "createStellarID": "Stellar ID oluştur",

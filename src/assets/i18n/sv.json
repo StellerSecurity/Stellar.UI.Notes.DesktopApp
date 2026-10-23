@@ -98,7 +98,7 @@
   "share": "Dela",
   "burnSecret": "Burn Secret",
   "burningSecret": "Burning Secret...",
-  "createSecret": "Create Secret",
+  "createSecret": "Skapa hemlig länk",
   "passwordAtLeastLength": "Lösenord måste vara minst 6 tecken",
   "stellarPrivateNotes": "Stellar Notes",
   "createStellarID": "Skapa Stellar ID",
