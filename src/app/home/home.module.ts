@@ -1,3 +1,4 @@
+import { NotePaneResizeDirective } from './note-pane-resize.directive';
 import { UpdateStatusComponent } from '../update-status/update-status.component';
 import { SearchTextComponent } from '../search-text/search-text.component';
 import { FolderPickerComponent } from '../folder-picker/folder-picker.component';
@@ -25,6 +26,7 @@ import { NoteContextMenuComponent } from './note-context-menu/note-context-menu.
 @NgModule({
     imports: [
         CommonModule,
+        NotePaneResizeDirective,
         UpdateStatusComponent,
         FolderPickerComponent,
         SearchTextComponent,

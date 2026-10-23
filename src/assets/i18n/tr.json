@@ -341,5 +341,8 @@
   "updateStatusError": "Güncelleme başarısız",
   "updateStatusAutomaticHint": "Hazır olduğunda otomatik olarak yüklenir.",
   "updateStatusRestartHint": "Notlarınız kaydediliyor. Uygulama otomatik olarak yeniden başlayacak.",
-  "updateStatusErrorHint": "Uygulama açık kalacak."
+  "updateStatusErrorHint": "Uygulama açık kalacak.",
+  "resizeNoteList": "Not listesi genişliği",
+  "resizeNoteListHint": "Boyutlandırmak için sürükleyin. Sıfırlamak için çift tıklayın. Ok tuşlarıyla ayarlayın.",
+  "resizeFolders": "Klasör kenar çubuğu genişliği"
 }

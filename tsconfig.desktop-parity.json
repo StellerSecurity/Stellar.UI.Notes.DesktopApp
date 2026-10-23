@@ -22,6 +22,7 @@
     "src/app/app-settings/language-picker.component.spec.ts",
     "src/app/desktop-navigation.spec.ts",
     "src/app/local-storage-trash.spec.ts",
-    "src/app/update-status/update-status.component.spec.ts"
+    "src/app/update-status/update-status.component.spec.ts",
+    "src/app/home/note-pane-resize.directive.spec.ts"
   ]
 }

@@ -341,5 +341,8 @@
   "updateStatusError": "La actualización falló",
   "updateStatusAutomaticHint": "Se instala automáticamente cuando está lista.",
   "updateStatusRestartHint": "Guardando tus notas. La aplicación se reiniciará automáticamente.",
-  "updateStatusErrorHint": "La aplicación permanecerá abierta."
+  "updateStatusErrorHint": "La aplicación permanecerá abierta.",
+  "resizeNoteList": "Ancho de la lista de notas",
+  "resizeNoteListHint": "Arrastra para ajustar. Haz doble clic para restablecer. Usa las flechas para ajustar.",
+  "resizeFolders": "Ancho de la barra de carpetas"
 }

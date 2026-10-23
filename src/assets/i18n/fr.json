@@ -341,5 +341,8 @@
   "updateStatusError": "Échec de la mise à jour",
   "updateStatusAutomaticHint": "Installation automatique dès qu’elle est prête.",
   "updateStatusRestartHint": "Enregistrement de vos notes. L’application redémarrera automatiquement.",
-  "updateStatusErrorHint": "L’application restera ouverte."
+  "updateStatusErrorHint": "L’application restera ouverte.",
+  "resizeNoteList": "Largeur de la liste des notes",
+  "resizeNoteListHint": "Faites glisser pour redimensionner. Double-cliquez pour réinitialiser. Ajustez avec les flèches.",
+  "resizeFolders": "Largeur de la barre des dossiers"
 }

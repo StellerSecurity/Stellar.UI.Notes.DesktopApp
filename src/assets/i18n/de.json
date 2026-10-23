@@ -341,5 +341,8 @@
   "updateStatusError": "Update fehlgeschlagen",
   "updateStatusAutomaticHint": "Wird automatisch installiert, sobald es bereit ist.",
   "updateStatusRestartHint": "Deine Notizen werden gespeichert. Die App startet automatisch neu.",
-  "updateStatusErrorHint": "Die App bleibt geöffnet."
+  "updateStatusErrorHint": "Die App bleibt geöffnet.",
+  "resizeNoteList": "Breite der Notizliste",
+  "resizeNoteListHint": "Zum Anpassen ziehen. Zum Zurücksetzen doppelklicken. Mit den Pfeiltasten anpassen.",
+  "resizeFolders": "Breite der Ordnerleiste"
 }

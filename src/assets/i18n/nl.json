@@ -341,5 +341,8 @@
   "updateStatusError": "Update mislukt",
   "updateStatusAutomaticHint": "Wordt automatisch geïnstalleerd zodra deze gereed is.",
   "updateStatusRestartHint": "Je notities worden opgeslagen. De app start automatisch opnieuw.",
-  "updateStatusErrorHint": "De app blijft geopend."
+  "updateStatusErrorHint": "De app blijft geopend.",
+  "resizeNoteList": "Breedte van notitielijst",
+  "resizeNoteListHint": "Sleep om de breedte aan te passen. Dubbelklik om te herstellen. Gebruik de pijltjestoetsen om aan te passen.",
+  "resizeFolders": "Breedte van mappenzijbalk"
 }

@@ -341,5 +341,8 @@
   "updateStatusError": "Update failed",
   "updateStatusAutomaticHint": "Installs automatically when ready.",
   "updateStatusRestartHint": "Saving your notes. The app will restart automatically.",
-  "updateStatusErrorHint": "The app will stay open."
+  "updateStatusErrorHint": "The app will stay open.",
+  "resizeNoteList": "Note list width",
+  "resizeNoteListHint": "Drag to resize. Double-click to reset. Use arrow keys to adjust.",
+  "resizeFolders": "Folder sidebar width"
 }

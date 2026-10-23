@@ -341,5 +341,8 @@
   "updateStatusError": "Aktualizacja nie powiodła się",
   "updateStatusAutomaticHint": "Instalacja rozpocznie się automatycznie, gdy aktualizacja będzie gotowa.",
   "updateStatusRestartHint": "Zapisywanie notatek. Aplikacja uruchomi się ponownie automatycznie.",
-  "updateStatusErrorHint": "Aplikacja pozostanie otwarta."
+  "updateStatusErrorHint": "Aplikacja pozostanie otwarta.",
+  "resizeNoteList": "Szerokość listy notatek",
+  "resizeNoteListHint": "Przeciągnij, aby zmienić szerokość. Kliknij dwukrotnie, aby zresetować. Dostosuj klawiszami strzałek.",
+  "resizeFolders": "Szerokość panelu folderów"
 }

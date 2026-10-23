@@ -341,5 +341,8 @@
   "updateStatusError": "Aggiornamento non riuscito",
   "updateStatusAutomaticHint": "Si installa automaticamente quando è pronto.",
   "updateStatusRestartHint": "Salvataggio delle note. L’app si riavvierà automaticamente.",
-  "updateStatusErrorHint": "L’app rimarrà aperta."
+  "updateStatusErrorHint": "L’app rimarrà aperta.",
+  "resizeNoteList": "Larghezza elenco note",
+  "resizeNoteListHint": "Trascina per ridimensionare. Fai doppio clic per ripristinare. Regola con i tasti freccia.",
+  "resizeFolders": "Larghezza barra delle cartelle"
 }

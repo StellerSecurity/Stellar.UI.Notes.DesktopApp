@@ -341,5 +341,8 @@
   "updateStatusError": "Falha na atualização",
   "updateStatusAutomaticHint": "A instalação será automática quando estiver pronta.",
   "updateStatusRestartHint": "Salvando suas notas. O aplicativo será reiniciado automaticamente.",
-  "updateStatusErrorHint": "O aplicativo permanecerá aberto."
+  "updateStatusErrorHint": "O aplicativo permanecerá aberto.",
+  "resizeNoteList": "Largura da lista de notas",
+  "resizeNoteListHint": "Arraste para redimensionar. Clique duas vezes para redefinir. Ajuste com as teclas de seta.",
+  "resizeFolders": "Largura da barra de pastas"
 }

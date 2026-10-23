@@ -341,5 +341,8 @@
   "updateStatusError": "Uppdateringen misslyckades",
   "updateStatusAutomaticHint": "Installeras automatiskt när den är klar.",
   "updateStatusRestartHint": "Dina anteckningar sparas. Appen startar om automatiskt.",
-  "updateStatusErrorHint": "Appen förblir öppen."
+  "updateStatusErrorHint": "Appen förblir öppen.",
+  "resizeNoteList": "Anteckningslistans bredd",
+  "resizeNoteListHint": "Dra för att ändra bredden. Dubbelklicka för att återställa. Justera med piltangenterna.",
+  "resizeFolders": "Mappsidofältets bredd"
 }

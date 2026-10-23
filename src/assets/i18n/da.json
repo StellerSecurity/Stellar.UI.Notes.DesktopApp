@@ -341,5 +341,8 @@
   "updateStatusError": "Opdatering mislykkedes",
   "updateStatusAutomaticHint": "Installeres automatisk, når den er klar.",
   "updateStatusRestartHint": "Dine noter gemmes. Appen genstarter automatisk.",
-  "updateStatusErrorHint": "Appen forbliver åben."
+  "updateStatusErrorHint": "Appen forbliver åben.",
+  "resizeNoteList": "Notelistens bredde",
+  "resizeNoteListHint": "Træk for at ændre bredden. Dobbeltklik for at nulstille. Brug piletasterne til at justere.",
+  "resizeFolders": "Mappesidebarens bredde"
 }

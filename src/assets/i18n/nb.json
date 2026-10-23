@@ -341,5 +341,8 @@
   "updateStatusError": "Oppdateringen mislyktes",
   "updateStatusAutomaticHint": "Installeres automatisk når den er klar.",
   "updateStatusRestartHint": "Notatene dine lagres. Appen starter på nytt automatisk.",
-  "updateStatusErrorHint": "Appen forblir åpen."
+  "updateStatusErrorHint": "Appen forblir åpen.",
+  "resizeNoteList": "Notatlistens bredde",
+  "resizeNoteListHint": "Dra for å endre bredden. Dobbeltklikk for å tilbakestille. Juster med piltastene.",
+  "resizeFolders": "Bredde på mappesidefeltet"
 }

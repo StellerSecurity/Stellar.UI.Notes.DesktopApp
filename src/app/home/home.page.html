@@ -45,6 +45,8 @@
     </div>
   </aside>
 
+  <div class="pane-divider folder-pane-divider" appNotePaneResize="folders" role="separator" tabindex="0" aria-orientation="vertical" [hidden]="sidebarHidden" [attr.aria-label]="'resizeFolders' | translate" [title]="'resizeNoteListHint' | translate"></div>
+
   <section class="desktop-notes-pane" [attr.aria-label]="'uiNotes' | translate">
     <div class="notes-header">
       <button *ngIf="sidebarHidden" class="icon-button" (click)="toggleSidebar()" [title]="('uiShowSidebar' | translate) + ' (' + shortcut('Alt+Ctrl+S') + ')'" [attr.aria-label]="'uiShowSidebar' | translate"><ion-icon name="albums-outline"></ion-icon></button>
@@ -79,6 +81,8 @@
       <div role="presentation" aria-hidden="true" [style.height.px]="bottomNoteSpacer"></div>
     </div>
   </section>
+
+  <div class="pane-divider note-pane-divider" appNotePaneResize="notes" role="separator" tabindex="0" aria-orientation="vertical" [attr.aria-label]="'resizeNoteList' | translate" [title]="'resizeNoteListHint' | translate"></div>
 
   <section class="desktop-editor-pane" id="main-content" [attr.aria-label]="'uiNoteEditor' | translate">
     <div class="multi-selection" *ngIf="activeFilter !== 'trash' && listOfCheckedCheckboxes.length > 1">
