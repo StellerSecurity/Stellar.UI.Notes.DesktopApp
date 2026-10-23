@@ -35,6 +35,7 @@
         <ion-icon name="folder-outline"></ion-icon><span [title]="folder.name">{{folder.name}}</span><small>{{folderChipCount(folder.name)}}</small>
       </button>
     </nav>
+    <app-update-status></app-update-status>
     <div class="sidebar-account">
       <button class="account-button" (click)="presentUserMenu($event)" [attr.aria-label]="'uiStellarIDAccountMenu' | translate">
         <span class="avatar"><ng-container *ngIf="isLoggedIn(); else guest">{{accountEmail.slice(0,1).toUpperCase() || 'S'}}</ng-container><ng-template #guest><ion-icon name="person-outline"></ion-icon></ng-template></span>

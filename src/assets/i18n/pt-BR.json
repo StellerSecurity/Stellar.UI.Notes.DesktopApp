@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Você pode restaurar da lixeira deste dispositivo por 30 dias.",
   "trashConfirmMultiple": "Você pode restaurar da lixeira deste dispositivo por 30 dias.",
   "trashDaysLeft": "Restam {{count}} dias",
-  "trashLockedPreview": "Restaure esta nota bloqueada para desbloqueá-la e visualizá-la."
+  "trashLockedPreview": "Restaure esta nota bloqueada para desbloqueá-la e visualizá-la.",
+  "updateStatusDownloading": "Baixando atualização",
+  "updateStatusVerifying": "Verificando atualização",
+  "updateStatusInstalling": "Instalando atualização",
+  "updateStatusError": "Falha na atualização",
+  "updateStatusAutomaticHint": "A instalação será automática quando estiver pronta.",
+  "updateStatusRestartHint": "Salvando suas notas. O aplicativo será reiniciado automaticamente.",
+  "updateStatusErrorHint": "O aplicativo permanecerá aberto."
 }

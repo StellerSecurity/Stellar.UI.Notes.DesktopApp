@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Du kan återställa från papperskorgen på den här enheten i 30 dagar.",
   "trashConfirmMultiple": "Du kan återställa från papperskorgen på den här enheten i 30 dagar.",
   "trashDaysLeft": "{{count}} dagar kvar",
-  "trashLockedPreview": "Återställ den låsta anteckningen för att låsa upp och visa den."
+  "trashLockedPreview": "Återställ den låsta anteckningen för att låsa upp och visa den.",
+  "updateStatusDownloading": "Hämtar uppdatering",
+  "updateStatusVerifying": "Kontrollerar uppdatering",
+  "updateStatusInstalling": "Installerar uppdatering",
+  "updateStatusError": "Uppdateringen misslyckades",
+  "updateStatusAutomaticHint": "Installeras automatiskt när den är klar.",
+  "updateStatusRestartHint": "Dina anteckningar sparas. Appen startar om automatiskt.",
+  "updateStatusErrorHint": "Appen förblir öppen."
 }

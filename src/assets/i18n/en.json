@@ -334,5 +334,12 @@
   "trashConfirmSingle": "You can restore this from Trash on this device for 30 days.",
   "trashConfirmMultiple": "You can restore this from Trash on this device for 30 days.",
   "trashDaysLeft": "{{count}} days remaining",
-  "trashLockedPreview": "Restore this locked note to unlock and view it."
+  "trashLockedPreview": "Restore this locked note to unlock and view it.",
+  "updateStatusDownloading": "Downloading update",
+  "updateStatusVerifying": "Verifying update",
+  "updateStatusInstalling": "Installing update",
+  "updateStatusError": "Update failed",
+  "updateStatusAutomaticHint": "Installs automatically when ready.",
+  "updateStatusRestartHint": "Saving your notes. The app will restart automatically.",
+  "updateStatusErrorHint": "The app will stay open."
 }

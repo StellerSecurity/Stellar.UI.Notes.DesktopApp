@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Je kunt dit 30 dagen uit de prullenbak op dit apparaat herstellen.",
   "trashConfirmMultiple": "Je kunt dit 30 dagen uit de prullenbak op dit apparaat herstellen.",
   "trashDaysLeft": "Nog {{count}} dagen",
-  "trashLockedPreview": "Herstel deze vergrendelde notitie om deze te ontgrendelen en te bekijken."
+  "trashLockedPreview": "Herstel deze vergrendelde notitie om deze te ontgrendelen en te bekijken.",
+  "updateStatusDownloading": "Update downloaden",
+  "updateStatusVerifying": "Update controleren",
+  "updateStatusInstalling": "Update installeren",
+  "updateStatusError": "Update mislukt",
+  "updateStatusAutomaticHint": "Wordt automatisch geïnstalleerd zodra deze gereed is.",
+  "updateStatusRestartHint": "Je notities worden opgeslagen. De app start automatisch opnieuw.",
+  "updateStatusErrorHint": "De app blijft geopend."
 }

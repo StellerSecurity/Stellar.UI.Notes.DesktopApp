@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Sie können dies 30 Tage lang aus dem Papierkorb auf diesem Gerät wiederherstellen.",
   "trashConfirmMultiple": "Sie können dies 30 Tage lang aus dem Papierkorb auf diesem Gerät wiederherstellen.",
   "trashDaysLeft": "Noch {{count}} Tage",
-  "trashLockedPreview": "Stellen Sie diese gesperrte Notiz wieder her, um sie zu entsperren und anzusehen."
+  "trashLockedPreview": "Stellen Sie diese gesperrte Notiz wieder her, um sie zu entsperren und anzusehen.",
+  "updateStatusDownloading": "Update wird geladen",
+  "updateStatusVerifying": "Update wird überprüft",
+  "updateStatusInstalling": "Update wird installiert",
+  "updateStatusError": "Update fehlgeschlagen",
+  "updateStatusAutomaticHint": "Wird automatisch installiert, sobald es bereit ist.",
+  "updateStatusRestartHint": "Deine Notizen werden gespeichert. Die App startet automatisch neu.",
+  "updateStatusErrorHint": "Die App bleibt geöffnet."
 }

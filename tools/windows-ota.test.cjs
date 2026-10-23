@@ -17,6 +17,8 @@ function fixture(t, platform = 'win32') {
   const messages = [];
   const context = vm.createContext({
     process: { platform }, fs,
+    installingUpdate:false, updateStatus:{set:()=>{}},
+    persistenceGuard:{prepareForUpdate:async()=>true,cancelUpdate:()=>{}},
     autoUpdater: { installerPath: file, quitAndInstall: () => installations++ },
     logLine: (...args) => messages.push(args),
     sha512Base64: async file => crypto.createHash('sha512').update(fs.readFileSync(file)).digest('base64')
@@ -67,7 +69,26 @@ test('installer replacement during async verification is rejected', async t => {
 });
 test('macOS keeps its existing updater installation behavior', async t => {
   const f = fixture(t, 'darwin');
-  assert.equal(f.context.autoUpdater.autoInstallOnAppQuit, undefined);
+  assert.equal(f.context.autoUpdater.autoInstallOnAppQuit, false);
   await f.context.installDownloadedUpdate({ version: '0.1.4' });
   assert.equal(f.installs(), 1);
+});
+
+test('automatic installation is cancelled when local notes cannot be saved',async t=>{
+  const f=fixture(t,'darwin');f.context.persistenceGuard.prepareForUpdate=async()=>false;
+  await f.context.installDownloadedUpdate({version:'0.1.4'});assert.equal(f.installs(),0);
+});
+test('duplicate downloaded events install once after persistence succeeds',async t=>{
+  const f=fixture(t,'darwin');let finish;
+  f.context.persistenceGuard.prepareForUpdate=()=>new Promise(resolve=>finish=resolve);
+  const first=f.context.installDownloadedUpdate({version:'0.1.4'});
+  await f.context.installDownloadedUpdate({version:'0.1.4'});assert.equal(f.installs(),0);
+  finish(true);await first;assert.equal(f.installs(),1);
+});
+
+test('an updater error during local flushing cancels the automatic restart',async t=>{
+  const f=fixture(t,'darwin');let finish;
+  f.context.persistenceGuard.prepareForUpdate=()=>new Promise(resolve=>finish=resolve);
+  const pending=f.context.installDownloadedUpdate({version:'0.1.4'});
+  f.context.installingUpdate=false;finish(true);await pending;assert.equal(f.installs(),0);
 });

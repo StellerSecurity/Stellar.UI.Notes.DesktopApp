@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Bu cihazdaki çöp kutusundan 30 gün boyunca geri yükleyebilirsiniz.",
   "trashConfirmMultiple": "Bu cihazdaki çöp kutusundan 30 gün boyunca geri yükleyebilirsiniz.",
   "trashDaysLeft": "{{count}} gün kaldı",
-  "trashLockedPreview": "Bu kilitli notun kilidini açıp görüntülemek için geri yükleyin."
+  "trashLockedPreview": "Bu kilitli notun kilidini açıp görüntülemek için geri yükleyin.",
+  "updateStatusDownloading": "Güncelleme indiriliyor",
+  "updateStatusVerifying": "Güncelleme doğrulanıyor",
+  "updateStatusInstalling": "Güncelleme yükleniyor",
+  "updateStatusError": "Güncelleme başarısız",
+  "updateStatusAutomaticHint": "Hazır olduğunda otomatik olarak yüklenir.",
+  "updateStatusRestartHint": "Notlarınız kaydediliyor. Uygulama otomatik olarak yeniden başlayacak.",
+  "updateStatusErrorHint": "Uygulama açık kalacak."
 }

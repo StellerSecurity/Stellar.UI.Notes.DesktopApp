@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Du kan gendanne fra papirkurven på denne enhed i 30 dage.",
   "trashConfirmMultiple": "Du kan gendanne fra papirkurven på denne enhed i 30 dage.",
   "trashDaysLeft": "{{count}} dage tilbage",
-  "trashLockedPreview": "Gendan den låste note for at låse den op og se indholdet."
+  "trashLockedPreview": "Gendan den låste note for at låse den op og se indholdet.",
+  "updateStatusDownloading": "Henter opdatering",
+  "updateStatusVerifying": "Kontrollerer opdatering",
+  "updateStatusInstalling": "Installerer opdatering",
+  "updateStatusError": "Opdatering mislykkedes",
+  "updateStatusAutomaticHint": "Installeres automatisk, når den er klar.",
+  "updateStatusRestartHint": "Dine noter gemmes. Appen genstarter automatisk.",
+  "updateStatusErrorHint": "Appen forbliver åben."
 }

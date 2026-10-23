@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Puedes restaurar desde la papelera de este dispositivo durante 30 días.",
   "trashConfirmMultiple": "Puedes restaurar desde la papelera de este dispositivo durante 30 días.",
   "trashDaysLeft": "Quedan {{count}} días",
-  "trashLockedPreview": "Restaura esta nota bloqueada para desbloquearla y verla."
+  "trashLockedPreview": "Restaura esta nota bloqueada para desbloquearla y verla.",
+  "updateStatusDownloading": "Descargando actualización",
+  "updateStatusVerifying": "Verificando actualización",
+  "updateStatusInstalling": "Instalando actualización",
+  "updateStatusError": "La actualización falló",
+  "updateStatusAutomaticHint": "Se instala automáticamente cuando está lista.",
+  "updateStatusRestartHint": "Guardando tus notas. La aplicación se reiniciará automáticamente.",
+  "updateStatusErrorHint": "La aplicación permanecerá abierta."
 }

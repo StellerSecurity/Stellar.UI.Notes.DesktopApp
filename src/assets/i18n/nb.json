@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Du kan gjenopprette fra papirkurven på denne enheten i 30 dager.",
   "trashConfirmMultiple": "Du kan gjenopprette fra papirkurven på denne enheten i 30 dager.",
   "trashDaysLeft": "{{count}} dager igjen",
-  "trashLockedPreview": "Gjenopprett det låste notatet for å låse det opp og vise det."
+  "trashLockedPreview": "Gjenopprett det låste notatet for å låse det opp og vise det.",
+  "updateStatusDownloading": "Laster ned oppdatering",
+  "updateStatusVerifying": "Kontrollerer oppdatering",
+  "updateStatusInstalling": "Installerer oppdatering",
+  "updateStatusError": "Oppdateringen mislyktes",
+  "updateStatusAutomaticHint": "Installeres automatisk når den er klar.",
+  "updateStatusRestartHint": "Notatene dine lagres. Appen starter på nytt automatisk.",
+  "updateStatusErrorHint": "Appen forblir åpen."
 }

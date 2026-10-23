@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Vous pouvez restaurer depuis la corbeille de cet appareil pendant 30 jours.",
   "trashConfirmMultiple": "Vous pouvez restaurer depuis la corbeille de cet appareil pendant 30 jours.",
   "trashDaysLeft": "{{count}} jours restants",
-  "trashLockedPreview": "Restaurez cette note verrouillée pour la déverrouiller et la consulter."
+  "trashLockedPreview": "Restaurez cette note verrouillée pour la déverrouiller et la consulter.",
+  "updateStatusDownloading": "Téléchargement de la mise à jour",
+  "updateStatusVerifying": "Vérification de la mise à jour",
+  "updateStatusInstalling": "Installation de la mise à jour",
+  "updateStatusError": "Échec de la mise à jour",
+  "updateStatusAutomaticHint": "Installation automatique dès qu’elle est prête.",
+  "updateStatusRestartHint": "Enregistrement de vos notes. L’application redémarrera automatiquement.",
+  "updateStatusErrorHint": "L’application restera ouverte."
 }

@@ -1,12 +1,15 @@
 // Wait for local IndexedDB commits before closing the renderer. No note data crosses IPC.
 const {randomUUID}=require('node:crypto');
 function installPersistenceGuard(win,ipcMain,app,{timeoutMs=10000}={}) {
-  let ready=false,allowed=false,pending=null,timer=null,quitting=false;
+  let ready=false,allowed=false,pending=null,timer=null,quitting=false,updateResolve=null;
   const trusted=event=>event.sender===win.webContents && event.senderFrame===win.webContents.mainFrame;
   const onReady=event=>{if(trusted(event))ready=true;};
   const onFlushed=(event,id,success)=>{
     if(!trusted(event) || !pending || id!==pending)return;
     clearTimeout(timer);timer=null;pending=null;
+    if(updateResolve) {
+      const resolve=updateResolve;updateResolve=null;allowed=success===true;resolve(allowed);return;
+    }
     if(success!==true)return;
     allowed=true;if(quitting)app.quit();else win.close();
   };
@@ -21,7 +24,19 @@ function installPersistenceGuard(win,ipcMain,app,{timeoutMs=10000}={}) {
   ipcMain.on('stellar-persistence-flushed',onFlushed);
   app.on('before-quit',onQuit);win.on('close',onClose);
   win.on('closed',()=>{
+    if(updateResolve){updateResolve(false);updateResolve=null;}
     clearTimeout(timer);ipcMain.removeListener('stellar-persistence-ready',onReady);ipcMain.removeListener('stellar-persistence-flushed',onFlushed);app.removeListener('before-quit',onQuit);
   });
+  return {
+    prepareForUpdate() {
+      if(!ready || pending)return Promise.resolve(false);
+      return new Promise(resolve=>{
+        updateResolve=resolve;pending=randomUUID();
+        win.webContents.send('stellar-flush-persistence',pending);
+        timer=setTimeout(()=>{pending=null;timer=null;updateResolve=null;resolve(false);},timeoutMs);
+      });
+    },
+    cancelUpdate() {allowed=false;}
+  };
 }
 module.exports={installPersistenceGuard};

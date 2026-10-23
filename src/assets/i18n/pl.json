@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Możesz przywrócić z kosza na tym urządzeniu przez 30 dni.",
   "trashConfirmMultiple": "Możesz przywrócić z kosza na tym urządzeniu przez 30 dni.",
   "trashDaysLeft": "Pozostało {{count}} dni",
-  "trashLockedPreview": "Przywróć zablokowaną notatkę, aby ją odblokować i wyświetlić."
+  "trashLockedPreview": "Przywróć zablokowaną notatkę, aby ją odblokować i wyświetlić.",
+  "updateStatusDownloading": "Pobieranie aktualizacji",
+  "updateStatusVerifying": "Weryfikowanie aktualizacji",
+  "updateStatusInstalling": "Instalowanie aktualizacji",
+  "updateStatusError": "Aktualizacja nie powiodła się",
+  "updateStatusAutomaticHint": "Instalacja rozpocznie się automatycznie, gdy aktualizacja będzie gotowa.",
+  "updateStatusRestartHint": "Zapisywanie notatek. Aplikacja uruchomi się ponownie automatycznie.",
+  "updateStatusErrorHint": "Aplikacja pozostanie otwarta."
 }

@@ -1,3 +1,4 @@
+const { createUpdateStatus } = require('./desktop-update-status.cjs');
 const { installPersistenceGuard } = require('./desktop-persistence.cjs');
 const { createDesktopLocalization } = require('./desktop-localization.cjs');
 const { app, BrowserWindow, ipcMain, shell, dialog, protocol } = require("electron");
@@ -22,6 +23,10 @@ function isSafeExternalUrl(value) {
 }
 
 let mainWindow;
+let persistenceGuard;
+let installingUpdate = false;
+let downloadedUpdateTimer = null;
+const updateStatus = createUpdateStatus(() => mainWindow);
 let desktopLocalization;
 const t = (key, params) => desktopLocalization.text(key, params);
 const escapeUiHtml = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -47,6 +52,7 @@ const PLATFORM_UPDATE_CONFIG = {
 };
 
 let trustedWindowsUpdateManifest = null;
+autoUpdater.autoInstallOnAppQuit = false;
 
 if (process.platform === "win32") {
   // Cached downloads skip NsisUpdater's signature callback. Only install after
@@ -624,19 +630,7 @@ async function secureLinuxUpdateFlow() {
       return;
     }
 
-    const choice = dialog.showMessageBoxSync({
-      type: "info",
-      buttons: [t('nativeUpdate'), t('uiLater')],
-      defaultId: 0,
-      cancelId: 1,
-      message: t('nativeUpdateAvailable', {from: localVersion, to: remoteVersion}),
-      detail:
-        t('nativeUpdateVerification')
-    });
-
-    if (choice !== 0) return;
-
-    progressWin = createUpdateProgressWindow(mainWindow);
+    updateStatus.set('downloading');
     setUpdateProgress(progressWin, t('nativePreparingDownload'), null, "");
     setMainProgress(0.01);
 
@@ -655,6 +649,7 @@ async function secureLinuxUpdateFlow() {
       ({ transferred, total }) => {
         if (total && total > 0) {
           const pct = (transferred / total) * 100;
+          updateStatus.set('downloading', pct);
           setUpdateProgress(
             progressWin,
             t('nativeDownloadingUpdate'),
@@ -676,6 +671,7 @@ async function secureLinuxUpdateFlow() {
       }
     );
 
+    updateStatus.set('verifying');
     setUpdateProgress(progressWin, t('nativeVerifyingDownload'), null, "SHA-512");
     setMainProgress(0.99);
 
@@ -687,6 +683,8 @@ async function secureLinuxUpdateFlow() {
       throw new Error("Downloaded AppImage sha512 mismatch");
     }
 
+    updateStatus.set('installing');
+    if (!persistenceGuard || !await persistenceGuard.prepareForUpdate()) throw new Error('Local notes could not be flushed before updating.');
     fs.chmodSync(outPath, 0o755);
 
     let launchPath = outPath;
@@ -712,6 +710,10 @@ async function secureLinuxUpdateFlow() {
     }).unref();
 
     app.quit();
+  } catch (error) {
+    persistenceGuard?.cancelUpdate();
+    updateStatus.set('error');
+    throw error;
   } finally {
     setMainProgress(-1);
     try {
@@ -795,6 +797,9 @@ async function verifyDownloadedWindowsUpdate(_publisherName, installerPath) {
 }
 
 async function installDownloadedUpdate(info) {
+  if (installingUpdate) return;
+  installingUpdate = true;
+  updateStatus.set('verifying');
   try {
     if (process.platform === "win32") {
       if (!trustedWindowsUpdateManifest || info?.version !== trustedWindowsUpdateManifest.remoteVersion ||
@@ -807,9 +812,17 @@ async function installDownloadedUpdate(info) {
         throw new Error("Windows OTA rejected: installer changed during verification.");
       }
     }
+    updateStatus.set('installing');
+    if (!persistenceGuard || !await persistenceGuard.prepareForUpdate()) {
+      throw new Error('Local notes could not be flushed before updating.');
+    }
+    if (!installingUpdate) { persistenceGuard.cancelUpdate(); return; }
     logLine("AutoUpdater: quitAndInstall");
     autoUpdater.quitAndInstall();
   } catch (error) {
+    installingUpdate = false;
+    persistenceGuard?.cancelUpdate();
+    updateStatus.set('error');
     logLine("AutoUpdater installation refused", { error: String(error?.message || error) });
   }
 }
@@ -857,18 +870,21 @@ function scheduleStartupUpdateCheck() {
         return;
       }
 
+      // Local test bundles have no updater feed and must not download releases.
+      if (!fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'))) return;
+
       if (process.platform === "win32") {
         logLine("Starting Windows secure update preflight");
         autoUpdater.verifyUpdateCodeSignature = verifyDownloadedWindowsUpdate;
         await secureWindowsUpdatePreflight();
         logLine("Starting Windows update check after Stellar signature preflight");
-        autoUpdater.checkForUpdatesAndNotify({title: t('nativeUpdateDownloaded'), body: t('nativeUpdateReady')});
+        await autoUpdater.checkForUpdatesAndNotify({title: t('nativeUpdateDownloaded'), body: t('nativeUpdateReady')});
         return;
       }
 
       if (process.platform === "darwin") {
         logLine("Starting macOS update check");
-        autoUpdater.checkForUpdatesAndNotify({title: t('nativeUpdateDownloaded'), body: t('nativeUpdateReady')});
+        await autoUpdater.checkForUpdatesAndNotify({title: t('nativeUpdateDownloaded'), body: t('nativeUpdateReady')});
         return;
       }
 
@@ -880,13 +896,7 @@ function scheduleStartupUpdateCheck() {
         error: String(e && e.message ? e.message : e)
       });
 
-      if (process.platform === "linux") {
-        dialog.showMessageBox({
-          type: "warning",
-          message: t('nativeUpdateCheckFailed'),
-          detail: String(e && e.message ? e.message : e)
-        });
-      }
+      updateStatus.set('error');
     }
   }, 4000);
 }
@@ -1017,7 +1027,7 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow(windowOptions);
-  installPersistenceGuard(mainWindow,ipcMain,app);
+  persistenceGuard = installPersistenceGuard(mainWindow,ipcMain,app);
 
   let didShowWindow = false;
   const showMainWindow = (reason) => {
@@ -1068,13 +1078,16 @@ if (process.platform !== "linux") {
   autoUpdater.on("checking-for-update", () =>
     logLine("AutoUpdater: checking-for-update")
   );
-  autoUpdater.on("update-available", (info) =>
-    logLine("AutoUpdater: update-available", info)
-  );
-  autoUpdater.on("update-not-available", (info) =>
-    logLine("AutoUpdater: update-not-available", info)
-  );
+  autoUpdater.on("update-available", (info) => {
+    updateStatus.set('downloading');
+    logLine("AutoUpdater: update-available", info);
+  });
+  autoUpdater.on("update-not-available", (info) => {
+    updateStatus.set('idle');
+    logLine("AutoUpdater: update-not-available", info);
+  });
   autoUpdater.on("download-progress", (progressObj) => {
+    updateStatus.set('downloading', progressObj.percent);
     logLine("AutoUpdater: download-progress", {
       percent: progressObj.percent,
       transferred: progressObj.transferred,
@@ -1082,20 +1095,30 @@ if (process.platform !== "linux") {
       bytesPerSecond: progressObj.bytesPerSecond
     });
   });
-  autoUpdater.on("error", (err) =>
-    logLine("AutoUpdater error", {
-      error: String(err && err.message ? err.message : err)
-    })
-  );
+  autoUpdater.on("error", (err) => {
+    clearTimeout(downloadedUpdateTimer); downloadedUpdateTimer = null;
+    installingUpdate = false;
+    persistenceGuard?.cancelUpdate();
+    updateStatus.set('error');
+    logLine("AutoUpdater error", { error: String(err && err.message ? err.message : err) });
+  });
   autoUpdater.on("update-downloaded", (info) => {
+    updateStatus.set('verifying');
     logLine("AutoUpdater: update-downloaded", info);
-    setTimeout(() => {
+    clearTimeout(downloadedUpdateTimer);
+    downloadedUpdateTimer = setTimeout(() => {
+      downloadedUpdateTimer = null;
       void installDownloadedUpdate(info);
     }, 1500);
   });
 }
 
 /* ================= IPC ================= */
+
+ipcMain.handle('stellar-get-update-status', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) return null;
+  return updateStatus.snapshot();
+});
 
 ipcMain.handle("app-version", () => app.getVersion());
 

@@ -334,5 +334,12 @@
   "trashConfirmSingle": "Puoi ripristinare dal cestino di questo dispositivo per 30 giorni.",
   "trashConfirmMultiple": "Puoi ripristinare dal cestino di questo dispositivo per 30 giorni.",
   "trashDaysLeft": "{{count}} giorni rimanenti",
-  "trashLockedPreview": "Ripristina questa nota bloccata per sbloccarla e visualizzarla."
+  "trashLockedPreview": "Ripristina questa nota bloccata per sbloccarla e visualizzarla.",
+  "updateStatusDownloading": "Download aggiornamento",
+  "updateStatusVerifying": "Verifica aggiornamento",
+  "updateStatusInstalling": "Installazione aggiornamento",
+  "updateStatusError": "Aggiornamento non riuscito",
+  "updateStatusAutomaticHint": "Si installa automaticamente quando è pronto.",
+  "updateStatusRestartHint": "Salvataggio delle note. L’app si riavvierà automaticamente.",
+  "updateStatusErrorHint": "L’app rimarrà aperta."
 }
