@@ -6,7 +6,13 @@ const { inspect: verifyBracesPatch, entries: verifyBracesLock } = require('./bra
 // Reviewed candidate versions. The lockfile and installation must agree;
 // future upgrades require updating this contract alongside their review.
 const versions = Object.freeze({
-  electron: ['44.7.0'],
+  electron: ['44.9.3'],
+  '@modelcontextprotocol/sdk': ['1.32.0'],
+  zod: ['4.6.7'],
+  'body-parser': ['1.20.9', '2.4.0'],
+  undici: ['6.29.1', '7.30.1'],
+  vite: ['7.3.7'],
+  qs: ['6.16.1'],
   'electron-builder': ['26.15.3'],
   'app-builder-lib': ['26.15.3'],
   piscina: ['5.3.2', '4.9.4'],
