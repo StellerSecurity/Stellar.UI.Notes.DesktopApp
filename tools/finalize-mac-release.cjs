@@ -92,6 +92,21 @@ function run(command, args) {
   return `${result.stdout || ''}${result.stderr || ''}`.trim();
 }
 
+async function writeBlockmap(file) {
+  // Use the same sidecar implementation as the pinned electron-builder 26.15.3.
+  // app-builder-bin is no longer part of that toolchain.
+  const { buildBlockMap } = require('app-builder-lib/out/targets/blockmap/blockmap');
+  const before = await artifactInfo(file);
+  const output = `${file}.blockmap`;
+  const result = await buildBlockMap(file, 'gzip', output);
+  const after = await artifactInfo(file);
+  if (result.sha512 !== before.sha512 || result.size !== before.size ||
+      after.sha512 !== before.sha512 || after.size !== before.size) {
+    throw new Error('Blockmap creation changed the finalized artifact.');
+  }
+  regularFile(output, 32 * 1024 ** 2);
+}
+
 async function finalize() {
   if (process.platform !== 'darwin' || process.arch !== 'arm64') {
     throw new Error('Finalize this ARM64 release on the Apple Silicon signing Mac.');
@@ -127,8 +142,6 @@ async function finalize() {
   run('/usr/bin/xcrun', ['stapler', 'validate', app]);
   run('/usr/bin/xcrun', ['stapler', 'validate', dmg]);
   run('/usr/sbin/spctl', ['--assess', '--type', 'execute', app]);
-  const blockmapTool = path.join(root, 'node_modules', 'app-builder-bin', 'mac', 'app-builder_arm64');
-  fs.accessSync(blockmapTool, fs.constants.X_OK);
   const staging = fs.mkdtempSync(path.join(dist, '.ota-staging-'));
   try {
     // The original builder ZIP predates app stapling and must not be reused.
@@ -136,7 +149,7 @@ async function finalize() {
     fs.copyFileSync(dmg, path.join(staging, dmgName), fs.constants.COPYFILE_EXCL);
     for (const name of [zipName, dmgName]) {
       const file = path.join(staging, name);
-      run(blockmapTool, ['blockmap', '--input', file, '--output', `${file}.blockmap`]);
+      await writeBlockmap(file);
     }
     await writeMetadata(staging, version, keys);
     fs.renameSync(staging, output);
@@ -150,4 +163,4 @@ async function finalize() {
 if (require.main === module) {
   finalize().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
-module.exports = { releaseNames, signingKey, artifactInfo, writeMetadata, PUBLIC_KEY };
+module.exports = { releaseNames, signingKey, artifactInfo, writeMetadata, writeBlockmap, PUBLIC_KEY };
