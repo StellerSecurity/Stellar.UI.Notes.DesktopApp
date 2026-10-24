@@ -25,7 +25,7 @@
     "test:mac-release": "node --test tools/finalize-mac-release.test.cjs",
     "release:win:finalize": "node tools/finalize-desktop-release.cjs finalize win",
     "release:linux:finalize": "node tools/finalize-desktop-release.cjs finalize linux",
-    "test:desktop-release": "node --test tools/finalize-desktop-release.test.cjs tools/finalize-mac-release.test.cjs tools/windows-ota.test.cjs tools/linux-apprun.test.cjs tools/release-toolchain-check.test.cjs",
+    "test:desktop-release": "node --test tools/finalize-desktop-release.test.cjs tools/finalize-mac-release.test.cjs tools/windows-ota.test.cjs tools/linux-apprun.test.cjs tools/release-toolchain-check.test.cjs tools/mac-release-blockmap.test.cjs",
     "electron:winBuild": "npm run build && electron-builder --win --publish never",
     "electron:winRelease": "npm run build && electron-builder --win --publish always",
     "electron:linuxBuild": "npm run build && electron-builder --linux AppImage --publish never --config.compression=store",
