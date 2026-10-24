@@ -29,7 +29,7 @@ test('rejects changed braces identity or runtime use before dependency installat
   assert.throws(() => validate(pkg, lock), /runtime braces/);
 });
 test('rejects the old toolchain and vulnerable nested copies', () => {
-  for (const [name, old] of Object.entries({ electron: '36.9.5', 'app-builder-lib': '26.8.1', piscina: '4.0.0', 'form-data': '2.3.3', 'shell-quote': '1.8.4' })) {
+  for (const [name, old] of Object.entries({ electron: '44.7.0', '@modelcontextprotocol/sdk': '1.31.0', zod: '4.3.6', 'body-parser': '2.3.0', undici: '7.29.1', vite: '7.3.6', qs: '6.16.0', 'app-builder-lib': '26.8.1', piscina: '4.0.0', 'form-data': '2.3.3', 'shell-quote': '1.8.4' })) {
     const { pkg, lock } = fixture();
     lock.packages[`node_modules/nested/node_modules/${name}`] = { version: old };
     assert.throws(() => validate(pkg, lock), /unreviewed version/);
@@ -41,7 +41,7 @@ test('rejects stale node_modules, missing dependencies and manifest drift', () =
   delete lock.packages['node_modules/piscina'];
   assert.throws(() => validate(pkg, lock), /missing from lockfile/);
   const fresh = fixture();
-  fresh.pkg.devDependencies.electron = '^44.7.0';
+  fresh.pkg.devDependencies.electron = '^44.9.3';
   assert.throws(() => validate(fresh.pkg, fresh.lock), /must pin/);
 });
 test('rejects disabled sandbox arguments or missing reviewed launcher', () => {
