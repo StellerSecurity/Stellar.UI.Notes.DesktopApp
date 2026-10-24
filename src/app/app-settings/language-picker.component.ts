@@ -6,6 +6,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { APP_LANGUAGES } from '../i18n';
 
 const englishNames: Record<string,string> = {en:'English',da:'Danish',de:'German',tr:'Turkish',es:'Spanish',sv:'Swedish',nb:'Norwegian Bokmål no',fr:'French',it:'Italian',nl:'Dutch',pl:'Polish','pt-BR':'Portuguese Brazil Brazilian'};
+const languageFlags: Record<string,string> = {system:'🌐',en:'🇬🇧',da:'🇩🇰',de:'🇩🇪',tr:'🇹🇷',es:'🇪🇸',sv:'🇸🇪',nb:'🇳🇴',fr:'🇫🇷',it:'🇮🇹',nl:'🇳🇱',pl:'🇵🇱','pt-BR':'🇧🇷'};
 const normalize = (value: string) => value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ł/g,'l');
 
 @Component({
@@ -14,7 +15,7 @@ const normalize = (value: string) => value.toLowerCase().normalize('NFD').replac
   template:`
     <button #trigger class="language-trigger" type="button" (click)="show($event)" (keydown.arrowdown)="show($event); $event.preventDefault()"
       aria-haspopup="dialog" [attr.aria-expanded]="opened" [attr.aria-label]="('language' | translate) + ': ' + selectedLabel">
-      <span>{{selectedLabel}}</span><ion-icon name="chevron-expand-outline" aria-hidden="true"></ion-icon>
+      <span class="language-trigger-label">{{selectedLabel}}</span><span class="language-flag" aria-hidden="true">{{flag(value)}}</span><ion-icon name="chevron-expand-outline" aria-hidden="true"></ion-icon>
     </button>
     <ion-popover [isOpen]="opened" [event]="anchor" [showBackdrop]="true" class="language-picker-popover" side="bottom" alignment="start"
       (didPresent)="focusSearch($event)" (didDismiss)="dismissed()">
@@ -32,6 +33,7 @@ const normalize = (value: string) => value.toLowerCase().normalize('NFD').replac
               [id]="'language-option-' + item.code" [attr.aria-selected]="value === item.code" (mouseenter)="activeIndex = i" (mousedown)="$event.preventDefault()" (click)="choose(item.code)">
               <span class="language-option-text" [attr.lang]="item.code === 'system' ? null : item.code">{{item.name}}</span>
               <ion-icon *ngIf="value === item.code" name="checkmark-outline" aria-hidden="true"></ion-icon>
+              <span class="language-flag" aria-hidden="true">{{flag(item.code)}}</span>
             </button>
           </div>
           <p *ngIf="!filtered.length" class="language-no-results" role="status">{{'noLanguagesFound' | translate}}</p>
@@ -44,6 +46,7 @@ export class LanguagePickerComponent {
   @Input() value = 'system';
   @Output() valueChange = new EventEmitter<string>();
   @ViewChild('trigger', {static:true}) trigger!: ElementRef<HTMLButtonElement>;
+  flag(code: string): string { return languageFlags[code] || ''; }
   opened = false;
   anchor?: Event;
   query = '';

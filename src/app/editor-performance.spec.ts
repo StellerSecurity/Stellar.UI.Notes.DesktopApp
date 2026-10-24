@@ -158,6 +158,47 @@ describe('Desktop typing and sidebar rendering', () => {
     fixture.destroy(); tick(1000);
   }));
 
+  it('measures typing with four embedded images while retaining the original image and caret nodes',fakeAsync(()=>{
+    const fixture=TestBed.createComponent(EditorFixture);
+    const png='iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPQTfiPFTEMLQkAeoJjAbwJ+R0AAAAASUVORK5CYII=';
+    const src='data:image/png;base64,'+png.replace(/=+$/,'')+'A'.repeat(900000)+'=';
+    fixture.componentInstance.text='<p>Typing here</p>'+`<p><img src="${src}"></p>`.repeat(4);
+    fixture.detectChanges();tick(600);fixture.detectChanges();tick();
+    const c=fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
+    const root=c.quill.root as HTMLElement;const text=root.firstElementChild!.firstChild as Text;
+    const images=Array.from(root.querySelectorAll('img'));
+    const sanitizer=spyOn(TestBed.inject(DomSanitizer),'sanitize').and.callThrough();
+    const timings:number[]=[];
+    for(let i=0;i<12;i++) {
+      const start=performance.now();c.quill.insertText(i,'x','user');fixture.detectChanges();tick(1);
+      timings.push(performance.now()-start);
+    }
+    console.info('IMAGE_TYPING_MS',JSON.stringify({mean:timings.reduce((a,b)=>a+b,0)/timings.length,max:Math.max(...timings),sanitizedBytes:Math.max(...sanitizer.calls.allArgs().map(args=>String(args[1]??'').length))}));
+    expect(Math.max(...sanitizer.calls.allArgs().map(args=>String(args[1]??'').length))).toBeLessThan(2000);
+    expect(root.firstElementChild!.firstChild).toBe(text);
+    expect(Array.from(root.querySelectorAll('img'))).toEqual(images);
+    expect(fixture.componentInstance.text).toContain('xxxxxxxxxxxxTyping here');
+    expect(fixture.componentInstance.text.split(src).length-1).toBe(4);
+    fixture.destroy();tick(1000);
+  }));
+
+  it('still sanitizes unsafe image attributes and invalidates the export cache when a source changes',fakeAsync(()=>{
+    const fixture=TestBed.createComponent(EditorFixture);fixture.detectChanges();tick(600);
+    const c=fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
+    c.quill.insertEmbed(0,'image','data:image/png;base64,AAAA','silent');
+    const image=c.quill.root.querySelector('img') as HTMLImageElement;
+    image.setAttribute('onerror','alert(1)');image.setAttribute('alt','" onload="alert(2)');
+    let saved=c.editorValueGetter(c.quill);
+    const parsed=document.createElement('template');parsed.innerHTML=saved;
+    expect(parsed.content.querySelector('img')!.hasAttribute('onerror')).toBeFalse();
+    expect(parsed.content.querySelector('img')!.hasAttribute('onload')).toBeFalse();
+    expect(saved).toContain('data:image/png;base64,AAAA');
+    image.setAttribute('src','javascript:alert(3)');
+    saved=c.editorValueGetter(c.quill);
+    expect(saved).not.toContain('src="javascript:');expect(saved).not.toContain('data:image/png;base64,AAAA');
+    fixture.destroy();tick(1000);
+  }));
+
   it('updates every character in the local state before awaiting durable persistence', fakeAsync(() => {
     const page: any = Object.create(AddNotePage.prototype);
     let stored = JSON.stringify([{id:'other',text:'keep',last_modified:1}]);

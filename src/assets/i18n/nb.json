@@ -345,5 +345,9 @@
   "resizeNoteList": "Notatlistens bredde",
   "resizeNoteListHint": "Dra for å endre bredden. Dobbeltklikk for å tilbakestille. Juster med piltastene.",
   "resizeFolders": "Bredde på mappesidefeltet",
-  "uiRemoveImage": "Fjern bilde"
+  "uiRemoveImage": "Fjern bilde",
+  "uiChecklist": "Sjekkliste",
+  "showNoteThumbnails": "Vis bilder i notatlisten",
+  "showNoteThumbnailsDescription": "Vis det første bildet i hvert notat som et lite miniatyrbilde.",
+  "uiSyncPending": "Synkronisering venter"
 }

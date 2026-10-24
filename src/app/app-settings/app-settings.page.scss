@@ -23,3 +23,6 @@ button.setting-row:hover { border-color: #d6d6e0; }
 
 .settings-version { margin-top:20px; text-align:center; color:#90909d; font-size:10px; line-height:1.4; }
 .setting-row > input[type=checkbox] { width:17px; height:17px; flex-shrink:0; accent-color:#2761fc; }
+
+.thumbnail-setting { margin-top: 12px; }
+button.setting-row + label.setting-row, .wipe-delete-card + label.setting-row { margin-top: 12px; }

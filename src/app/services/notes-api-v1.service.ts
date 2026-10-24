@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom, timeout } from 'rxjs';
 import { confirmUpload } from './upload-confirmation';
+import { logSyncFailure } from './sync-failure-log';
+import { requiresSyncAttention } from './sync-status';
 import { NoteV1 } from "../models/NoteV1";
 import { Folder } from "../models/Folder";
 
@@ -208,15 +210,17 @@ export class NotesApiV1Service {
         const pending = this.notesService.getPendingMutation(note.id);
         if (pending && pending.type !== 'delete' && pending.localUpdatedAt <= Number(note.last_modified)) this.notesService.clearPendingMutation(note.id);
       }
-      if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
+      this.notesService.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));
       this.dispatchNotesChanged();
       return res;
     } catch (error: any) {
+      logSyncFailure('upload', payload, error);
       await this.assertCurrentSession(TOKEN, generation);
-      if (error?.status === 409 || error?.message === 'Note upload was not confirmed') {
-        await this.outbox.update(payload.op_id, item => ({ ...item, conflict: true }));
-      }
-      this.notesService.syncNeedsAttention$.next(true);
+      await this.outbox.update(payload.op_id, item => ({ ...item,
+        attempt: (item.attempt ?? 0) + 1,
+        conflict: item.conflict || error?.status === 409 || error?.message === 'Note upload was not confirmed',
+      }));
+      this.notesService.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));
       return { queued: true, reason: 'network_error' };
     }
   }

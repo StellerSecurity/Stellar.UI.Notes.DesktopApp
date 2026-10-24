@@ -83,7 +83,7 @@ describe('Desktop favorite and pin durable immediate sync',()=>{
    const f=fixture();spyOn(f.page.notesApiServiceV1,'upload').and.rejectWith(new Error('fixture failure'));
    const toast=spyOn(f.page.toastController,'create').and.callThrough();
    await f.page.togglePinnedFromHome(event(),'flags');expect(f.read()[0].pinned).toBeTrue();
-   expect(f.notes.syncNeedsAttention$.value).toBeTrue();expect(toast).toHaveBeenCalled();
+   expect(f.notes.syncNeedsAttention$.value).toBeFalse();expect(toast).toHaveBeenCalled();
  });
  it('requests immediate durable uploads from the note actions menu too',async()=>{
    const page:any=Object.create(AddNotePage.prototype);page.currentNote={id:'a',favorite:false,pinned:false};

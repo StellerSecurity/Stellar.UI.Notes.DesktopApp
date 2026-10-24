@@ -7,6 +7,8 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import {SecureStorageService} from "./secure-storage.service";
 import { firstValueFrom, timeout } from 'rxjs';
 import { confirmUpload } from './upload-confirmation';
+import { logSyncFailure } from './sync-failure-log';
+import { requiresSyncAttention } from './sync-status';
 import { buildApiUrl, notes } from '../constants/api/product.api';
 import { NotesService } from "./notes.service";
 
@@ -89,6 +91,7 @@ export class SyncWorkerService {
       const token = await this.secure.getItem('ssToken');
       if (!token) return;
       const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+      this.notesService.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));
       const attempted = new Set<string>();
       // Read again after every request: queued snapshots may have been superseded.
       for (let count = 0; count < 50; count++) {
@@ -113,14 +116,15 @@ export class SyncWorkerService {
             const pending = this.notesService.getPendingMutation(note.id);
             if (pending && pending.type !== 'delete' && pending.localUpdatedAt <= Number(note.last_modified)) this.notesService.clearPendingMutation(note.id);
           }
-          if (!(await this.outbox.getAll()).length) this.notesService.syncNeedsAttention$.next(false);
+          this.notesService.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));
         } catch (error: any) {
+          logSyncFailure(op.type === 'delete' ? 'delete' : 'upload', op.payload, error);
           if (!await this.isCurrentSession(headers, generation)) return;
-          this.notesService.syncNeedsAttention$.next(true);
           await this.outbox.update(op.opId, item => {
             const attempt = (item.attempt ?? 0) + 1;
             return { ...item, conflict: item.conflict || error?.status === 409 || error?.message === 'Note upload was not confirmed', attempt, nextAt: Date.now() + (attempt > MAX_ATTEMPT ? 300000 : this.backoffMs(attempt)) };
           });
+          this.notesService.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));
         }
       }
     } catch {

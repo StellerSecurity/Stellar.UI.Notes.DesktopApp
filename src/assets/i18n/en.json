@@ -345,5 +345,9 @@
   "resizeNoteList": "Note list width",
   "resizeNoteListHint": "Drag to resize. Double-click to reset. Use arrow keys to adjust.",
   "resizeFolders": "Folder sidebar width",
-  "uiRemoveImage": "Remove image"
+  "uiRemoveImage": "Remove image",
+  "uiChecklist": "Checklist",
+  "showNoteThumbnails": "Show images in the note list",
+  "showNoteThumbnailsDescription": "Show a small preview of the first image in each note.",
+  "uiSyncPending": "Sync pending"
 }

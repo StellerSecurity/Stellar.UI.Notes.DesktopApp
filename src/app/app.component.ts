@@ -40,9 +40,6 @@ export class AppComponent {
     this.notesState.localPersistenceFailed$.pipe(distinctUntilChanged(),filter(Boolean)).subscribe(()=>{
       void this.toastMessages.showError(t('uiTheNoteCouldNotBeSavedKeepThis'));
     });
-    this.notesState.syncNeedsAttention$.pipe(distinctUntilChanged(), filter(Boolean)).subscribe(() => {
-      void this.toastMessages.showError(t('uiNotesAreSavedOnThisDeviceButSynchronization'));
-    });
     (window as any).electronAPI?.persistenceReady?.();
     this.syncWorker.init();
     this.realtimeNotes.init();

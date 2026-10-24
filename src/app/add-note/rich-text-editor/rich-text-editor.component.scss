@@ -41,6 +41,7 @@ quill-editor { display: flex; flex-direction: column; height: 100%; overflow-y: 
     .ql-editor li.ql-indent-#{$level}.ql-direction-rtl.ql-align-right { padding-right: $level * 3em; }
   }
   .ql-editor img { max-width: 100%; cursor: zoom-in; }
+  .image-repositioning, .image-repositioning * { cursor: grabbing !important; }
   .ql-editor.ql-blank::before { left: var(--document-inset); right: var(--document-inset); font-style: normal; }
   .ql-picker.ql-header { width: 102px; height: 28px; font-family: var(--ion-font-family); font-size: 12px; flex-shrink: 0; }
   .ql-picker-label { border: 0 !important; padding: 4px 18px 4px 6px; border-radius: 6px; }
@@ -62,3 +63,31 @@ quill-editor { display: flex; flex-direction: column; height: 100%; overflow-y: 
 .image-preview-remove:hover:not(:disabled) { background:#414249; }
 .image-preview-remove:focus-visible { outline:2px solid #ffffff9c; outline-offset:3px; }
 .image-preview-remove:disabled { opacity:.45; }
+
+:host ::ng-deep .ql-editor {
+  // Keep the whole hit target inside the document margin. Both states use
+  // identical geometry, so checking a task never shifts its text or circle.
+  li[data-list='checked'], li[data-list='unchecked'] { padding-inline-start: 26px; }
+  li[data-list='checked'] > .ql-ui, li[data-list='unchecked'] > .ql-ui {
+    inset-inline-start: 0; top: 0; width: 20px; height: 1.65em;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  li[data-list='checked'] > .ql-ui::before,
+  li[data-list='unchecked'] > .ql-ui::before {
+    content: ''; display: inline-flex; align-items: center; justify-content: center;
+    box-sizing: border-box; width: 17px; height: 17px; margin: 0;
+    border: 1.5px solid #9b9ca8; border-radius: 50%;
+    font: 600 12px/1 sans-serif; text-align: center; transition: background 120ms, border-color 120ms;
+  }
+  li[data-list='checked'] > .ql-ui::before {
+    content: ''; background-color: #2761fc; border-color: #2761fc;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.2 6.5 11.2 12.6 4.5' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: center; background-size: 14px 14px;
+  }
+  li[data-list='checked'] > .ql-ui:hover::before { background-color: #2054df; border-color: #2054df; }
+  li[data-list='unchecked'] > .ql-ui:hover::before { border-color: #2761fc; }
+  @for $level from 1 through 9 {
+    li.ql-indent-#{$level}[data-list='checked'], li.ql-indent-#{$level}[data-list='unchecked'] { padding-inline-start: calc(#{$level * 3em} + 26px); }
+    li.ql-indent-#{$level}[data-list='checked'] > .ql-ui, li.ql-indent-#{$level}[data-list='unchecked'] > .ql-ui { inset-inline-start: $level * 3em; }
+  }
+}

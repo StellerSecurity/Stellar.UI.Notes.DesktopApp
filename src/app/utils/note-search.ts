@@ -31,7 +31,13 @@ export function notePreviewText(html: string): string {
     let quote = '';
     for (; end < html.length; end++) {
       const ch = html[end];
-      if (quote) { if (ch === quote) quote = ''; }
+      if (quote) {
+        // Skip large embedded data URLs in one native string search rather than
+        // visiting every base64 character while rebuilding list previews.
+        const close=html.indexOf(quote,end);
+        if (close<0) { end=html.length; break; }
+        end=close;quote='';
+      }
       else if (ch === '"' || ch === "'") quote = ch;
       else if (ch === '>' || ch === '<') break;
     }

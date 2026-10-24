@@ -25,6 +25,8 @@ import { SecureStorageService } from "../services/secure-storage.service";
 export class AppSettingsPage implements AfterViewInit {
   public readonly appVersion=packageInfo.version;
   public readonly appName='Stellar Notes';
+  public get showNoteThumbnails(): boolean { return this.noteService.showNoteThumbnails; }
+  public toggleNoteThumbnails(event: Event): void { this.noteService.showNoteThumbnails = (event.target as HTMLInputElement).checked; }
   public get trashEnabled():boolean {return this.noteService.trashEnabled;}
   public toggleTrash(event:Event):void {this.noteService.trashEnabled=(event.target as HTMLInputElement).checked;}
   public appPasswordChallenge: boolean;

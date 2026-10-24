@@ -27,7 +27,7 @@ export class NoteListWindow {
             previousMonth = month;
           }
         }
-        const row = {key:`note:${note.id}`, note, index, offset:this.height, height:showFolders && note.folder ? 80 : 62};
+        const row = {key:`note:${note.id}`, note, index, offset:this.height, height:62};
         this.rows.push(row); this.positions.set(note.id,row); this.height += row.height;
       });
       this.start = this.end = -1;

@@ -99,7 +99,7 @@ export class HomePage implements AfterViewInit {
   public moveTarget = '__all__';
   private moveIds: string[] = [];
   private createThenMove = false;
-  private displayCache = new WeakMap<object, {title: string; text: string; preview: string; heading: string}>();
+  private displayCache = new WeakMap<object, {title: string; text: string; preview: string; heading: string; image: string}>();
   public readonly noteDate = desktopNoteDate;
   public readonly noteMonth = desktopNoteMonth;
   private noteWindow?: NoteListWindow;
@@ -263,6 +263,7 @@ export class HomePage implements AfterViewInit {
   public renamingFolderName = '';
   public draggingNoteIds: string[] = [];
   public dragPreviewX = 0;
+  public dragStackStyle: Record<string, string> = {};
   public dragPreviewY = 0;
   private dragGhost?: HTMLCanvasElement;
   public draggingFolderTarget: string | null = null;
@@ -1238,11 +1239,24 @@ export class HomePage implements AfterViewInit {
   private noteDisplay(note: any) {
     let cached = this.displayCache.get(note);
     if (!cached || cached.title !== note.title || cached.text !== note.text) {
-      cached = { title: note.title, text: note.text, heading: notePreviewText(note.title || ''), preview: notePreviewText(note.text || '') };
+      cached = { title: note.title, text: note.text, heading: notePreviewText(note.title || ''), preview: notePreviewText(note.text || ''), image: this.firstNoteImage(note.text || '') };
       this.displayCache.set(note, cached);
     }
     return cached;
   }
+  private firstNoteImage(html: string): string {
+    if (!/<img\b/i.test(html)) return '';
+    // Parse inertly and only preview embedded raster images. Listing notes must
+    // never fetch remote images or resolve local file URLs from note content.
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    for (const image of Array.from(template.content.querySelectorAll('img'))) {
+      const source = image.getAttribute('src') || '';
+      if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/\s]+=*$/i.test(source)) return source;
+    }
+    return '';
+  }
+  public noteThumbnail(note: any): string { return this.noteService.showNoteThumbnails === false || this.isNoteLocked(note) ? '' : this.noteDisplay(note).image; }
   public noteHeading(note: any): string { return this.isNoteLocked(note) ? t('uiLockedNote') : (this.noteDisplay(note).heading || t('uiUntitledNote')); }
   public notePreview(note: any): string { return this.isNoteLocked(note) ? '' : this.noteDisplay(note).preview; }
   public viewCount(): number {
@@ -1639,7 +1653,6 @@ export class HomePage implements AfterViewInit {
         await this.syncWorker.trySync();
       }
     } catch {
-      this.noteService.syncNeedsAttention$.next(true);
       const toast = await this.toastController.create({
         message: t('uiTheChangeCouldNotBeSyncedPleaseTry'), duration: 5000, color: 'danger',
       });
@@ -1663,6 +1676,16 @@ export class HomePage implements AfterViewInit {
     if (!this.draggingNoteIds.length) this.draggingNoteIds = [note.id];
 
     this.onNoteDragMove(event);
+    // Capture origins once. Pointer movement only translates the assembled stack.
+    const layers = [note.id, ...this.draggingNoteIds.filter(id => id !== note.id)].slice(0, 3);
+    this.dragStackStyle = {};
+    layers.forEach((id, index) => {
+      const row = document.getElementById(id)?.getBoundingClientRect();
+      if (!row || !row.width) return;
+      const x = Math.max(-320, Math.min(320, row.left - this.dragPreviewX));
+      const y = Math.max(-180, Math.min(180, row.top - this.dragPreviewY));
+      this.dragStackStyle[`--stack-origin-${index}`] = `translate(${x}px, ${y}px) scale(${Math.min(1.4, row.width / 232)}, 1)`;
+    });
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('application/x-stellar-note-ids', JSON.stringify(this.draggingNoteIds));
@@ -1703,6 +1726,7 @@ export class HomePage implements AfterViewInit {
   public onNoteDragEnd(): void {
     this.dragGhost?.remove();
     this.dragGhost = undefined;
+    this.dragStackStyle = {};
     this.draggingNoteIds = [];
     this.draggingFolderTarget = null;
   }
@@ -1740,7 +1764,6 @@ export class HomePage implements AfterViewInit {
       if (targetFolder && !this.folders.some(folder => folder.name === targetFolder)) return;
       await this.assignNotesToFolder(ids, targetFolder);
     } catch {
-      this.noteService.syncNeedsAttention$.next(true);
       const toast = await this.toastController.create({ message: t('uiTheNotesCouldNotBeMovedPleaseTry'), duration: 5000, color: 'danger' });
       await toast.present();
     }

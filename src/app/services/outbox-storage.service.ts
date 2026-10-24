@@ -54,7 +54,8 @@ export class OutboxStorage {
         // Encryption can complete out of order. Never replace a newer durable version.
         if (previous.some(item => Number(item.payload.notes[0].last_modified) >= Number(note.last_modified))) return;
         const now = Date.now();
-        op = { ...op, createdAt: Math.min(now, ...previous.map(item => item.createdAt ?? now)) };
+        op = { ...op, createdAt: Math.min(now, ...previous.map(item => item.createdAt ?? now)),
+          attempt: Math.max(op.attempt ?? 0, ...previous.map(item => item.attempt ?? 0)) };
         op.nextAt = immediate ? now : Math.min(now + 500, op.createdAt! + 5000);
         const superseded = new Set(previous.map(item => item.opId));
         items = items.filter(item => !superseded.has(item.opId));

@@ -345,5 +345,9 @@
   "resizeNoteList": "Anteckningslistans bredd",
   "resizeNoteListHint": "Dra för att ändra bredden. Dubbelklicka för att återställa. Justera med piltangenterna.",
   "resizeFolders": "Mappsidofältets bredd",
-  "uiRemoveImage": "Ta bort bild"
+  "uiRemoveImage": "Ta bort bild",
+  "uiChecklist": "Checklista",
+  "showNoteThumbnails": "Visa bilder i anteckningslistan",
+  "showNoteThumbnailsDescription": "Visa den första bilden i varje anteckning som en liten miniatyr.",
+  "uiSyncPending": "Synkronisering väntar"
 }

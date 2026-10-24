@@ -9,6 +9,9 @@ import { UserMenuComponent } from './user-menu/user-menu.component';
 import { FormBuilder } from '@angular/forms';
 import { desktopNoteDate, selectionRange } from './utils/desktop-note-presentation';
 import { notePreviewText } from './utils/note-search';
+import { NoteListWindow } from './utils/note-list-window';
+import { logSyncFailure } from './services/sync-failure-log';
+import { NotesService } from './services/notes.service';
 import { CryptoService } from './services/crypto.service';
 import { of } from 'rxjs';
 
@@ -26,6 +29,27 @@ function home(): any {
   return page;
 }
 describe('Desktop design interactions', () => {
+  it('logs sync status and byte counts without exposing note content or credentials', () => {
+    const warn=spyOn(console,'warn');
+    const payload={notes:[{id:'private-id',text:'private-body'}],token:'private-token'};
+    logSyncFailure('upload',payload,{status:413,message:'private-server-response',url:'private-url'});
+    const logged=JSON.parse(warn.calls.mostRecent().args[1]);
+    expect(logged).toEqual({operation:'upload',status:413,reason:'payload-too-large',requestBytes:new TextEncoder().encode(JSON.stringify(payload)).byteLength,noteCount:1});
+    expect(JSON.stringify(warn.calls.allArgs())).not.toContain('private-');
+    logSyncFailure('upload',payload,{name:'TimeoutError'});
+    expect(JSON.parse(warn.calls.mostRecent().args[1]).reason).toBe('timeout');
+  });
+
+  it('keeps notes with images and folder labels at the same compact row height', () => {
+    const view=new NoteListWindow();
+    view.update([
+      {id:'plain',last_modified:1,text:'Text'},
+      {id:'image',last_modified:1,text:'<img src="data:image/png;base64,aGVsbG8=">'},
+      {id:'folder',last_modified:1,folder:'Test',text:'Text'}
+    ],true,0,600);
+    expect(view.visible.filter(row=>row.note).map(row=>row.height)).toEqual([62,62,62]);
+    expect(view.position('folder')!.offset-view.position('image')!.offset).toBe(62);
+  });
   it('selects a range in either direction using the filtered visual order', () => {
     expect(selectionRange(['a','c','d'], 'd', 'a')).toEqual(['a','c','d']);
     expect(selectionRange(['a','c'], 'missing', 'c')).toEqual(['c']);
@@ -55,6 +79,43 @@ describe('Desktop design interactions', () => {
   it('never uses encrypted title or body as a locked note preview', () => {
     const p=home(); const note={id:'private', protected:true, title:'cipher title',text:'cipher body'};
     expect(p.noteHeading(note)).toBe('Locked note'); expect(p.notePreview(note)).toBe('');
+  });
+  it('defaults image previews to on and persists the setting without changing note content', () => {
+    const key='stellarShowNoteThumbnails', previous=localStorage.getItem(key);
+    try {
+      localStorage.removeItem(key);
+      const service=Object.create(NotesService.prototype) as NotesService;
+      const p=home();p.noteService=service;
+      const note={id:'photo',text:'<img src="data:image/png;base64,aGVsbG8=">'};
+      const body=note.text;
+      expect(service.showNoteThumbnails).toBeTrue();expect(p.noteThumbnail(note)).toBeTruthy();
+      const settings=Object.create(AppSettingsPage.prototype) as any;settings.noteService=service;
+      settings.toggleNoteThumbnails({target:{checked:false}} as unknown as Event);
+      expect(settings.showNoteThumbnails).toBeFalse();expect(p.noteThumbnail(note)).toBe('');
+      expect((Object.create(NotesService.prototype) as NotesService).showNoteThumbnails).toBeFalse();
+      settings.toggleNoteThumbnails({target:{checked:true}} as unknown as Event);
+      expect(p.noteThumbnail(note)).toBeTruthy();expect(note.text).toBe(body);
+    } finally {if(previous===null)localStorage.removeItem(key);else localStorage.setItem(key,previous);}
+  });
+  it('previews the first embedded raster image and refreshes after image removal', () => {
+    const p=home(); const image='data:image/png;base64,aGVsbG8=';
+    const note={id:'image',title:'Photo',text:`<p>Text</p><img src="${image}"><img src="data:image/jpeg;base64,bmV4dA==">`};
+    expect(p.noteThumbnail(note)).toBe(image);
+    const parse=spyOn(p,'firstNoteImage').and.callThrough();
+    expect(p.noteThumbnail(note)).toBe(image); expect(parse).not.toHaveBeenCalled();
+    note.text='<p>Text</p>'; expect(p.noteThumbnail(note)).toBe('');
+    expect(parse).toHaveBeenCalledTimes(1);
+  });
+  it('does not reveal locked thumbnails or load external and executable image sources', () => {
+    const p=home();
+    for (const src of ['https://example.com/photo.png','file:///private/photo.png','javascript:alert(1)','data:image/svg+xml;base64,PHN2Zz4=']) {
+      expect(p.noteThumbnail({id:'unsafe',text:`<img src="${src}">`})).toBe('');
+    }
+    const note={id:'private',protected:true,text:'<img src="data:image/png;base64,aGVsbG8=">'};
+    expect(p.noteThumbnail(note)).toBe('');
+    p.noteService.selectedNoteId='private'; p.noteService.isNoteTemporaryDescripted=true;
+    expect(p.noteThumbnail(note)).toBe('data:image/png;base64,aGVsbG8=');
+    p.noteService.isNoteTemporaryDescripted=false; expect(p.noteThumbnail(note)).toBe('');
   });
   it('preserves casing and separates HTML blocks without interpreting markup', () => {
     expect(notePreviewText('<p>Milk &amp; Bread</p><p>Bring Apples</p>')).toBe('Milk & Bread Bring Apples');
@@ -99,6 +160,22 @@ describe('Desktop design interactions', () => {
     expect(p.assignNotesToFolder).toHaveBeenCalledOnceWith(['a','b','c'],'Work');
     expect(p.draggingNoteIds).toEqual([]); expect(p.draggingFolderTarget).toBeNull();
     expect(ghost.isConnected).toBeFalse();
+  });
+  it('gathers the stack from the selected rows once and clears origins on cancellation', () => {
+    const p=home();p.listOfCheckedCheckboxes=['a','b'];
+    const rows=['a','b'].map((id,index)=>{
+      const row=document.createElement('div');row.id=id;document.body.appendChild(row);
+      spyOn(row,'getBoundingClientRect').and.returnValue({left:20,top:100+index*62,width:232} as DOMRect);
+      return row;
+    });
+    try {
+      p.onNoteDragStart(new DragEvent('dragstart',{clientX:100,clientY:110}),p.notes[1]);
+      expect(p.dragStackStyle['--stack-origin-0']).toContain('46px');
+      const captured={...p.dragStackStyle};
+      p.onNoteDragMove(new DragEvent('dragover',{clientX:200,clientY:220}));
+      expect(p.dragStackStyle).toEqual(captured);
+      p.onNoteDragEnd();expect(p.dragStackStyle).toEqual({});
+    } finally {rows.forEach(row=>row.remove());}
   });
   it('drags only the grabbed note when it is outside the selected group', async () => {
     const p=home(); p.listOfCheckedCheckboxes=['a','b']; p.folders=[{id:'work',name:'Work'}];

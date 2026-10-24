@@ -5,6 +5,7 @@ import { AlertController } from '@ionic/angular';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom, timeout } from 'rxjs';
 import { OutboxStorage } from './outbox-storage.service';
+import { requiresSyncAttention } from './sync-status';
 import { NotesService } from './notes.service';
 import { SecureStorageService } from './secure-storage.service';
 import { CryptoKeyService } from './crypto-key.service';
@@ -208,7 +209,7 @@ export class NoteConflictService {
         if (pending && pending.localUpdatedAt <= Number(sent.last_modified)) this.state.clearPendingMutation(sent.id);
       }
       this.state.setNoteIsUpdatedSubject(true);
-      this.state.syncNeedsAttention$.next((await this.outbox.getAll()).length > 0);
+      this.state.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));
       window.dispatchEvent(new CustomEvent('stellar:note-conflict-resolved', { detail: { ids: choices.map(item => item.sent.id) } }));
       window.dispatchEvent(new Event('stellar:notes-changed'));
     } catch {

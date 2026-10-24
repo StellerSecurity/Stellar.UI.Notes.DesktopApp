@@ -1,4 +1,4 @@
-import { Subject, of, from } from 'rxjs';
+import { Subject, of, from, throwError } from 'rxjs';
 import { NotesApiV1Service } from './services/notes-api-v1.service';
 import { OutboxStorage } from './services/outbox-storage.service';
 import { SyncWorkerService } from './services/sync-worker.service';
@@ -27,6 +27,39 @@ function pending(id: string): any {
 const note: any = {id:'qa', text:'<p>private account A text</p>', title:'Synthetic', last_modified:10};
 
 describe('Adversarial session and queue boundaries', () => {
+  it('keeps the first five failed sync requests quiet, shows the sixth, and clears after confirmation',async()=>{
+    const f=fixture();await f.queue.enqueue(pending('retry-note'));
+    f.http.post.and.returnValue(throwError(()=>({status:502})));
+    for(let attempt=1;attempt<=6;attempt++) {
+      await f.queue.update('retry-note',item=>({...item,nextAt:0}));
+      await f.worker.trySync();
+      expect((await f.queue.getAll())[0].attempt).toBe(attempt);
+      expect(f.state.syncNeedsAttention$.value).withContext('failed request '+attempt).toBe(attempt>=6);
+    }
+    f.http.post.and.returnValue(of({note_ack_v1:true}));
+    await f.queue.update('retry-note',item=>({...item,nextAt:0}));await f.worker.trySync();
+    expect(await f.queue.getAll()).toEqual([]);expect(f.state.syncNeedsAttention$.value).toBeFalse();
+  });
+
+  it('keeps failed-attempt history when editing replaces an unsynced snapshot',async()=>{
+    const f=fixture();const old=pending('old');old.attempt=5;
+    await f.queue.enqueue(old);
+    const latest=pending('latest');latest.payload.notes[0]={...old.payload.notes[0],last_modified:2};
+    await f.queue.enqueue(latest,true);
+    const queue=await f.queue.getAll();expect(queue.length).toBe(1);expect(queue[0].attempt).toBe(5);
+    f.http.post.and.returnValue(throwError(()=>({status:502})));
+    await f.queue.update('latest',item=>({...item,nextAt:0}));await f.worker.trySync();
+    expect(f.state.syncNeedsAttention$.value).toBeTrue();
+  });
+
+  it('does not count offline waits as failed requests',async()=>{
+    const f=fixture();await f.queue.enqueue(pending('offline'));
+    (f.worker as any).isOnline.and.resolveTo(false);
+    for(let i=0;i<8;i++)await f.worker.trySync();
+    expect(f.http.post).not.toHaveBeenCalled();expect((await f.queue.getAll())[0].attempt).toBe(0);
+    expect(f.state.syncNeedsAttention$.value).toBeFalse();
+  });
+
   for (const resetOnly of [false, true]) it(resetOnly ? 'rejects a save crossing an outbox reset even before credentials are cleared' : 'rejects encryption completing after account replacement', async () => {
     const f = fixture(); let entered!: () => void; let release!: () => void;
     const started = new Promise<void>(resolve => entered = resolve);

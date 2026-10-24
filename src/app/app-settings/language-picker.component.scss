@@ -13,3 +13,6 @@
 .language-option[aria-selected=true] { color: #2761fc; font-weight: 500; }
 .language-option ion-icon { flex-shrink: 0; font-size: 17px; }
 .language-no-results { margin: 16px 12px; color: #73737f; font-size: 13px; text-align: center; }
+
+.language-trigger-label, .language-option-text { flex: 1; min-width: 0; }
+.language-flag { flex-shrink: 0; width: 24px; text-align: center; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; font-size: 19px; line-height: 1; }

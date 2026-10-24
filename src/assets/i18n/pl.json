@@ -345,5 +345,9 @@
   "resizeNoteList": "Szerokość listy notatek",
   "resizeNoteListHint": "Przeciągnij, aby zmienić szerokość. Kliknij dwukrotnie, aby zresetować. Dostosuj klawiszami strzałek.",
   "resizeFolders": "Szerokość panelu folderów",
-  "uiRemoveImage": "Usuń obraz"
+  "uiRemoveImage": "Usuń obraz",
+  "uiChecklist": "Lista kontrolna",
+  "showNoteThumbnails": "Pokaż obrazy na liście notatek",
+  "showNoteThumbnailsDescription": "Pokaż miniaturę pierwszego obrazu w każdej notatce.",
+  "uiSyncPending": "Oczekiwanie na synchronizację"
 }

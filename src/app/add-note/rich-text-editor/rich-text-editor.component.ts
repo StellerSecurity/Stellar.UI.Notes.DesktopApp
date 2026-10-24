@@ -11,6 +11,7 @@ import { preserveNoteLineBreaks, preserveNoteSpaces } from './preserve-note-line
 import { bindEditorScroll } from './editor-scroll';
 import { legacyNoteHtml } from './legacy-note-html';
 import { bindNoteImageDrop } from './note-image-drop';
+import { CompactImageExport } from './compact-image-export';
 
 @Component({ standalone: false,
   selector: 'app-rich-text-editor',
@@ -110,23 +111,27 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   private unlisten: Array<() => void> = [];
   private sanitizedContent?: string;
   private publishedContent?: string;
-  private editorHtml?: string;
+  private contentRevision = 0;
+  private exportedRevision = -1;
+  private imageExport = new CompactImageExport();
   private editorSafeHtml?: string;
 
   readonly editorValueSetter = (quill: any, value: string) => {
     const safe = this.safeHtml(value);
     // Angular encodes e.g. æøå as HTML entities. Its parent echo is still the same
     // edit. Do not re-import the entire document or replace the user's caret node.
-    if (safe === this.editorSafeHtml && quill.root.innerHTML === this.editorHtml) return quill.getContents();
+    if (safe === this.editorSafeHtml && this.exportedRevision === this.contentRevision) return quill.getContents();
     return quill.clipboard.convert({ html: safe });
   };
 
   // Never use Quill 2's interpolated semantic exporter. Serialize the DOM,
   // restore legacy list markup, then sanitize before publishing or parent echoes.
   readonly editorValueGetter = (quill: any): string => {
-    const html = legacyNoteHtml(quill.root);
-    const safe = this.safeHtml(html === '<p><br></p>' ? '' : html);
-    this.editorHtml = quill.root.innerHTML;
+    const compact = this.imageExport.prepare(quill.root);
+    const html = legacyNoteHtml(compact.root);
+    const safe = compact.restore(this.safeHtml(html === '<p><br></p>' ? '' : html));
+    this.sanitizedContent = safe;
+    this.exportedRevision = this.contentRevision;
     this.editorSafeHtml = safe;
     return safe;
   };
@@ -164,7 +169,33 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   private safeHtml(content: string): string {
     const html = content ?? '';
     if (html === this.sanitizedContent) return html;
-    const safe = this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+    if (!/data-checked|stellar-task-state-/i.test(html)) {
+      const safe = this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+      this.sanitizedContent = safe;
+      return safe;
+    }
+    // Angular removes data attributes. Carry only Quill's boolean task state
+    // through its sanitizer using inert classes, then restore that one attribute.
+    const input = document.createElement('template');
+    input.innerHTML = html;
+    const marker = 'stellar-task-state-';
+    input.content.querySelectorAll('ul[data-checked]').forEach(list => {
+      const state = list.getAttribute('data-checked');
+      if (state === 'true' || state === 'false') list.classList.add(marker + state);
+    });
+    const clean = this.sanitizer.sanitize(SecurityContext.HTML, input.innerHTML) ?? '';
+    const output = document.createElement('template');
+    output.innerHTML = clean;
+    output.content.querySelectorAll('ul').forEach(list => {
+      for (const state of ['true', 'false']) {
+        if (list.classList.contains(marker + state)) {
+          list.setAttribute('data-checked', state);
+          list.classList.remove(marker + state);
+        }
+      }
+      if (!list.className) list.removeAttribute('class');
+    });
+    const safe = output.innerHTML;
     this.sanitizedContent = safe;
     return safe;
   }
@@ -188,11 +219,16 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
     const root: HTMLElement = quill.root;
     // Quill is still empty here. The first valueSetter must import the saved note;
     // an echo cache based on this blank DOM would suppress that initial import.
-    this.editorHtml = undefined;
+    this.contentRevision = 0;
+    this.exportedRevision = -1;
+    this.imageExport = new CompactImageExport();
     this.editorSafeHtml = undefined;
+    const revisionChanged = (type:string) => { if (type==='text-change') this.contentRevision++; };
+    quill.on('editor-change',revisionChanged);
     quill.getModule('toolbar').addHandler('link', () => { void this.openLinkPrompt(); });
     root.setAttribute('spellcheck', 'false');
     this.unlisten = [
+      () => quill.off('editor-change',revisionChanged),
       bindNoteImageDrop(quill, quill.container, {
         generation: () => this.active && !this.destroyed ? this.generation : null,
         reportError: message => { this.imageDropError = message; this.cdr.markForCheck(); },
@@ -271,7 +307,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
       this.quill.setContents(this.quill.clipboard.convert({ html: safe }), 'silent');
       this.quill.history.clear();
       this.quill.root.scrollTop = scrollTop;
-      this.editorHtml = this.quill.root.innerHTML;
+      this.exportedRevision = this.contentRevision;
       this.editorSafeHtml = safe;
     }
     this.cdr.detectChanges();
@@ -279,10 +315,6 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
 
   onContentChange(content: string): void {
     const safe = this.safeHtml(content);
-    if (this.quill?.root.innerHTML === content) {
-      this.editorHtml = content;
-      this.editorSafeHtml = safe;
-    }
     this.note_text = safe;
     if (safe === this.publishedContent) return;
     this.publishedContent = safe;

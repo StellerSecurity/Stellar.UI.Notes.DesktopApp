@@ -345,5 +345,9 @@
   "resizeNoteList": "Largura da lista de notas",
   "resizeNoteListHint": "Arraste para redimensionar. Clique duas vezes para redefinir. Ajuste com as teclas de seta.",
   "resizeFolders": "Largura da barra de pastas",
-  "uiRemoveImage": "Remover imagem"
+  "uiRemoveImage": "Remover imagem",
+  "uiChecklist": "Lista de verificação",
+  "showNoteThumbnails": "Mostrar imagens na lista de notas",
+  "showNoteThumbnailsDescription": "Mostrar uma miniatura da primeira imagem de cada nota.",
+  "uiSyncPending": "Sincronização pendente"
 }

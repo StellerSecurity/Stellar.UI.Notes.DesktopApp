@@ -345,5 +345,9 @@
   "resizeNoteList": "Not listesi genişliği",
   "resizeNoteListHint": "Boyutlandırmak için sürükleyin. Sıfırlamak için çift tıklayın. Ok tuşlarıyla ayarlayın.",
   "resizeFolders": "Klasör kenar çubuğu genişliği",
-  "uiRemoveImage": "Resmi kaldır"
+  "uiRemoveImage": "Resmi kaldır",
+  "uiChecklist": "Kontrol listesi",
+  "showNoteThumbnails": "Not listesinde resimleri göster",
+  "showNoteThumbnailsDescription": "Her nottaki ilk resmin küçük bir önizlemesini göster.",
+  "uiSyncPending": "Senkronizasyon bekliyor"
 }

@@ -45,6 +45,50 @@ describe('RichTextEditorComponent', () => {
     });
   }
 
+  it('creates round checklists from the toolbar and preserves checked state across reopening', async () => {
+    await fixture.whenStable();
+    const quill=component.quill;
+    quill.setText('Buy milk\n'); quill.setSelection(0,0);
+    (fixture.nativeElement.querySelector('button.ql-list[value="check"]') as HTMLButtonElement).click();
+    expect(quill.getFormat(0,1).list).toBe('unchecked');
+    const marker=quill.root.querySelector('li > .ql-ui') as HTMLElement;
+    marker.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true}));
+    await new Promise(resolve=>setTimeout(resolve,0));
+    expect(quill.getFormat(0,1).list).toBe('checked');
+    const saved=component.editorValueGetter(quill);
+    expect(saved).toContain('data-checked="true"');
+    expect(saved).not.toContain('ql-ui');
+    const restored=component.editorValueSetter(quill,saved);
+    quill.setContents(restored,'silent');
+    expect(quill.getText()).toBe('Buy milk\n');
+    expect(quill.getFormat(0,1).list).toBe('checked');
+    expect(getComputedStyle(quill.root.querySelector('.ql-ui')!, '::before').borderRadius).toBe('50%');
+  });
+  it('keeps checklist targets inside the document and stationary when checked', async () => {
+    await fixture.whenStable(); fixture.nativeElement.style.cssText='display:block;width:500px;height:600px';
+    const quill=component.quill; quill.setText('Task\n','silent');quill.formatLine(0,1,'list','unchecked','user');
+    const item=quill.root.querySelector('li') as HTMLElement;
+    const marker=item.querySelector('.ql-ui') as HTMLElement;
+    const text=item.lastChild!; const range=document.createRange();range.setStart(text,0);range.setEnd(text,1);
+    const before=marker.getBoundingClientRect(); const textBefore=range.getBoundingClientRect().left;
+    expect(before.left).toBeGreaterThanOrEqual(quill.root.getBoundingClientRect().left+23);
+    expect(before.width).toBe(20);
+    marker.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true}));
+    await new Promise(resolve=>setTimeout(resolve,0));
+    expect(quill.getFormat(0,1).list).toBe('checked');
+    expect(marker.getBoundingClientRect().left).toBeCloseTo(before.left,1);
+    expect(marker.getBoundingClientRect().width).toBe(before.width);
+    expect(range.getBoundingClientRect().left).toBeCloseTo(textBefore,1);
+  });
+  it('preserves task state while continuing to strip executable markup', async () => {
+    await fixture.whenStable();
+    const quill=component.quill;
+    const delta=component.editorValueSetter(quill,'<ul data-checked="false" onclick="alert(1)"><li>Task<script>alert(1)</script></li></ul>');
+    quill.setContents(delta,'silent');
+    const saved=component.editorValueGetter(quill);
+    expect(saved).toContain('data-checked="false"');
+    expect(saved).not.toContain('onclick'); expect(saved).not.toContain('<script');
+  });
   it('uses a readable prompt while translations are missing', async () => {
     await fixture.whenStable();
     fixture.detectChanges();
@@ -170,6 +214,58 @@ describe('RichTextEditorComponent', () => {
     quill.root.dispatchEvent(new DragEvent('drop',{dataTransfer:imageTransfer(),bubbles:true,cancelable:true}));
     await change;
     expect(quill.getContents().ops).toEqual([{insert:'before '},{insert:{image:`data:image/png;base64,${png}`}},{insert:'after\n'}]);
+  });
+
+  for (const backwards of [false,true]) it(`moves an existing image ${backwards?'backwards':'forwards'} without copying and undoes it together`, async () => {
+    await fixture.whenStable(); const quill=component.quill;
+    const image={insert:{image:`data:image/png;base64,${png}`},attributes:{width:'48'}};
+    quill.setContents({ops:backwards ? [{insert:'before '},image,{insert:'after\n'}] : [image,{insert:'before after\n'}]},'silent');
+    const original=quill.getContents(); quill.history.clear();
+    const node=quill.root.querySelector('img'); const transfer=new DataTransfer();
+    const start=new DragEvent('dragstart',{dataTransfer:transfer,bubbles:true,cancelable:true});
+    node.dispatchEvent(start);
+    expect(start.defaultPrevented).withContext('Quill must not cancel the native image drag').toBeFalse();
+    const range=document.createRange();
+    const paragraph=quill.root.querySelector('p');
+    range.setStart(backwards ? paragraph : paragraph.lastChild,backwards ? 0 : 7);range.collapse(true);
+    spyOn(document,'caretRangeFromPoint').and.returnValue(range);
+    const event=new DragEvent('drop',{dataTransfer:transfer,bubbles:true,cancelable:true});
+    quill.root.dispatchEvent(event);
+    expect(event.defaultPrevented).toBeTrue();
+    expect(quill.root.querySelectorAll('img').length).toBe(1);
+    expect(quill.getContents().ops).toEqual(backwards ? [image,{insert:'before after\n'}] : [{insert:'before '},image,{insert:'after\n'}]);
+    quill.history.undo();expect(quill.getContents()).toEqual(original);
+    quill.history.redo();expect(quill.root.querySelectorAll('img').length).toBe(1);
+    const saved=component.editorValueGetter(quill);quill.setContents(quill.clipboard.convert({html:saved}),'silent');
+    expect(quill.root.querySelectorAll('img').length).toBe(1);
+  });
+
+  it('moves with captured mouse pointers and suppresses the preview click after moving',async()=>{
+    await fixture.whenStable();const quill=component.quill;
+    quill.setContents({ops:[{insert:{image:`data:image/png;base64,${png}`}},{insert:'before after\n'}]},'silent');
+    const original=quill.getContents();quill.history.clear();
+    const img=quill.root.querySelector('img');spyOn(img,'setPointerCapture');
+    const bounds=quill.container.getBoundingClientRect();
+    const range=document.createRange();range.setStart(quill.root.querySelector('p').lastChild,7);range.collapse(true);
+    spyOn(document,'caretRangeFromPoint').and.returnValue(range);
+    img.dispatchEvent(new PointerEvent('pointerdown',{pointerType:'mouse',pointerId:1,button:0,clientX:bounds.left+1,clientY:bounds.top+1,bubbles:true,cancelable:true}));
+    img.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:bounds.left+20,clientY:bounds.top+2,bubbles:true}));
+    img.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,clientX:bounds.left+20,clientY:bounds.top+2,bubbles:true}));
+    expect(quill.getContents().ops).toEqual([{insert:'before '},{insert:{image:`data:image/png;base64,${png}`}},{insert:'after\n'}]);
+    quill.root.querySelector('img').click();expect(component.previewImageSrc).toBeNull();
+    quill.history.undo();expect(quill.getContents()).toEqual(original);
+  });
+
+  it('does not move an image into another note or edit a disabled note', async () => {
+    await fixture.whenStable();const quill=component.quill;
+    quill.insertEmbed(0,'image',`data:image/png;base64,${png}`,'silent');
+    const original=quill.getContents();const transfer=new DataTransfer();
+    quill.root.querySelector('img').dispatchEvent(new DragEvent('dragstart',{dataTransfer:transfer,bubbles:true}));
+    component.noteId='another-note';component.ngOnChanges({noteId:new SimpleChange(null,'another-note',false)});
+    quill.root.dispatchEvent(new DragEvent('drop',{dataTransfer:transfer,bubbles:true,cancelable:true}));
+    expect(quill.getContents()).toEqual(original);
+    quill.disable();const start=new DragEvent('dragstart',{dataTransfer:new DataTransfer(),bubbles:true,cancelable:true});
+    quill.root.querySelector('img').dispatchEvent(start);expect(start.defaultPrevented).toBeTrue();
   });
 
   it('rejects executable image formats and prevents file navigation', async () => {

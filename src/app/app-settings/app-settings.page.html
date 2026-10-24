@@ -17,7 +17,6 @@
         <app-language-picker [value]="languagePreference" (valueChange)="changeLanguage($event)"></app-language-picker>
       </div>
     </div>
-    <label class="setting-row"><span class="setting-icon"><ion-icon name="trash-outline"></ion-icon></span><span class="setting-text"><strong>{{'enableTrash' | translate}}</strong><p>{{'trashOptInDescription' | translate}}</p></span><input type="checkbox" [checked]="trashEnabled" (change)="toggleTrash($event)" [attr.aria-label]="'enableTrash' | translate"></label>
     <button class="setting-row" type="button" (click)="appPasswordChallengeDialog()">
       <span class="setting-icon"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span>
       <span class="setting-text">
@@ -34,6 +33,8 @@
         <span class="status-chip enabled">{{'uiAlwaysOn' | translate}}</span>
       </div>
     </div>
+    <label class="setting-row"><span class="setting-icon"><ion-icon name="trash-outline"></ion-icon></span><span class="setting-text"><strong>{{'enableTrash' | translate}}</strong><p>{{'trashOptInDescription' | translate}}</p></span><input type="checkbox" [checked]="trashEnabled" (change)="toggleTrash($event)" [attr.aria-label]="'enableTrash' | translate"></label>
+    <label class="setting-row thumbnail-setting"><span class="setting-icon"><ion-icon name="image-outline" aria-hidden="true"></ion-icon></span><span class="setting-text"><strong>{{'showNoteThumbnails' | translate}}</strong><p>{{'showNoteThumbnailsDescription' | translate}}</p></span><input type="checkbox" [checked]="showNoteThumbnails" (change)="toggleNoteThumbnails($event)" [attr.aria-label]="'showNoteThumbnails' | translate"></label>
   </ng-container>
 
   <ng-container *ngIf="shouldShowPasswordOnAppContent">

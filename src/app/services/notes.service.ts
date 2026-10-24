@@ -67,6 +67,8 @@ export class NotesService {
       if(this.pendingSnapshot)this.startPersistence();
     });
   }
+  get showNoteThumbnails(): boolean { return localStorage.getItem('stellarShowNoteThumbnails') !== 'false'; }
+  set showNoteThumbnails(value: boolean) { localStorage.setItem('stellarShowNoteThumbnails', String(value)); }
   get trashEnabled(): boolean { return localStorage.getItem('stellarTrashEnabled')==='true'; }
   set trashEnabled(value:boolean) {localStorage.setItem('stellarTrashEnabled',String(value));}
   getTrash(): Array<{id:string;trashedAt:number;note:NoteV1}> {
