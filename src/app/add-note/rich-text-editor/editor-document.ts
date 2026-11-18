@@ -1,3 +1,4 @@
+import { parseDocument, DomUtils } from 'htmlparser2';
 import { preserveNoteLineBreaks, preserveNoteSpaces } from './preserve-note-line-breaks';
 export { legacyNoteHtml } from './legacy-note-html';
 export { CompactImageExport } from './compact-image-export';
@@ -12,31 +13,40 @@ export function noteEditorModules() {
 
 export function sanitizeNoteContent(html: string, sanitize: (value: string) => string, doc: Document = document): string {
   if (!/data-checked|stellar-task-state-|checklist/i.test(html)) return sanitize(html);
-  const input = doc.createElement('template');
-  input.innerHTML = html;
-  input.content.querySelectorAll('ul.checklist').forEach(list => {
-    const groups = doc.createDocumentFragment();
-    let group: HTMLElement | undefined;
-    for (const child of Array.from(list.children)) {
-      const checked = child.getAttribute('data-checked') === 'true' ? 'true' : 'false';
-      if (!group || group.getAttribute('data-checked') !== checked) {
-        group = doc.createElement('ul');
-        group.setAttribute('data-checked', checked);
-        groups.appendChild(group);
+  const input = parseDocument(html);
+  const hasClass = (value: string | undefined, name: string) => (value || '').split(/\s+/).includes(name);
+  const lists = DomUtils.findAll(node => node.name === 'ul' && hasClass(node.attribs['class'], 'checklist'), input.children);
+  for (const list of lists) {
+    const groups: typeof list[] = [];
+    let group: typeof list | undefined;
+    for (const child of [...list.children]) {
+      if (!DomUtils.isTag(child)) continue;
+      const checked = child.attribs['data-checked'] === 'true' ? 'true' : 'false';
+      if (!group || group.attribs['data-checked'] !== checked) {
+        group = list.cloneNode(false);
+        group.attribs = { 'data-checked': checked };
+        groups.push(group);
       }
-      child.querySelectorAll('.check-toggle').forEach(button => button.remove());
-      child.removeAttribute('data-checked');
-      group.appendChild(child);
+      DomUtils.findAll(node => hasClass(node.attribs['class'], 'check-toggle'), child.children).forEach(DomUtils.removeElement);
+      delete child.attribs['data-checked'];
+      DomUtils.appendChild(group, child);
     }
-    list.replaceWith(groups);
-  });
+    if (!groups.length) DomUtils.removeElement(list);
+    else {
+      DomUtils.replaceElement(list, groups[0]);
+      for (let index = 1; index < groups.length; index++) DomUtils.append(groups[index - 1], groups[index]);
+    }
+  }
   const marker = 'stellar-task-state-';
-  input.content.querySelectorAll('ul[data-checked]').forEach(list => {
-    const state = list.getAttribute('data-checked');
-    if (state === 'true' || state === 'false') list.classList.add(marker + state);
+  DomUtils.findAll(node => node.name === 'ul', input.children).forEach(list => {
+    const state = list.attribs['data-checked'];
+    if (state === 'true' || state === 'false') {
+      list.attribs['class'] = [list.attribs['class'], marker + state].filter(Boolean).join(' ');
+    }
   });
+  const clean = sanitize(DomUtils.getInnerHTML(input));
   const output = doc.createElement('template');
-  output.innerHTML = sanitize(input.innerHTML);
+  output.innerHTML = clean;
   output.content.querySelectorAll('ul').forEach(list => {
     for (const state of ['true', 'false']) {
       if (list.classList.contains(marker + state)) {

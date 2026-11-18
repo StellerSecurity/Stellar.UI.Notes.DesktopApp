@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "files": [
+    "src/test.ts",
+    "src/polyfills.ts"
+  ],
+  "include": [
+    "src/app/add-note/rich-text-editor/rich-text-editor.component.spec.ts",
+    "src/app/add-note/rich-text-editor/legacy-note-html.spec.ts",
+    "src/app/add-note/rich-text-editor/editor-document.spec.ts",
+    "src/app/editor-parity.spec.ts",
+    "src/**/*.d.ts"
+  ]
+}
