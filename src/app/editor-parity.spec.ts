@@ -59,6 +59,23 @@ describe('Desktop Quill 2 legacy HTML round trips', () => {
     node.remove(); fixture.destroy(); tick(500);
   })));
 
+  const exactLines = [
+    { name: 'single breaks', html: '<p>first</p><p>second</p>', text: 'first\nsecond\n' },
+    { name: 'intentional blank lines', html: '<p>first</p><p><br></p><p><br></p><p>last</p>', text: 'first\n\n\nlast\n' },
+    { name: 'leading and trailing blank lines', html: '<p><br></p><p>first</p><p><br></p><p><br></p>', text: '\nfirst\n\n\n' },
+  ];
+  exactLines.forEach(test => it('preserves '+test.name+' through shared mobile/desktop document rules', fakeAsync(() => {
+    const {fixture, component, quill, host} = editor(test.html);
+    expect(quill.getText()).toBe(test.text);
+    expect(host.changes).toEqual([]);
+    for (let cycle = 0; cycle < 4; cycle++) {
+      const html = component.editorValueGetter(quill);
+      quill.setContents(component.editorValueSetter(quill, html), 'silent');
+      expect(quill.getText()).toBe(test.text);
+    }
+    fixture.destroy(); tick(500);
+  })));
+
   it('saves legacy lists and copies/cuts without calling the semantic HTML exporter', fakeAsync(() => {
     const { fixture, component, quill, host } = editor('<ul><li>bullet</li></ul><ol><li>numbered</li></ol>');
     const unsafeExport = spyOn(quill, 'getSemanticHTML').and.throwError('semantic exporter forbidden');
