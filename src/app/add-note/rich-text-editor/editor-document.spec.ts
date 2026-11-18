@@ -59,7 +59,9 @@ describe('Shared note HTML import', () => {
       const output = read(sanitizeNoteContent('<ul data-checked="false"><li>Keep' + attack + '</li></ul>', sanitize));
       expect(output.content.querySelector('script,iframe,svg,math,form,input,template')).toBeNull();
       expect(output.content.querySelector('[onerror],[onload],[onclick],[srcdoc],[formaction]')).toBeNull();
-      expect(Array.from(output.content.querySelectorAll('a')).some(a => a.getAttribute('href')?.startsWith('javascript:'))).toBeFalse();
+      for (const link of Array.from(output.content.querySelectorAll('a'))) {
+        expect(link.getAttribute('href')).toBe('unsafe:javascript:alert(1)');
+      }
       expect(output.content.textContent).toContain('Keep');
       expect(output.content.querySelector('ul')?.getAttribute('data-checked')).toBe('false');
     });
