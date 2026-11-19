@@ -1,0 +1,27 @@
+Stencil 4.45.2 embeds Rollup 4.44.0 in compiler/stencil.js. A top-level
+Rollup override does not replace that code. GHSA-mw96-cpmx-2vgc describes
+the output-path traversal repaired by Rollup's c60770d change.
+
+tools/stencil-rollup-patch.cjs adds output-directory containment to the
+exact bundled writer. It reads package files as data and never imports
+the compiler. The JSON specification records the original lock identity,
+source hash, replacement and patched hash. Unknown versions, changed
+bytes, symlinked installations and unpatched nested copies are rejected.
+
+After an approved dependency installation with lifecycle scripts disabled,
+explicitly apply the reviewed patch before building or serving:
+
+    node tools/stencil-rollup-patch.cjs --apply
+    node tools/stencil-rollup-patch.cjs --check
+
+The project entry points verify the result. Applying the patch is not an
+npm lifecycle hook. Dependency changes require a fresh review of this
+specification; verification never accepts an unknown file automatically.
+
+The check prevents lexical path traversal in generated output filenames.
+It does not sandbox trusted build plugins or resolve hostile filesystem
+symlinks. No note data, Quill content or API format is migrated by it.
+
+Sources:
+https://github.com/advisories/GHSA-mw96-cpmx-2vgc
+https://github.com/rollup/rollup/commit/c60770d
