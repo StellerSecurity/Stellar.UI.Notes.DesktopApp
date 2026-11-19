@@ -7,7 +7,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { AlertController } from '@ionic/angular';
 import { bindSafeNotePaste } from './safe-note-paste';
 import { bindSafeNoteCopy } from './safe-note-copy';
-import { preserveNoteLineBreaks, preserveNoteSpaces } from './preserve-note-line-breaks';
+import { noteEditorModules, sanitizeNoteContent } from './editor-document';
 import { bindEditorScroll } from './editor-scroll';
 import { legacyNoteHtml } from './legacy-note-html';
 import { bindNoteImageDrop } from './note-image-drop';
@@ -137,13 +137,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   };
 
   // HTML remains the wire format used by existing mobile and desktop clients.
-  readonly quillModules = {
-    clipboard: { matchers: [[3, preserveNoteSpaces], [1, preserveNoteLineBreaks]] },
-    history: { delay: 0, maxStack: 300, userOnly: true },
-    // Keep typed notes literal. Quill's default "list autofill" turns "- " or "1. "
-    // at the start of a line into lists; users should use the toolbar when they want a list.
-    keyboard: { bindings: { 'list autofill': false } },
-  };
+  readonly quillModules = noteEditorModules();
 
   constructor(
     private renderer: Renderer2,
@@ -169,33 +163,7 @@ export class RichTextEditorComponent implements OnChanges, OnDestroy {
   private safeHtml(content: string): string {
     const html = content ?? '';
     if (html === this.sanitizedContent) return html;
-    if (!/data-checked|stellar-task-state-/i.test(html)) {
-      const safe = this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
-      this.sanitizedContent = safe;
-      return safe;
-    }
-    // Angular removes data attributes. Carry only Quill's boolean task state
-    // through its sanitizer using inert classes, then restore that one attribute.
-    const input = document.createElement('template');
-    input.innerHTML = html;
-    const marker = 'stellar-task-state-';
-    input.content.querySelectorAll('ul[data-checked]').forEach(list => {
-      const state = list.getAttribute('data-checked');
-      if (state === 'true' || state === 'false') list.classList.add(marker + state);
-    });
-    const clean = this.sanitizer.sanitize(SecurityContext.HTML, input.innerHTML) ?? '';
-    const output = document.createElement('template');
-    output.innerHTML = clean;
-    output.content.querySelectorAll('ul').forEach(list => {
-      for (const state of ['true', 'false']) {
-        if (list.classList.contains(marker + state)) {
-          list.setAttribute('data-checked', state);
-          list.classList.remove(marker + state);
-        }
-      }
-      if (!list.className) list.removeAttribute('class');
-    });
-    const safe = output.innerHTML;
+    const safe = sanitizeNoteContent(html, value => this.sanitizer.sanitize(SecurityContext.HTML, value) ?? '');
     this.sanitizedContent = safe;
     return safe;
   }

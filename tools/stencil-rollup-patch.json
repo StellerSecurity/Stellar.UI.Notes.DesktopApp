@@ -1,0 +1,13 @@
+{
+  "package": "@stencil/core",
+  "version": "4.45.2",
+  "resolved": "https://registry.npmjs.org/@stencil/core/-/core-4.45.2.tgz",
+  "integrity": "sha512-CNkPVZsqyNMjFMX9bEkMJsvBbQxjLw480OaoamoqiLPdQCFjJQReeOjnWX1A5ivSn3UYEIJ6MoN5VXDkaHGt8Q==",
+  "advisory": "GHSA-mw96-cpmx-2vgc",
+  "upstream_fix": "https://github.com/rollup/rollup/commit/c60770d",
+  "scope": "Backport output-path containment into the exact bundled Rollup writer. No dependency version, note data, editor, API or signature checks change. Explicit operation only; never a lifecycle hook.",
+  "original": "31e6d332a91886959e0123de44bcf698163c8e31ceff88758dcc4d824bbadcdf",
+  "patched": "7f664ee5a47bb1f972aa4afaa6167144cdfd10fb080efde124e6caaec8c4cfdf",
+  "before": "async function writeOutputFile(outputFile, outputOptions, { fs: { mkdir, writeFile } }) {\n  const fileName = (0, import_node_path2.resolve)(outputOptions.dir || (0, import_node_path2.dirname)(outputOptions.file), outputFile.fileName);",
+  "after": "function stellarRollupOutputPath(pathApi, options, name) {\n  if (typeof name !== 'string' || !name || name.includes('\\0')) throw new Error('Invalid Rollup output name');\n  const portable = name.replace(/\\\\/g, '/');\n  if (portable.startsWith('/') || portable.includes(':')) throw new Error('Absolute Rollup output name rejected');\n  let depth = 0;\n  for (const part of portable.split('/')) {\n    if (part === '..') depth--;\n    else if (part && part !== '.') {\n      if (/[. ]$/.test(part) || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\\.|$)/i.test(part)) {\n        throw new Error('Non-portable Rollup output name rejected');\n      }\n      depth++;\n    }\n    if (depth < 0) throw new Error('Rollup output leaves its directory');\n  }\n  const root = pathApi.resolve(options.dir || pathApi.dirname(options.file));\n  const target = pathApi.resolve(root, portable);\n  const relative = pathApi.relative(root, target);\n  if (!relative || relative === '..' || relative.startsWith('..' + pathApi.sep) || pathApi.isAbsolute(relative)) {\n    throw new Error('Rollup output leaves its directory');\n  }\n  return target;\n}\nasync function writeOutputFile(outputFile, outputOptions, { fs: { mkdir, writeFile } }) {\n  const fileName = stellarRollupOutputPath(import_node_path2, outputOptions, outputFile.fileName);"
+}

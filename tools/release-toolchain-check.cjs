@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { inspect: verifyBracesPatch, entries: verifyBracesLock } = require('./braces-depth-patch.cjs');
+const { inspect: verifyStencilPatch, entries: verifyStencilLock } = require('./stencil-rollup-patch.cjs');
 
 // Reviewed candidate versions. The lockfile and installation must agree;
 // future upgrades require updating this contract alongside their review.
@@ -27,11 +28,13 @@ const versions = Object.freeze({
   quill: ['2.0.3'],
   'ngx-quill': ['30.1.3'],
   'electron-updater': ['6.8.10'],
+  '@stencil/core': ['4.45.2'],
 });
 
 function validate(pkg, lock, readInstalled) {
   const errors = [];
   try { verifyBracesLock(lock); } catch (error) { errors.push(error.message); }
+  try { verifyStencilLock(lock); } catch (error) { errors.push(error.message); }
   const entries = Object.entries(lock.packages || {});
   for (const [name, allowed] of Object.entries(versions)) {
     const matches = entries.filter(([key]) => key === `node_modules/${name}` || key.endsWith(`/node_modules/${name}`));
@@ -77,6 +80,7 @@ if (require.main === module) {
     validate(read(path.join(root, 'package.json')), read(path.join(root, 'package-lock.json')),
       lockOnly ? null : key => read(path.join(root, key, 'package.json')));
     if (!lockOnly) verifyBracesPatch(root);
+    if (!lockOnly) verifyStencilPatch(root);
     console.log('Release toolchain versions and Linux launcher configuration checked.');
   } catch (error) {
     console.error(`Release toolchain rejected:\n${error.message}`);

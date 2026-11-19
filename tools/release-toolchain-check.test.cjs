@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { validate, validateNode, versions } = require('./release-toolchain-check.cjs');
 const { spec: bracesPatch } = require('./braces-depth-patch.cjs');
+const { spec: stencilPatch } = require('./stencil-rollup-patch.cjs');
 
 test('rejects unsupported build Node before dependency installation', () => {
   for (const version of ['20.20.0', '22.11.0', '23.11.0']) assert.throws(() => validateNode(version), /unsupported/);
@@ -17,6 +18,8 @@ function fixture() {
   for (const [name, allowed] of Object.entries(versions)) lock.packages[`node_modules/${name}`] = { version: allowed[0] };
   lock.packages['node_modules/braces'] = { version: '3.0.3', dev: true, integrity: bracesPatch.integrity,
     resolved: 'https://registry.npmjs.org/braces/-/braces-3.0.3.tgz' };
+  lock.packages['node_modules/@stencil/core'] = { version: stencilPatch.version, integrity: stencilPatch.integrity,
+    resolved: stencilPatch.resolved };
   return { pkg, lock };
 }
 test('reviewed lock and matching installed manifests pass without loading dependency code', () => {
