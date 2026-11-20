@@ -44,10 +44,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release dependency lock rejected' }
           npm ci --ignore-scripts --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
-          node --test tools/braces-patch-plan.test.cjs
+          node --test tools/braces-patch-plan.test.cjs tools/stencil-rollup-patch.test.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Dependency mitigation control tests failed' }
           node tools/braces-depth-patch.cjs --apply
           if ($LASTEXITCODE -ne 0) { throw 'Reviewed braces patch rejected' }
+          node tools/stencil-rollup-patch.cjs --apply
+          if ($LASTEXITCODE -ne 0) { throw 'Reviewed Stencil patch rejected' }
           node tools/release-toolchain-check.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Installed release toolchain rejected' }
           $auditDir = Join-Path '$(Build.ArtifactStagingDirectory)' 'dependency-audit'
@@ -61,6 +63,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Unmitigated dependency finding or invalid mitigation; release build stopped' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Renderer build failed' }
+          npm run test:parity
+          if ($LASTEXITCODE -ne 0) { throw 'Quill and desktop integration tests failed' }
         displayName: Install approved locked dependencies and build renderer
       - task: PublishPipelineArtifact@1
         condition: and(always(), eq(variables['AuditReportCreated'], 'true'))

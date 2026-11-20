@@ -88,6 +88,18 @@ test('rejects absent patch verification, expiry and invalid time', () => {
   assert.throws(() => evaluate(report(), true, new Date('invalid')), /expired/);
 });
 
+test('a clean current audit does not consume an expired historical mitigation', () => {
+  const clean = {
+    auditReportVersion: 2, vulnerabilities: {},
+    metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 } },
+  };
+  const afterExpiry = new Date(new Date(spec.expires).getTime() + 86400000);
+  assert.deepEqual(evaluate(clean, true, afterExpiry).mitigated, []);
+  assert.throws(() => evaluate(report(), true, afterExpiry), /expired/);
+  assert.throws(() => evaluate(clean, false, afterExpiry), /not been verified/);
+  assert.throws(() => evaluate(clean, true, new Date('invalid')), /expired/);
+});
+
 test('never accepts another advisory through the mitigated dependency', () => {
   const input = report();
   input.vulnerabilities.braces.via.push({ ...input.vulnerabilities.braces.via[0], url: 'https://github.com/advisories/GHSA-other' });
