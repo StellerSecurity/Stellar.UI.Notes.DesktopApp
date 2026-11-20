@@ -27,6 +27,7 @@ BUILD AND TEST (from the repository root)
   npm run build
   npm run test:parity
   npm run test:desktop-release
+  node --test tools/redirect-header-contract.test.cjs
 
 The browser suite needs an installed Chrome/Chromium available to Karma.
 The Angular output is dist/StellerPhoneNotesApp/. It must be present before
