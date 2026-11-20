@@ -9,7 +9,7 @@ const advisoryUrl = 'https://github.com/advisories/' + spec.advisory;
 
 function evaluate(report, verified, now = new Date()) {
   if (!verified) throw new Error('Braces mitigation has not been verified');
-  if (!Number.isFinite(now.getTime()) || now >= new Date(spec.expires)) throw new Error('Braces mitigation review has expired');
+  if (!Number.isFinite(now.getTime())) throw new Error('Braces mitigation review has expired');
   if (report?.error || report?.auditReportVersion !== 2 || !report.vulnerabilities || !report.metadata?.vulnerabilities) {
     throw new Error('Missing or invalid npm audit report');
   }
@@ -52,6 +52,9 @@ function evaluate(report, verified, now = new Date()) {
     else blocked.push(name);
   }
   if (blocked.length) throw new Error('Unmitigated high/critical findings: ' + blocked.join(', '));
+  // A clean current report does not consume the historical mitigation. Keep
+  // its expiry enforced whenever accepting a finding on that basis.
+  if (mitigated.length && now >= new Date(spec.expires)) throw new Error('Braces mitigation review has expired');
   return { counts, mitigated, advisory: spec.advisory, expires: spec.expires };
 }
 

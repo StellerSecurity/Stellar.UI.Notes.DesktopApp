@@ -74,3 +74,18 @@ test('build and development entry points verify the patch without lifecycle hook
     assert.ok(!pkg.scripts[name]?.includes('stencil-rollup-patch'), name);
   }
 });
+
+test('fresh Azure builds apply the reviewed Stencil patch before executing the toolchain', () => {
+  const pipeline = fs.readFileSync(path.join(__dirname, '..', 'azure-pipelines-desktop-build.yml'), 'utf8').replace(/\r\n/g, '\n');
+  const install = pipeline.indexOf('npm ci --ignore-scripts');
+  const controls = pipeline.indexOf('node --test tools/braces-patch-plan.test.cjs tools/stencil-rollup-patch.test.cjs');
+  const apply = pipeline.indexOf('node tools/stencil-rollup-patch.cjs --apply');
+  const verify = pipeline.indexOf('node tools/release-toolchain-check.cjs\n', apply);
+  const build = pipeline.indexOf('npm run build', verify);
+  const parity = pipeline.indexOf('npm run test:parity', build);
+  const packageWindows = pipeline.indexOf('--win nsis', parity);
+  assert.ok(install >= 0 && controls > install && apply > controls && verify > apply && build > verify);
+  assert.ok(parity > build && packageWindows > parity);
+  assert.ok(pipeline.includes("throw 'Reviewed Stencil patch rejected'"));
+  assert.ok(pipeline.includes("throw 'Quill and desktop integration tests failed'"));
+});
