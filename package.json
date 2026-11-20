@@ -1,7 +1,7 @@
 {
   "name": "stellar-notes",
   "productName": "Stellar Notes",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": {
     "name": "Stellar Security",
     "email": "support@stellarsecurity.com"
@@ -218,6 +218,7 @@
     "undici@^6.0.0": "6.29.1",
     "undici@^7.0.0": "7.30.1",
     "vite": "7.3.7",
-    "qs": "6.16.1"
+    "qs": "6.16.1",
+    "follow-redirects": "1.16.3"
   }
 }

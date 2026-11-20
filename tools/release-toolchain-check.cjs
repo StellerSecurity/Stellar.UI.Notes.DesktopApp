@@ -21,6 +21,7 @@ const versions = Object.freeze({
   'websocket-driver': ['0.7.5'],
   'shell-quote': ['1.11.0'],
   'form-data': ['2.5.6', '3.0.5', '4.0.6'],
+  'follow-redirects': ['1.16.3'],
   '@angular/core': ['21.2.25'],
   '@angular/compiler-cli': ['21.2.25'],
   '@angular-devkit/build-angular': ['21.2.26'],

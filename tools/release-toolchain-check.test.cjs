@@ -47,6 +47,13 @@ test('rejects stale node_modules, missing dependencies and manifest drift', () =
   fresh.pkg.devDependencies.electron = '^44.9.3';
   assert.throws(() => validate(fresh.pkg, fresh.lock), /must pin/);
 });
+test('rejects vulnerable redirect handling in root or nested dependencies', () => {
+  for (const key of ['node_modules/follow-redirects', 'node_modules/nested/node_modules/follow-redirects']) {
+    const { pkg, lock } = fixture();
+    lock.packages[key] = { version: '1.16.1' };
+    assert.throws(() => validate(pkg, lock), /unreviewed version/);
+  }
+});
 test('rejects disabled sandbox arguments or missing reviewed launcher', () => {
   const { pkg, lock } = fixture();
   pkg.build.linux.executableArgs = ['--no-sandbox'];
