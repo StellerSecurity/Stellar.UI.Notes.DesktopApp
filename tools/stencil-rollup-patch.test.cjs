@@ -29,7 +29,7 @@ test('does not coerce non-string output names', () => {
 });
 
 test('the injected guard is the exact first-party function tested above', () => {
-  const source = outputPath.toString().replace('function outputPath(', 'function stellarRollupOutputPath(');
+  const source = outputPath.toString().replace(/\r\n/g, '\n').replace('function outputPath(', 'function stellarRollupOutputPath(');
   assert.ok(spec.after.startsWith(source + '\nasync function writeOutputFile('));
   assert.ok(spec.after.endsWith('const fileName = stellarRollupOutputPath(import_node_path2, outputOptions, outputFile.fileName);'));
   assert.equal(spec.original, '31e6d332a91886959e0123de44bcf698163c8e31ceff88758dcc4d824bbadcdf');
