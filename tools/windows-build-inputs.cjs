@@ -32,6 +32,11 @@ async function download(item,dir){
   if(length!==item.size || h.digest('hex')!==item.sha256)throw Error('Downloaded Windows input integrity mismatch');
   fs.renameSync(part,target);return target;
 }
+function verifyBootstrap(bytes){
+  verify(bytes,spec.bootstrap);
+  const offset=bytes.readUInt32LE(60);
+  if(bytes.subarray(0,2).toString()!=='MZ' || bytes.subarray(offset,offset+4).toString()!=='PE\0\0' || ![0x14c,0x8664].includes(bytes.readUInt16LE(offset+4)))throw Error('Expected reviewed Windows 7-Zip bootstrap');
+}
 function verifyNsis(dir){
   for(const [relative,wanted]of Object.entries(spec.nsis.files)){
     const file=path.join(dir,relative),stat=fs.lstatSync(file);
@@ -46,13 +51,16 @@ async function prepare(base){
   const tar=path.join(systemRoot,'System32','tar.exe');if(!fs.statSync(tar).isFile())throw Error('System archive reader unavailable');
   const dir=fs.mkdtempSync(path.join(base,'notes-reviewed-windows-'));
   const electron=await download(spec.electron,dir),nsis=await download(spec.nsis,dir),seven=await download(spec.sevenZip,dir);
-  for(const archive of [nsis,seven])safeMembers(execFileSync(tar,['-tf',archive],{encoding:'utf8',timeout:30000,maxBuffer:4000000}));
+  const bootstrap=await download(spec.bootstrap,dir);verifyBootstrap(fs.readFileSync(bootstrap));
+  safeMembers(execFileSync(tar,['-tf',nsis],{encoding:'utf8',timeout:30000,maxBuffer:4000000}));
   execFileSync(tar,['-xf',nsis,'-C',dir],{timeout:30000,maxBuffer:1000000});verifyNsis(dir);
-  const bytes=execFileSync(tar,['-xOf',seven,spec.sevenZip.member],{timeout:30000,maxBuffer:4000000});verifySevenZip(bytes);
+  // Windows system tar lacks LZMA: use only the reviewed vendor bootstrap,
+  // with a fixed, checksum-verified archive/member and stdout output.
+  const bytes=execFileSync(bootstrap,['x','-so','-bd',seven,spec.sevenZip.member],{timeout:30000,maxBuffer:4000000});verifySevenZip(bytes);
   const exe=path.join(dir,'7za.exe');fs.writeFileSync(exe,bytes,{flag:'wx'});
   const paths={electronZip:electron,nsisDirectory:path.join(dir,'nsis-bundle'),sevenZip:exe};
   fs.writeFileSync(path.join(dir,'prepared.json'),JSON.stringify(paths,null,2)+'\n');
   return paths;
 }
 if(require.main===module)prepare(path.resolve(process.argv[2]||'')).then(p=>console.log(JSON.stringify(p))).catch(e=>{console.error(e.message);process.exitCode=1});
-module.exports={verify,safeMembers,verifySevenZip,verifyNsis,prepare,spec};
+module.exports={verify,safeMembers,verifySevenZip,verifyNsis,verifyBootstrap,prepare,spec};
