@@ -180,10 +180,18 @@ async function launch(executable, profile) {
     ...(process.platform === 'win32' ? ['--disable-backgrounding-occluded-windows'] : []),
   ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' } });
   // Consume output but never publish raw application logs (they may contain tokens).
-  child.stdout.resume();
-  let startupFailure = '';
+  const startupStages=new Set();
+  child.stdout.on('data',bytes=>{
+    const text=bytes.toString();
+    for(const label of ['App ready','Loading renderer entry','Renderer entry loaded','Renderer entry missing','Failed to load renderer entry']) {
+      if(text.includes(label))startupStages.add(label);
+    }
+  });
+  let startupFailure = '', debuggerListening=false;
+  let debuggerResponses=0, debuggerTargetKinds=[];
   child.stderr.on('data', bytes => {
     const text = bytes.toString();
+    if(text.includes('DevTools listening on'))debuggerListening=true;
     for (const label of ['No usable sandbox', 'Missing X server', 'error while loading shared libraries', 'Running as root']) {
       if (text.includes(label)) startupFailure = label;
     }
@@ -196,7 +204,10 @@ async function launch(executable, profile) {
       try {
         const response = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(1000) });
         const targets = await response.json();
-        return targets.find(t => t.type === 'page' && t.url.startsWith('file:') && /\/index\.html(?:#|$)/.test(t.url));
+        debuggerResponses++;
+        debuggerTargetKinds=targets.map(t=>({type:t.type,protocol:new URL(t.url || 'about:blank').protocol}));
+        return targets.find(t => t.type === 'page' && t.url.startsWith('file:') && /\/index\.html(?:[?#]|$)/.test(t.url)) ||
+          targets.find(t=>t.type==='page' && ['about:blank','chrome-error://chromewebdata/'].includes(t.url));
       } catch { return false; }
     }, 'packaged renderer debugging target', 60000);
     cdp = await CDP.connect(target.webSocketDebuggerUrl);
@@ -220,6 +231,7 @@ async function launch(executable, profile) {
       await stopChild(child);
     } };
   } catch (error) {
+    console.log('QA startup stages:',JSON.stringify({stages:[...startupStages],debuggerListening,debuggerResponses,debuggerTargetKinds,exitCode:child.exitCode,startupFailure}));
     if (cdp) {
       console.log('QA startup diagnostics:', JSON.stringify(cdp.runtimeDiagnostics.slice(-20)));
       try { console.log('QA startup structure:', JSON.stringify(await cdp.value(`({
