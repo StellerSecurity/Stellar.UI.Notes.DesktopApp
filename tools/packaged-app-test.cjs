@@ -342,7 +342,7 @@ async function run(executable, output, sync) {
     });
     await check('graceful restart restores saved note and formatting', async () => {
       await a.stop(); a = await launch(executable, profileA);
-      const saved = await note(a.cdp, marker); assert.ok(saved, 'Saved note disappeared');
+      const saved = await until(() => note(a.cdp, marker), 'saved note list after restart');
       await openNote(a.cdp, saved.id);
       await until(() => a.cdp.value(`(${editorHtml}).includes('BOLD QA')`), 'restored note content');
       assert.equal(await a.cdp.value(editorHtml), expectedHtml,'Restart must preserve formatting and all blank lines');
