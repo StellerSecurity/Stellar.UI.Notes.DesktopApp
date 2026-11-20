@@ -161,6 +161,14 @@ class CDP {
   }
 }
 
+async function stopChild(child, timeout = 5000) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = once(child, 'exit');
+  child.kill();
+  await Promise.race([exited, delay(timeout)]);
+  if (child.exitCode === null && child.signalCode === null) throw Error('QA child did not exit before cleanup');
+}
+
 async function launch(executable, profile) {
   const port = await freePort();
   fs.mkdirSync(profile, { recursive: true, mode: 0o700 });
@@ -208,10 +216,25 @@ async function launch(executable, profile) {
       if (stopped) return; stopped = true;
       try { await cdp.send('Page.close'); } catch { /* Window closure disconnects CDP. */ }
       cdp.socket.close();
-      await Promise.race([once(child, 'exit'), delay(5000)]);
-      if (child.exitCode === null) { child.kill(); await Promise.race([once(child, 'exit'), delay(3000)]); }
+      if (child.exitCode === null && child.signalCode === null) await Promise.race([once(child, 'exit'), delay(5000)]);
+      await stopChild(child);
     } };
-  } catch (error) { cdp?.socket.close(); child.kill(); throw error; }
+  } catch (error) {
+    if (cdp) {
+      console.log('QA startup diagnostics:', JSON.stringify(cdp.runtimeDiagnostics.slice(-20)));
+      try { console.log('QA startup structure:', JSON.stringify(await cdp.value(`({
+        readyState:document.readyState, visibility:document.visibilityState,
+        appRoots:document.querySelectorAll('app-root').length,
+        homePages:document.querySelectorAll('app-home').length,
+        desktopLayouts:document.querySelectorAll('.desktop-layout').length,
+        createButtons:document.querySelectorAll('.create-note-btn').length,
+        bodyChildren:document.body?.childElementCount
+      })`))); } catch { /* Keep the original startup error. */ }
+    }
+    cdp?.socket.close();
+    try { await stopChild(child); } catch { console.error('QA child termination failed'); }
+    throw error;
+  }
 }
 
 const storedNotes = `JSON.parse(localStorage.getItem('notes') || '[]')`;
@@ -366,8 +389,12 @@ async function run(executable, output, sync) {
   } finally {
     await Promise.allSettled([a?.stop(), b?.stop()]);
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(report, null, 2));
-    // Profiles contain QA authentication tokens. They must never become pipeline artifacts.
-    fs.rmSync(root, { recursive: true, force: true });
+    console.log('QA result:', JSON.stringify(report));
+    // Only this run's mkdtemp profiles are removed. Chromium/Windows may hold
+    // database files briefly after process exit; retain the original test error.
+    try { fs.rmSync(root, { recursive: true, force: true, maxRetries:20, retryDelay:100 }); }
+    catch { console.error('QA profile cleanup failed; isolated agent disposal is required'); process.exitCode = 1; }
+
   }
 }
 if (require.main === module) {
@@ -379,4 +406,4 @@ if (require.main === module) {
     console.error(`Packaged app test failed: ${String(error.message).slice(0, 240)}`); process.exitCode = 1;
   });
 }
-module.exports = { loopbackWebSocket, until };
+module.exports = { loopbackWebSocket, until, stopChild };
