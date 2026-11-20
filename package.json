@@ -197,7 +197,10 @@
         }
       ]
     },
-    "compression": "store"
+    "compression": "store",
+    "toolsets": {
+      "nsis": "1.2.1"
+    }
   },
   "overrides": {
     "proxy-addr": "2.0.8",

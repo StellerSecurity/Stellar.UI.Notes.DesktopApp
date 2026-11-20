@@ -74,7 +74,16 @@ jobs:
         displayName: Retain full dependency audit including mitigated findings
       - ${{ if eq(target, 'win') }}:
         - pwsh: |
-            node node_modules/electron-builder/cli.js --win nsis --x64 --publish never --config.win.forceCodeSigning=false
+            $ErrorActionPreference = 'Stop'
+            node --test tools/windows-build-inputs.test.cjs
+            if ($LASTEXITCODE -ne 0) { throw 'Windows input controls failed' }
+            $pathsJson = node tools/windows-build-inputs.cjs "$env:AGENT_TEMPDIRECTORY"
+            if ($LASTEXITCODE -ne 0) { throw 'Reviewed Windows input preparation failed' }
+            $paths = $pathsJson | ConvertFrom-Json
+            $env:ELECTRON_BUILDER_7ZIP_PATH = $paths.sevenZip
+            $env:ELECTRON_BUILDER_NSIS_DIR = $paths.nsisDirectory
+            $env:ELECTRON_BUILDER_NSIS_RESOURCES_DIR = $paths.nsisDirectory
+            node node_modules/electron-builder/cli.js --win nsis --x64 --publish never --config.win.forceCodeSigning=false --config.win.signExecutable=false --config.npmRebuild=false --config.toolsets.nsis=1.2.1 "--config.electronDist=$($paths.electronZip)"
             if ($LASTEXITCODE -ne 0) { throw 'Windows packaging failed' }
             node tools/finalize-desktop-release.cjs check-updater win dist/win-unpacked/resources/app-update.yml
             if ($LASTEXITCODE -ne 0) { throw 'Packaged Windows updater validation failed' }
