@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {verify,safeMembers,verifySevenZip,prepare,spec}=require('./windows-build-inputs.cjs');
+const {verify,safeMembers,verifySevenZip,verifyBootstrap,prepare,spec}=require('./windows-build-inputs.cjs');
 const crypto=require('node:crypto');
 test('size and SHA must both match before accepting downloaded bytes',()=>{
  const bytes=Buffer.from('fixture'),item={name:'fixture',size:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')};
@@ -16,3 +16,5 @@ test('the preparation command cannot download or execute on a non-Windows host',
  if(process.platform==='win32'){t.skip('checked on non-Windows host');return;}
  await assert.rejects(prepare('/private/tmp'),/Windows x64 CI/);
 });
+
+test('unreviewed bootstrap bytes fail before execution',()=>assert.throws(()=>verifyBootstrap(Buffer.alloc(spec.bootstrap.size)),/rejected/));

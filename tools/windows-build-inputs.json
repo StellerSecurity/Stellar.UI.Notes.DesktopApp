@@ -392,5 +392,12 @@
     "member": "x64/7za.exe",
     "binarySha256": "dd3757f31c97e33776f2590317d4fb12f2da075db3dbb1e3f94d0f2a01d84ffa",
     "binarySize": 1328640
+  },
+  "bootstrap": {
+    "version": "26.06",
+    "name": "7zr.exe",
+    "url": "https://github.com/ip7z/7zip/releases/download/26.06/7zr.exe",
+    "size": 600064,
+    "sha256": "e80db2dad715a6c5adabe292d31ed54e11f4e9b99ca349827b50573b175891bc"
   }
 }
