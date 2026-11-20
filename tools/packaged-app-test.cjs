@@ -161,6 +161,14 @@ class CDP {
   }
 }
 
+async function stopChild(child, timeout = 5000) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = once(child, 'exit');
+  child.kill();
+  await Promise.race([exited, delay(timeout)]);
+  if (child.exitCode === null && child.signalCode === null) throw Error('QA child did not exit before cleanup');
+}
+
 async function launch(executable, profile) {
   const port = await freePort();
   fs.mkdirSync(profile, { recursive: true, mode: 0o700 });
@@ -172,10 +180,18 @@ async function launch(executable, profile) {
     ...(process.platform === 'win32' ? ['--disable-backgrounding-occluded-windows'] : []),
   ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' } });
   // Consume output but never publish raw application logs (they may contain tokens).
-  child.stdout.resume();
-  let startupFailure = '';
+  const startupStages=new Set();
+  child.stdout.on('data',bytes=>{
+    const text=bytes.toString();
+    for(const label of ['App ready','Loading renderer entry','Renderer entry loaded','Renderer entry missing','Failed to load renderer entry']) {
+      if(text.includes(label))startupStages.add(label);
+    }
+  });
+  let startupFailure = '', debuggerListening=false;
+  let debuggerResponses=0, debuggerTargetKinds=[];
   child.stderr.on('data', bytes => {
     const text = bytes.toString();
+    if(text.includes('DevTools listening on'))debuggerListening=true;
     for (const label of ['No usable sandbox', 'Missing X server', 'error while loading shared libraries', 'Running as root']) {
       if (text.includes(label)) startupFailure = label;
     }
@@ -188,7 +204,10 @@ async function launch(executable, profile) {
       try {
         const response = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(1000) });
         const targets = await response.json();
-        return targets.find(t => t.type === 'page' && t.url.startsWith('file:') && /\/index\.html(?:#|$)/.test(t.url));
+        debuggerResponses++;
+        debuggerTargetKinds=targets.map(t=>({type:t.type,protocol:new URL(t.url || 'about:blank').protocol}));
+        return targets.find(t => t.type === 'page' && t.url.startsWith('file:') && /\/index\.html(?:[?#]|$)/.test(t.url)) ||
+          targets.find(t=>t.type==='page' && ['about:blank','chrome-error://chromewebdata/'].includes(t.url));
       } catch { return false; }
     }, 'packaged renderer debugging target', 60000);
     cdp = await CDP.connect(target.webSocketDebuggerUrl);
@@ -201,31 +220,56 @@ async function launch(executable, profile) {
         if (code !== 0) throw Error('Native Windows QA activation failed');
       };
     }
-    await until(() => cdp.value(`!!document.querySelector('.create-note-btn')`), 'application home');
+    await until(() => cdp.value(`!!document.querySelector('.notes-header button:has(ion-icon[name="create-outline"])')`), 'application home');
     assert.equal(await cdp.value(`typeof require === 'undefined' && typeof process === 'undefined'`), true, 'Node must be isolated from renderer');
     let stopped = false;
     return { cdp, child, async stop() {
       if (stopped) return; stopped = true;
       try { await cdp.send('Page.close'); } catch { /* Window closure disconnects CDP. */ }
       cdp.socket.close();
-      await Promise.race([once(child, 'exit'), delay(5000)]);
-      if (child.exitCode === null) { child.kill(); await Promise.race([once(child, 'exit'), delay(3000)]); }
+      if (child.exitCode === null && child.signalCode === null) await Promise.race([once(child, 'exit'), delay(5000)]);
+      await stopChild(child);
     } };
-  } catch (error) { cdp?.socket.close(); child.kill(); throw error; }
+  } catch (error) {
+    console.log('QA startup stages:',JSON.stringify({stages:[...startupStages],debuggerListening,debuggerResponses,debuggerTargetKinds,exitCode:child.exitCode,startupFailure}));
+    if (cdp) {
+      console.log('QA startup diagnostics:', JSON.stringify(cdp.runtimeDiagnostics.slice(-20)));
+      try { console.log('QA startup structure:', JSON.stringify(await cdp.value(`({
+        readyState:document.readyState, visibility:document.visibilityState,
+        appRoots:document.querySelectorAll('app-root').length,
+        homePages:document.querySelectorAll('app-home').length,
+        desktopLayouts:document.querySelectorAll('.desktop-layout').length,
+        createButtons:document.querySelectorAll('.notes-header button:has(ion-icon[name="create-outline"])').length,
+        bodyChildren:document.body?.childElementCount
+      })`))); } catch { /* Keep the original startup error. */ }
+    }
+    cdp?.socket.close();
+    try { await stopChild(child); } catch { console.error('QA child termination failed'); }
+    throw error;
+  }
 }
 
-const storedNotes = `JSON.parse(localStorage.getItem('notes') || '[]')`;
+const renderedNotes = `[...document.querySelectorAll('.home-note-list .note-row')].map(row=>({id:row.id,text:row.textContent}))`;
+const editorHtml = `document.querySelector('.ql-editor')?.innerHTML || ''`;
+const editorText = `document.querySelector('.ql-editor')?.textContent || ''`;
+
 async function note(cdp, marker) {
-  return cdp.value(`${storedNotes}.find(n => !n.deleted && (n.text || '').includes(${JSON.stringify(marker)})) || null`);
+  return cdp.value(`(() => {
+    const row=[...document.querySelectorAll('.home-note-list .note-row')].find(row=>row.textContent.includes(${JSON.stringify(marker)}));
+    if(!row)return null;
+    let group=row.previousElementSibling;
+    while(group && !group.classList.contains('note-group'))group=group.previousElementSibling;
+    return {id:row.id,favorite:!!row.querySelector('.favorite'),pinned:group?.textContent.trim()==='Pinned'};
+  })()`);
 }
 async function openNote(cdp, id) {
-  await cdp.click(`.home-note-list ion-item[id="${id}"]`);
+  await cdp.click(`.home-note-list .note-row[id="${id}"]`);
   await until(() => cdp.value(`!!document.querySelector('.ql-editor[contenteditable=true]')`), 'note editor');
 }
 async function newNote(cdp, marker) {
-  await cdp.click('.create-note-btn');
+  await cdp.click('.notes-header button:has(ion-icon[name="create-outline"])');
   await cdp.text('.ql-editor[contenteditable=true]', marker);
-  return until(() => note(cdp, marker), 'note saved to real app storage');
+  return until(() => note(cdp, marker), 'new note appears in the real note list');
 }
 async function credentialsForm(cdp, route, credentials, submit) {
   await cdp.value(`location.hash = ${JSON.stringify(route)}`);
@@ -234,7 +278,7 @@ async function credentialsForm(cdp, route, credentials, submit) {
   await until(() => cdp.value(`!![...document.querySelectorAll('form.ng-valid')].find(e => !e.closest('.ion-page-hidden,.ion-page-invisible'))`), 'valid QA form');
   await cdp.click(submit);
   try {
-    await until(() => cdp.value(`!location.hash.includes('/profile/') && !!document.querySelector('.create-note-btn')`), 'QA authentication', 60000);
+    await until(() => cdp.value(`!location.hash.includes('/profile/') && !!document.querySelector('.notes-header button:has(ion-icon[name="create-outline"])')`), 'QA authentication', 60000);
   } catch {
     const state = await cdp.value(`({valid:!!document.querySelector('form.ng-valid'),busy:!!document.querySelector('.create-button ion-spinner,.login-button ion-spinner')})`);
     console.log('QA auth diagnostics:', JSON.stringify({ operation: route.endsWith('create-account') ? 'create' : 'login', ...state, responses: cdp.authResponses }));
@@ -244,7 +288,7 @@ async function credentialsForm(cdp, route, credentials, submit) {
 async function append(cdp, text) {
   await cdp.click('.ql-editor'); await cdp.key('End', 'End', 35, 2);
   await cdp.send('Input.insertText', { text });
-  await cdp.click('.notes-heading'); // Let the normal editor blur/save path run.
+  await cdp.click('.notes-heading-copy'); // Let the normal editor blur/save path run.
 }
 
 async function run(executable, output, sync) {
@@ -265,12 +309,17 @@ async function run(executable, output, sync) {
   try {
     a = await launch(executable, profileA);
     await check('packaged startup and empty isolated profile', async () => {
-      assert.deepEqual(await a.cdp.value(storedNotes), []);
+      assert.deepEqual(await a.cdp.value(renderedNotes), []);
       await a.cdp.screenshot(path.join(output, '01-startup.png'));
     });
-    let first;
-    await check('editor typing, literal dash-space, bold and real local storage', async () => {
+    let first, expectedHtml;
+    await check('editor typing, literal dash-space and bold before persistence restart', async () => {
       first = await newNote(a.cdp, marker);
+      await a.cdp.key('Home', 'Home', 36, 2);
+      await a.cdp.key('Enter', 'Enter', 13);
+      await a.cdp.key('Enter', 'Enter', 13);
+      await a.cdp.key('End', 'End', 35, 2);
+      await a.cdp.key('Enter', 'Enter', 13);
       await a.cdp.key('Enter', 'Enter', 13);
       await a.cdp.send('Input.insertText', { text: '-' });
       await a.cdp.key(' ', 'Space', 32);
@@ -279,18 +328,24 @@ async function run(executable, output, sync) {
       await a.cdp.click('.ql-bold');
       await a.cdp.send('Input.insertText', { text: 'BOLD QA' });
       await a.cdp.click('.ql-bold');
-      await a.cdp.click('.notes-heading');
+      await a.cdp.key('Enter', 'Enter', 13);
+      await a.cdp.key('Enter', 'Enter', 13);
+      await a.cdp.click('.notes-heading-copy');
       await until(async () => {
-        const n = await note(a.cdp, marker);
-        return n && /<strong>BOLD QA<\/strong>/.test(n.text) && n.text.includes('- literal dash') && !/<li[ >]/.test(n.text);
+        const html=await a.cdp.value(editorHtml);
+        return /<strong>BOLD QA<\/strong>/.test(html) && html.includes('- literal dash') && !/<li[ >]/.test(html);
       }, 'formatting persisted');
+      expectedHtml=await a.cdp.value(editorHtml);
+      assert.match(expectedHtml,/^(?:<p><br><\/p>){2}/,'Leading blank lines must be visible');
+      assert.match(expectedHtml,/(?:<p><br><\/p>){2}$/,'Trailing blank lines must be visible');
       await a.cdp.screenshot(path.join(output, '02-editor.png'));
     });
     await check('graceful restart restores saved note and formatting', async () => {
       await a.stop(); a = await launch(executable, profileA);
       const saved = await note(a.cdp, marker); assert.ok(saved, 'Saved note disappeared');
-      assert.match(saved.text, /<strong>BOLD QA<\/strong>/);
       await openNote(a.cdp, saved.id);
+      await until(() => a.cdp.value(`(${editorHtml}).includes('BOLD QA')`), 'restored note content');
+      assert.equal(await a.cdp.value(editorHtml), expectedHtml,'Restart must preserve formatting and all blank lines');
       await until(() => a.cdp.value(`document.querySelector('.ql-editor')?.textContent.includes('BOLD QA')`), 'reopened editor');
       await a.cdp.screenshot(path.join(output, '03-restart.png'));
     });
@@ -304,45 +359,50 @@ async function run(executable, output, sync) {
         // A restart exercises normal secure storage/auth initialization after registration.
         await a.stop(); a = await launch(executable, profileA);
         b = await launch(executable, profileB);
-        assert.deepEqual(await b.cdp.value(storedNotes), []);
+        assert.deepEqual(await b.cdp.value(renderedNotes), []);
         await credentialsForm(b.cdp, '/profile/login', credentials, '.login-button');
       });
       await check('note sync A to B with identical rich text', async () => {
         const remote = await until(() => note(b.cdp, marker), 'real service sync A to B', 90000);
-        const local = await note(a.cdp, marker);
-        assert.equal(remote.text, local.text); first = remote;
+        first = remote;
         await openNote(b.cdp, remote.id);
+        await openNote(a.cdp, (await note(a.cdp,marker)).id);
+        await until(() => b.cdp.value(`(${editorHtml}).includes('BOLD QA')`), 'downloaded note content');
+        assert.equal(await a.cdp.value(editorHtml),expectedHtml,'Upload must preserve all blank lines');
+        assert.equal(await b.cdp.value(editorHtml), await a.cdp.value(editorHtml));
       });
       await check('edit B to A updates the already-open editor', async () => {
-        await openNote(a.cdp, first.id); await a.cdp.click('.notes-heading');
+        await openNote(a.cdp, first.id); await a.cdp.click('.notes-heading-copy');
         await append(b.cdp, ' RETURN-FROM-B');
         await until(() => a.cdp.value(`document.querySelector('.ql-editor')?.textContent.includes('RETURN-FROM-B')`), 'live editor update', 90000);
-        assert.equal((await note(a.cdp, marker)).text, (await note(b.cdp, marker)).text);
+        assert.equal(await a.cdp.value(editorHtml), await b.cdp.value(editorHtml));
         await a.cdp.screenshot(path.join(output, '04-live-sync.png'));
       });
       await check('favorite and pin sync to second client', async () => {
-        await a.cdp.click(`ion-item[id="${first.id}"] .note-actions-inline ion-button:nth-child(1)`);
-        await a.cdp.click(`ion-item[id="${first.id}"] .note-actions-inline ion-button:nth-child(2)`);
+        await a.cdp.click('.editor-note-actions button:has(ion-icon[name="star-outline"])');
+        await a.cdp.click('.editor-note-actions button:has(ion-icon[name="ellipsis-horizontal"])');
+        await a.cdp.click('.desktop-note-actions-popover .sn-menu button:has(ion-icon[name="pin-outline"])');
         await until(async () => { const n = await note(b.cdp, marker); return n?.pinned && n?.favorite; }, 'metadata sync', 90000);
       });
       await check('offline edit survives restart and automatically synchronizes', async () => {
         await b.cdp.send('Network.enable');
         await b.cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
         await append(b.cdp, ' OFFLINE-RETURN');
-        await until(async () => (await note(b.cdp, marker))?.text.includes('OFFLINE-RETURN'), 'offline persistence');
+        await until(() => b.cdp.value(`(${editorText}).includes('OFFLINE-RETURN')`), 'offline editor update');
         await delay(2000);
-        assert.ok(!(await note(a.cdp, marker))?.text.includes('OFFLINE-RETURN'), 'Offline client unexpectedly uploaded');
+        assert.ok(!(await a.cdp.value(editorText)).includes('OFFLINE-RETURN'), 'Offline client unexpectedly uploaded');
         await b.stop(); b = await launch(executable, profileB);
-        assert.ok((await note(b.cdp, marker))?.text.includes('OFFLINE-RETURN'));
-        await until(async () => (await note(a.cdp, marker))?.text.includes('OFFLINE-RETURN'), 'outbox replay after restart', 90000);
+        const restored=await until(()=>note(b.cdp,marker),'saved offline note after restart');
+        await openNote(b.cdp,restored.id);
+        assert.ok((await b.cdp.value(editorText)).includes('OFFLINE-RETURN'));
+        await until(() => a.cdp.value(`(${editorText}).includes('OFFLINE-RETURN')`), 'outbox replay after restart', 90000);
         await a.cdp.screenshot(path.join(output, '05-offline-recovery.png'));
       });
       await check('delete only this run’s QA note and sync deletion', async () => {
         // Client A already displays this note; do not navigate it again before selection.
-        await a.cdp.click('.notes-header-actions ion-button:has(img[src="assets/tabler-icon-square-check.svg"])');
-        await a.cdp.click(`ion-checkbox[id="checkbox_${first.id}"]`);
-        await a.cdp.click('.toolbar-bottom .delete-btn');
-        await a.cdp.click('.confirmation-modal .blue-btn:not(.transparent-btn)');
+        await a.cdp.click('.editor-note-actions button:has(ion-icon[name="ellipsis-horizontal"])');
+        await a.cdp.click('.desktop-note-actions-popover .sn-menu button.danger');
+        await a.cdp.click('.confirmation-modal button.destructive');
         await until(async () => !(await note(a.cdp, marker)) && !(await note(b.cdp, marker)), 'deletion sync', 90000);
         await a.cdp.screenshot(path.join(output, '06-deletion.png'));
       });
@@ -366,8 +426,12 @@ async function run(executable, output, sync) {
   } finally {
     await Promise.allSettled([a?.stop(), b?.stop()]);
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(report, null, 2));
-    // Profiles contain QA authentication tokens. They must never become pipeline artifacts.
-    fs.rmSync(root, { recursive: true, force: true });
+    console.log('QA result:', JSON.stringify(report));
+    // Only this run's mkdtemp profiles are removed. Chromium/Windows may hold
+    // database files briefly after process exit; retain the original test error.
+    try { fs.rmSync(root, { recursive: true, force: true, maxRetries:20, retryDelay:100 }); }
+    catch { console.error('QA profile cleanup failed; isolated agent disposal is required'); process.exitCode = 1; }
+
   }
 }
 if (require.main === module) {
@@ -379,4 +443,4 @@ if (require.main === module) {
     console.error(`Packaged app test failed: ${String(error.message).slice(0, 240)}`); process.exitCode = 1;
   });
 }
-module.exports = { loopbackWebSocket, until };
+module.exports = { loopbackWebSocket, until, stopChild };
