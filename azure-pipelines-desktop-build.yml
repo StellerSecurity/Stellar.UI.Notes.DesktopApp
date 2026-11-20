@@ -90,9 +90,18 @@ jobs:
           displayName: Package Windows without Authenticode (approved unsigned release)
       - ${{ if eq(target, 'linux') }}:
         - pwsh: |
-            node node_modules/electron-builder/cli.js --linux AppImage --x64 --publish never --config.compression=store
+            $ErrorActionPreference = 'Stop'
+            python3 -B tools/linux-build-inputs.test.py
+            if ($LASTEXITCODE -ne 0) { throw 'Linux input controls failed' }
+            $pathsJson = python3 -B tools/linux-build-inputs.py "$env:AGENT_TEMPDIRECTORY"
+            if ($LASTEXITCODE -ne 0) { throw 'Reviewed Linux input preparation failed' }
+            $paths = $pathsJson | ConvertFrom-Json
+            $env:APPIMAGE_TOOLS_PATH = $paths.appimageTools
+            Remove-Item Env:LD_LIBRARY_PATH -ErrorAction SilentlyContinue
+            Remove-Item Env:LD_PRELOAD -ErrorAction SilentlyContinue
+            node node_modules/electron-builder/cli.js --linux AppImage --x64 --publish never --config.compression=store --config.toolsets.appimage=1.0.3 --config.npmRebuild=false "--config.electronDist=$($paths.electronZip)"
             if ($LASTEXITCODE -ne 0) { throw 'Linux packaging failed' }
-          displayName: Package Linux AppImage
+          displayName: Package Linux AppImage with reviewed native inputs
       - pwsh: |
           node tools/finalize-desktop-release.cjs stage '${{ target }}' dist "$env:STAGING_DIR"
           if ($LASTEXITCODE -ne 0) { throw 'Artifact checks failed' }
