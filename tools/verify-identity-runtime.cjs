@@ -5,6 +5,10 @@ const { createHash } = require('node:crypto');
 function verify() {
   const root = path.resolve(__dirname, '../identity-runtime');
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+  const declared = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  if (JSON.stringify(declared.dependencies) !== JSON.stringify({'@serenity-kit/opaque':'1.1.0'})
+    || declared.scripts || declared.devDependencies || declared.optionalDependencies
+    || Object.keys(lock.packages || {}).sort().join(',') !== ',node_modules/@serenity-kit/opaque') throw new Error('Unexpected identity runtime dependency or lifecycle script.');
   const item = lock.packages?.['node_modules/@serenity-kit/opaque'];
   const folder = path.join(root, 'node_modules/@serenity-kit/opaque');
   const manifest = JSON.parse(fs.readFileSync(path.join(folder, 'package.json'), 'utf8'));

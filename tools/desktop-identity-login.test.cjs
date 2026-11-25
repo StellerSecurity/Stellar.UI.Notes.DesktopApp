@@ -53,3 +53,25 @@ test('failed reauthentication restores the existing key and session metadata',as
  f.secure.setItem=async(k,v)=>{if(k==='ssToken'&&!failed){failed=true;throw Error('synthetic storage failure')}return original(k,v)};
  await f.component.login();assert.equal(f.secure.map.get('ssToken'),'1|previous');assert.equal(f.secure.map.get('ssEakB64'),key);assert.equal(f.secure.map.get('ssAuthVersion'),'1');assert.deepEqual(f.revoked,['2|synthetic']);assert.equal(f.imported.at(-1),key);
 });
+
+test('an app-locked desktop retains its wrapped key and offline note contents on reauthentication',async()=>{
+ const {wrapLocalAppKey,unwrapLocalAppKey}=load('src/app/utils/local-app-key.ts');
+ const key=Buffer.from(Array.from({length:32},(_,i)=>i+1)).toString('base64'),f=fixture(key),password='synthetic-local-app-lock';
+ const localNotes=JSON.stringify([{id:'offline-note',text:'\nPending edit\n\n',folder_id:'original-folder',protected:true}]);
+ const uploaded=[];f.component.notesService={appHasPasswordChallenge:()=>true,getNotesAppPassword:()=>password,getNotes:()=>localNotes,getDecryptedNotes:()=>null};
+ f.component.notesApiV1Service={upload:async(_since,notes)=>uploaded.push(notes)};
+ await f.secure.removeItem('ssEakB64');await f.secure.setItem('ssEakB64_Encrypted',await wrapLocalAppKey(key,password));
+ await f.component.login();
+ assert.equal(f.secure.map.get('ssToken'),'2|synthetic');assert.equal(f.secure.map.has('ssEakB64'),false);
+ assert.equal(await unwrapLocalAppKey(f.secure.map.get('ssEakB64_Encrypted'),password,()=>{throw Error('unexpected legacy wrapper')}),key);
+ assert.deepEqual(uploaded,[JSON.parse(localNotes)]);assert.equal(f.component.notesService.getNotes(),localNotes);
+});
+
+test('a failed protected-account marker write revokes the new session and clears temporary root bytes',async()=>{
+ const {IdentityAuthService}=load('src/app/services/identity-auth.service.ts');
+ const rootKey=new Uint8Array(32).fill(7),revoked=[];
+ const service=Object.create(IdentityAuthService.prototype);service.client=async()=>({login:async()=>({token:'2|synthetic',rootKey}),logout:async token=>revoked.push(token)});
+ service.secure={setItem:async()=>{throw Error('synthetic storage failure')}};
+ await assert.rejects(()=>service.login('qa@example.invalid','synthetic'),/storage failure/);
+ assert.deepEqual(revoked,['2|synthetic']);assert.ok(rootKey.every(x=>x===0));
+});
