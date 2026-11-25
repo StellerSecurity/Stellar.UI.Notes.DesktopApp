@@ -251,7 +251,7 @@ describe('Desktop design interactions', () => {
   });
   it('keeps sidebar and account menu on the same restored session state', async () => {
     const secure={getItem:async(key:string)=>key==='ssToken'?'synthetic-token':JSON.stringify({email:'fixture@example.invalid'})};
-    const auth=new AuthService({} as any,secure as any);
+    const auth=new AuthService({} as any,secure as any,{} as any);
     const menu:any=Object.create(UserMenuComponent.prototype); menu.authService=auth; menu.secureStorageService=secure;
     const p=home(); p.authService=auth;
     await menu.loadUserData();
@@ -260,11 +260,12 @@ describe('Desktop design interactions', () => {
     expect(p.isLoggedIn()).toBeFalse(); expect(menu.isUserIsLoggedIn).toBeFalse();
   });
   it('does not let a delayed storage read overwrite a later login or logout', async () => {
-    let finish!:(value:string|null)=>void;
-    const auth=new AuthService({} as any,{getItem:()=>new Promise<string|null>(resolve=>{finish=resolve;})} as any);
-    auth.setLoggedInState(true); finish(null); await Promise.resolve();
+    const reads:Array<(value:string|null)=>void>=[];
+    const auth=new AuthService({} as any,{getItem:(key:string)=>key==='ssToken'?new Promise<string|null>(resolve=>{reads.push(resolve);}):Promise.resolve(null)} as any,{} as any);
+    auth.setLoggedInState(true); reads[0](null); await Promise.resolve(); await Promise.resolve();
     expect(auth.isLoggedIn).toBeTrue();
-    const refresh=auth.initializeAuthState(); auth.setLoggedInState(false); finish('stale-token'); await refresh;
+    const refresh=auth.initializeAuthState(); auth.setLoggedInState(false); reads[2]('stale-token'); await refresh;
+    reads[1]('older-token'); await Promise.resolve(); await Promise.resolve();
     expect(auth.isLoggedIn).toBeFalse();
   });
   for (const failKey of [false,true]) {

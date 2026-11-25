@@ -1,0 +1,8 @@
+{
+  "name": "stellar-id-desktop-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@serenity-kit/opaque": "1.1.0"
+  }
+}

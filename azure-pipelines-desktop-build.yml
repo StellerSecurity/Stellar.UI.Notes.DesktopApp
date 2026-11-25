@@ -52,6 +52,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Reviewed Stencil patch rejected' }
           node tools/release-toolchain-check.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Installed release toolchain rejected' }
+          npm ci --prefix identity-runtime --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Locked identity runtime installation failed' }
+          node tools/verify-identity-runtime.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Identity runtime checksum validation failed' }
+          npm run test:identity
+          if ($LASTEXITCODE -ne 0) { throw 'Upgraded account login tests failed' }
           $auditDir = Join-Path '$(Build.ArtifactStagingDirectory)' 'dependency-audit'
           New-Item -ItemType Directory -Force -Path $auditDir | Out-Null
           $auditFile = Join-Path $auditDir 'npm-audit.json'
