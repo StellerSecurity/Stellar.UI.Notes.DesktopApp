@@ -1,10 +1,10 @@
 import { translateText as t } from '../../i18n';
 import { unlockLegacyNotesKey, VaultAccessError } from '../../utils/legacy-vault-access';
-import { wrapLocalAppKey } from '../../utils/local-app-key';
+import { wrapLocalAppKey, unwrapLocalAppKey } from '../../utils/local-app-key';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { IdentitySession } from '../../utils/stellar-id-client';
 import { loginDto } from 'src/app/constants/models/authDto';
 import { AuthService } from 'src/app/services/auth.service';
 import { SecureStorageService } from 'src/app/services/secure-storage.service';
@@ -59,33 +59,6 @@ export class LoginComponent {
     this.showPassword = !this.showPassword;
   }
 
-  loginOld() {
-    if (this.loginForm.valid) {
-      this.isSaving = true;
-      const loginObj: loginDto = {
-        username: this.loginForm.get('email')?.value,
-        password: this.loginForm.get('password')?.value,
-      };
-
-      this.authService.loginHandling(loginObj).subscribe({
-        next: (response: any) => {
-          this.isSaving = false;
-          if (response.response_code == 200) {
-            // this.localStorageService.storeToLocalStorage("ssToken", response.token);
-            // this.toastrService.success(this.translatorService.allTranslations.loggedInSuccessfully);
-            this.router.navigate(['/']);
-          } else {
-            this.formError = (response.response_message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
-          }
-        },
-        error: (error) => {
-          this.isSaving = false;
-          this.formError = (error?.error?.message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
-        },
-      });
-    }
-  }
-
   async login() {
     if (!this.loginForm.valid) return;
 
@@ -101,8 +74,13 @@ export class LoginComponent {
 
     let issuedToken: string | null = null;
     let loginCompleted = false;
+    let identity: IdentitySession | undefined;
+    let beforeCommit: Map<string, string | null> | undefined;
+    let previousToken: string | null = null;
+    let rollbackRoot: string | null = null;
     try {
       const existingToken = await this.secureStorageService.getItem('ssToken');
+      previousToken = existingToken;
       let previousUser: any = null;
       if (existingToken) {
         try { previousUser = JSON.parse(await this.secureStorageService.getItem('ssUser') || 'null'); } catch { /* Preserve corrupt local state. */ }
@@ -111,7 +89,9 @@ export class LoginComponent {
           return;
         }
       }
-      let response: any = await firstValueFrom(this.authService.loginHandling(loginObj));
+      const result = await this.authService.signIn(loginObj.username, loginObj.password);
+      const response = result.response;
+      identity = result.identity;
 
       if (response.response_code === 200) {
         if (typeof response.token !== 'string' || !response.token) throw new Error('Invalid login response');
@@ -123,9 +103,17 @@ export class LoginComponent {
         // Authentication and Notes unlocking are separate. The previous Notes
         // password is used locally and is never included in the login request.
         const notesPassword = this.loginForm.get('notesPassword')?.value || loginObj.password;
-        const eakB64 = await unlockLegacyNotesKey(user, notesPassword);
-        if (existingToken && await unlockLegacyNotesKey(previousUser, notesPassword) !== eakB64) {
-          throw new VaultAccessError('notesKeyMissing');
+        const eakB64 = identity ? btoa(String.fromCharCode(...identity.rootKey)) : await unlockLegacyNotesKey(user, notesPassword);
+        if (existingToken) {
+          let previousKey = await this.secureStorageService.getItem('ssEakB64');
+          const wrapped = await this.secureStorageService.getItem('ssEakB64_Encrypted');
+          if (!previousKey && wrapped && this.notesService.getNotesAppPassword()) {
+            previousKey = await unwrapLocalAppKey(wrapped, this.notesService.getNotesAppPassword(),
+              (value, password) => this.cryptoService.decrypt(value, password));
+          }
+          if (!previousKey && !identity) previousKey = await unlockLegacyNotesKey(previousUser, notesPassword);
+          if (previousKey !== eakB64) throw new VaultAccessError('notesKeyMissing');
+          rollbackRoot = previousKey;
         }
         // Reauthentication must preserve the account/key behind pending offline
         // edits. Refuse an account switch while another session is still present.
@@ -136,6 +124,10 @@ export class LoginComponent {
         if (this.notesService.appHasPasswordChallenge() && !this.notesService.getNotesAppPassword()) {
           this.vaultErrorKey = 'notesUnlockAppFirst';
           return;
+        }
+        beforeCommit = new Map();
+        for (const key of ['ssEakB64', 'ssEakB64_Encrypted', 'ssUser', 'ssIdentitySession', 'ssAuthVersion']) {
+          beforeCommit.set(key, await this.secureStorageService.getItem(key));
         }
         await this.cryptoKeyService.importEAK(eakB64);
 
@@ -151,6 +143,7 @@ export class LoginComponent {
 
         // Publish the sync session only after its key and account are stored.
         await this.secureStorageService.setItem('ssUser', JSON.stringify(user));
+        await this.authService.rememberSession(identity);
         issuedToken = response.token;
         await this.secureStorageService.setItem('ssToken', response.token);
         loginCompleted = true;
@@ -186,10 +179,19 @@ export class LoginComponent {
         this.formError = (response.response_message) || t('uiTheRequestCouldNotBeCompletedPleaseTry');
       }
     } catch (error: any) {
-      if (!loginCompleted && issuedToken && await this.secureStorageService.getItem('ssToken') === issuedToken) {
-        await this.secureStorageService.removeItem('ssToken');
-        this.cryptoKeyService.clearRuntimeKeys();
-        this.authService.setLoggedInState(false);
+      if (!loginCompleted && beforeCommit) {
+        const current = await this.secureStorageService.getItem('ssToken');
+        if (current === previousToken || current === issuedToken) {
+          await this.secureStorageService.removeItem('ssToken');
+          this.authService.setLoggedInState(false);
+          this.cryptoKeyService.clearRuntimeKeys();
+          for (const [key, value] of beforeCommit) {
+            if (value === null) await this.secureStorageService.removeItem(key);
+            else await this.secureStorageService.setItem(key, value);
+          }
+          if (rollbackRoot) await this.cryptoKeyService.importEAK(rollbackRoot);
+          if (previousToken) await this.secureStorageService.setItem('ssToken', previousToken);
+        }
       }
       if (error instanceof VaultAccessError) {
         this.vaultErrorKey = error.translationKey;
@@ -198,6 +200,10 @@ export class LoginComponent {
       }
       this.formError = t('uiTheRequestCouldNotBeCompletedPleaseTry');
     } finally {
+      if (identity) {
+        identity.rootKey.fill(0);
+        if (!loginCompleted) await this.authService.revokeIdentity(identity.token).catch(() => {});
+      }
       this.isSaving = false;
 
     }

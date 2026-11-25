@@ -1,9 +1,12 @@
 import { Injectable } from '@angular/core';
-import {BehaviorSubject, firstValueFrom, Observable} from 'rxjs';
+import {BehaviorSubject, firstValueFrom, Observable, timeout} from 'rxjs';
 import { loginDto } from '../constants/models/authDto';
 import {HttpClient, HttpHeaders} from '@angular/common/http';
 import { auth, baseUrl } from '../constants/api/product.api';
 import { SecureStorageService } from './secure-storage.service';
+import { IdentityAuthService } from './identity-auth.service';
+import { IdentitySession } from '../utils/stellar-id-client';
+import { sessionToken } from '../utils/session-token';
 
 @Injectable({
   providedIn: 'root',
@@ -11,10 +14,11 @@ import { SecureStorageService } from './secure-storage.service';
 export class AuthService {
   private loggedInSubject = new BehaviorSubject<boolean>(false);
   private authStateRevision = 0;
+  private expiryTimer?: ReturnType<typeof setTimeout>;
 
   public readonly loginState$ = this.loggedInSubject.asObservable();
 
-  constructor(private http: HttpClient, private secureStorageService: SecureStorageService) {
+  constructor(private http: HttpClient, private secureStorageService: SecureStorageService, private identity: IdentityAuthService) {
     this.initializeAuthState();
   }
 
@@ -24,22 +28,50 @@ export class AuthService {
 
   setLoggedInState(isLoggedIn: boolean): void {
     this.authStateRevision++;
+    clearTimeout(this.expiryTimer);
     this.loggedInSubject.next(!!isLoggedIn);
+    if (isLoggedIn) void this.initializeAuthState();
   }
 
   async initializeAuthState() {
     const revision = ++this.authStateRevision;
-    const token = await this.secureStorageService.getItem('ssToken');
-    // A pending storage read must not overwrite a later login/logout.
-    if (revision === this.authStateRevision) this.loggedInSubject.next(!!token);
+    clearTimeout(this.expiryTimer);
+    const token = await sessionToken(this.secureStorageService);
+    if (revision !== this.authStateRevision) return;
+    this.loggedInSubject.next(!!token);
+    if (token && await this.secureStorageService.getItem('ssAuthVersion') === '2') {
+      const session = JSON.parse(await this.secureStorageService.getItem('ssIdentitySession') || '{}');
+      if (revision !== this.authStateRevision) return;
+      this.expiryTimer = setTimeout(() => this.setLoggedInState(false), Math.max(0, Date.parse(session.expiresAt) - Date.now()));
+    }
   }
+
+  async signIn(email: string, password: string): Promise<{ response: any; identity?: IdentitySession }> {
+    await this.identity.assertAccount(email);
+    if (await this.identity.method(email) === 'legacy') {
+      return { response: await firstValueFrom(this.loginHandling({ username: email, password })) };
+    }
+    const identity = await this.identity.login(email, password);
+    return { response: this.identity.sessionResponse(identity), identity };
+  }
+
+  async rememberSession(session?: IdentitySession): Promise<void> {
+    if (session) await this.identity.rememberSession(session);
+    else {
+      await this.identity.clearSession();
+      await this.secureStorageService.setItem('ssAuthVersion', '1');
+    }
+  }
+
+  async revokeIdentity(token: string): Promise<void> { await this.identity.revoke(token); }
+  async logoutIdentity(): Promise<void> { await this.identity.logout(); }
 
   createAccount(data: loginDto): Observable<any> {
     return this.http.post<any>(baseUrl + auth.createAcc, data);
   }
 
   loginHandling(data: loginDto): Observable<any> {
-    return this.http.post<any>(baseUrl + auth.loginAcc, data);
+    return this.http.post<any>(baseUrl + auth.loginAcc, data).pipe(timeout(15000));
   }
 
   async updateEak(payload: {

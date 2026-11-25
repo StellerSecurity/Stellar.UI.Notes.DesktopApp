@@ -70,3 +70,7 @@ config.bat
 
 # Markdown documentation stays local and must not be committed to GitHub.
 *.[mM][dD]
+
+# Local instructions and installed identity runtime
+*.[mM][dD]
+identity-runtime/node_modules/
