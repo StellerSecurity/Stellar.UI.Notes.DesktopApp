@@ -48,6 +48,13 @@ jobs:
 
           failed=0
           while IFS= read -r -d '' path; do
+            # User-approved exception: only this repository's regular root guide.
+            if [[ "$GITHUB_REPOSITORY" == "StellerSecurity/Stellar.UI.Notes.DesktopApp" && "$path" == "AGENTS.md" ]]; then
+              entry="$(git --git-dir="$scratch/repo.git" ls-tree --format='%(objectmode) %(objecttype)' "$TARGET_SHA" -- "$path")"
+              if [[ "$entry" == '100644 blob' ]]; then
+                continue
+              fi
+            fi
             case "$path" in
               *.[mM][dD])
                 printf 'Disallowed tracked file: %q\n' "$path"
@@ -57,6 +64,6 @@ jobs:
           done < "$scratch/paths"
 
           if (( failed )); then
-            echo "::error::Markdown files must remain local and untracked."
+            echo "::error::Markdown files must remain local and untracked except the approved regular root AGENTS.md in the desktop source repository."
             exit 1
           fi
