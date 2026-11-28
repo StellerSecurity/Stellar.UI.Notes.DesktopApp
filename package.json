@@ -126,7 +126,8 @@
       "package.json",
       "desktop-localization.cjs",
       "desktop-persistence.cjs",
-      "desktop-update-status.cjs"
+      "desktop-update-status.cjs",
+      "desktop-session-credential.cjs"
     ],
     "extraResources": [
       {

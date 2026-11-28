@@ -164,6 +164,7 @@ export class RemoteDownloadSyncService {
   }
 
   private async performSync(): Promise<boolean> {
+    await this.authService.initializeAuthState?.();
     if (!this.authService.isLoggedIn) {
       this.dataService.setForceDownloadOnHome(false);
       return false;

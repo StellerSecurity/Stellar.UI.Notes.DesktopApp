@@ -15,6 +15,8 @@ export class AuthService {
   private loggedInSubject = new BehaviorSubject<boolean>(false);
   private authStateRevision = 0;
   private expiryTimer?: ReturnType<typeof setTimeout>;
+  private publishedToken: string | null = null;
+  private rememberedSession = false;
 
   public readonly loginState$ = this.loggedInSubject.asObservable();
 
@@ -23,10 +25,13 @@ export class AuthService {
   }
 
   get isLoggedIn(): boolean {
-    return this.loggedInSubject.value;
+    return this.loggedInSubject.value || this.rememberedSession;
   }
 
+  get hasActiveSession(): boolean { return this.loggedInSubject.value; }
+
   setLoggedInState(isLoggedIn: boolean): void {
+    if (!isLoggedIn) this.rememberedSession = false;
     this.authStateRevision++;
     clearTimeout(this.expiryTimer);
     this.loggedInSubject.next(!!isLoggedIn);
@@ -36,14 +41,31 @@ export class AuthService {
   async initializeAuthState() {
     const revision = ++this.authStateRevision;
     clearTimeout(this.expiryTimer);
-    const token = await sessionToken(this.secureStorageService);
+    let token: string | null = null;
+    try { token = await this.identity.ensureSession(); } catch { /* Retry without touching local data. */ }
     if (revision !== this.authStateRevision) return;
-    this.loggedInSubject.next(!!token);
-    if (token && await this.secureStorageService.getItem('ssAuthVersion') === '2') {
-      const session = JSON.parse(await this.secureStorageService.getItem('ssIdentitySession') || '{}');
-      if (revision !== this.authStateRevision) return;
-      this.expiryTimer = setTimeout(() => this.setLoggedInState(false), Math.max(0, Date.parse(session.expiresAt) - Date.now()));
+    let remembered = false;
+    try {
+      const meta = JSON.parse(await this.secureStorageService.getItem('ssIdentitySession') || '{}');
+      const owner = JSON.parse(await this.secureStorageService.getItem('ssUser') || 'null');
+      const storedAccess = await this.secureStorageService.getItem('ssToken');
+      remembered = await this.secureStorageService.getItem('ssAuthVersion') === '2' && !meta.refreshRejected
+        && typeof storedAccess === 'string' && meta.tokenId === storedAccess.split('|')[0]
+        && String(owner?.id) === meta.accountId && typeof meta.email === 'string'
+        && String(owner?.email).trim().toLowerCase() === meta.email.trim().toLowerCase()
+        && typeof meta.refreshToken === 'string' && /^[a-f0-9]{32}\.[A-Za-z0-9_-]{43}$/.test(meta.refreshToken)
+        && Date.parse(meta.refreshExpiresAt) > Date.now();
+    } catch { /* Malformed metadata does not establish an account. */ }
+    if (revision !== this.authStateRevision) return;
+    const changed = this.rememberedSession !== remembered; this.rememberedSession = remembered;
+    if (changed || this.publishedToken !== token || this.loggedInSubject.value !== !!token) {
+      this.publishedToken = token; this.loggedInSubject.next(!!token);
     }
+    try { if (await this.secureStorageService.getItem('ssAuthVersion') === '2') {
+      const raw = await this.secureStorageService.getItem('ssIdentitySession');
+      if (revision !== this.authStateRevision) return;
+      if (raw) this.expiryTimer = setTimeout(() => { void this.initializeAuthState(); }, 30000);
+    } } catch { if (revision === this.authStateRevision) this.expiryTimer = setTimeout(() => { void this.initializeAuthState(); }, 30000); }
   }
 
   async signIn(email: string, password: string): Promise<{ response: any; identity?: IdentitySession }> {

@@ -1,5 +1,7 @@
 // services/sync-worker.service.ts
-import { Injectable, NgZone } from '@angular/core';
+import { Injectable, NgZone, Optional } from '@angular/core';
+import { AuthService } from './auth.service';
+import { sessionToken } from '../utils/session-token';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
 import { OutboxStorage } from './outbox-storage.service';
@@ -18,6 +20,7 @@ const MAX_ATTEMPT = 8;
 export class SyncWorkerService {
   private syncing = false;
   private started = false;
+  private nextAuthenticationAttempt = 0;
 
   private base = buildApiUrl(notes.controller);
 
@@ -26,7 +29,8 @@ export class SyncWorkerService {
     private outbox: OutboxStorage,
     private zone: NgZone,
     private secure: SecureStorageService,
-    private notesService: NotesService
+    private notesService: NotesService,
+    @Optional() private auth?: AuthService,
   ) {}
 
   init() {
@@ -59,7 +63,7 @@ export class SyncWorkerService {
   }
 
   private async authHeaders(): Promise<HttpHeaders> {
-    const token = await this.secure.getItem('ssToken');
+    const token = await sessionToken(this.secure);
     let h = new HttpHeaders();
     if (token) h = h.set('Authorization', `Bearer ${token}`);
     return h;
@@ -77,7 +81,7 @@ export class SyncWorkerService {
   }
 
   private async isCurrentSession(headers: HttpHeaders, generation: number): Promise<boolean> {
-    const token = await this.secure.getItem('ssToken');
+    const token = await sessionToken(this.secure);
     return !!token && headers.get('Authorization') === `Bearer ${token}` && generation === this.outbox.generation;
   }
 
@@ -88,7 +92,13 @@ export class SyncWorkerService {
     let uploadedAny = false;
     try {
       if (!(await this.isOnline())) return;
-      const token = await this.secure.getItem('ssToken');
+      if (this.auth && !this.auth.hasActiveSession) {
+        if (Date.now() < this.nextAuthenticationAttempt || !(await this.outbox.peekBatch(1, Date.now())).length) return;
+        this.nextAuthenticationAttempt = Date.now() + 30000;
+        await this.auth.initializeAuthState();
+      }
+      if (this.auth?.hasActiveSession) this.nextAuthenticationAttempt = 0;
+      const token = await sessionToken(this.secure);
       if (!token) return;
       const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
       this.notesService.syncNeedsAttention$.next(requiresSyncAttention(await this.outbox.getAll()));

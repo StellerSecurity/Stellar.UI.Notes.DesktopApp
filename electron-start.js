@@ -1,7 +1,8 @@
 const { createUpdateStatus } = require('./desktop-update-status.cjs');
 const { installPersistenceGuard } = require('./desktop-persistence.cjs');
 const { createDesktopLocalization } = require('./desktop-localization.cjs');
-const { app, BrowserWindow, ipcMain, shell, dialog, protocol } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol, safeStorage } = require("electron");
+const { installSessionCredentialIPC } = require('./desktop-session-credential.cjs');
 const { registerRealtimeProtocol, redactRealtimeSecrets } = require('./desktop-realtime-protocol.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'stellar-notes', privileges: {
   standard: true, secure: true, supportFetchAPI: true, corsEnabled: true
@@ -1114,6 +1115,8 @@ if (process.platform !== "linux") {
 }
 
 /* ================= IPC ================= */
+
+installSessionCredentialIPC(ipcMain, () => mainWindow, safeStorage);
 
 ipcMain.handle('stellar-get-update-status', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) return null;
