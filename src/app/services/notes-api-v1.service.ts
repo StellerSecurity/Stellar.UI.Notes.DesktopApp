@@ -5,6 +5,7 @@ import { firstValueFrom, timeout } from 'rxjs';
 import { confirmUpload } from './upload-confirmation';
 import { logSyncFailure } from './sync-failure-log';
 import { requiresSyncAttention } from './sync-status';
+import { sessionToken } from '../utils/session-token';
 import { NoteV1 } from "../models/NoteV1";
 import { Folder } from "../models/Folder";
 
@@ -44,7 +45,16 @@ export class NotesApiV1Service {
 
   private async assertCurrentSession(token: string | null, generation: number): Promise<void> {
     const current = await this.secureStorageService.getItem('ssToken');
-    if (!token || current !== token || generation !== this.outbox.generation) {
+    let rotated = false;
+    if (token && current && current !== token) {
+      try {
+        const session = JSON.parse(await this.secureStorageService.getItem('ssIdentitySession') || '{}');
+        const user = JSON.parse(await this.secureStorageService.getItem('ssUser') || 'null');
+        rotated = session.previousTokenId === token.split('|')[0] && session.tokenId === current.split('|')[0]
+          && String(user?.id) === session.accountId && await this.secureStorageService.getItem('ssAuthVersion') === '2';
+      } catch { /* A different account/session remains a hard boundary. */ }
+    }
+    if (!token || (current !== token && !rotated) || generation !== this.outbox.generation) {
       throw new Error('Note session changed');
     }
   }
@@ -201,6 +211,7 @@ export class NotesApiV1Service {
     await this.assertCurrentSession(TOKEN, generation);
     if (queueOnly) return { queued: true, reason: 'durable' };
     if (!navigator.onLine) return { queued: true, reason: 'offline' };
+    if (await sessionToken(this.secureStorageService) !== TOKEN) return { queued: true, reason: 'auth-refresh' };
     try {
       const res = await firstValueFrom(this.http.post<object>(`${this.base}upload`, payload, { headers }).pipe(timeout(15000)));
       await confirmUpload(this.http, this.base, headers, payload, res);
@@ -232,7 +243,8 @@ export class NotesApiV1Service {
     sinceMs: number,
     limit = 1000
   ): Promise<{ notes: NoteV1[]; folders: Folder[]; has_more?: boolean; watermark?: number }> {
-    const TOKEN = await this.secureStorageService.getItem('ssToken');
+    const TOKEN = await sessionToken(this.secureStorageService);
+    if (!TOKEN) throw new Error('identitySessionPending');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
 
     if (!navigator.onLine) {
@@ -300,7 +312,8 @@ export class NotesApiV1Service {
   // PUBLIC: find
   // --------------------------------------------------
   async find(id: string): Promise<NoteV1> {
-    const TOKEN = await this.secureStorageService.getItem("ssToken");
+    const TOKEN = await sessionToken(this.secureStorageService);
+    if (!TOKEN) throw new Error('identitySessionPending');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${TOKEN ?? ''}`);
 
     if (!navigator.onLine) {
@@ -342,6 +355,8 @@ export class NotesApiV1Service {
     if (!navigator.onLine) {
       return { queued: true, reason: 'offline' } as any;
     }
+
+    if (await sessionToken(this.secureStorageService) !== TOKEN) return { queued: true, reason: 'auth-refresh' };
 
     try {
       const response = await firstValueFrom(

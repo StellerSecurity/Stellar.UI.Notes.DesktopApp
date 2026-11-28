@@ -2,6 +2,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  protectSessionCredential: (value) => ipcRenderer.invoke('stellar-protect-session-credential', value),
+  openSessionCredential: (value) => ipcRenderer.invoke('stellar-open-session-credential', value),
   getUpdateStatus: () => ipcRenderer.invoke('stellar-get-update-status'),
   onUpdateStatus: (callback) => {
     if (typeof callback !== 'function') return () => {};

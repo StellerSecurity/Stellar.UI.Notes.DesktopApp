@@ -4,7 +4,7 @@ type Json = Record<string, any>;
 type Identifiers = { client: string; server: string };
 export type IdentityTransport = (operation: string, body: Json) => Promise<Json>;
 export interface IdentityPins { issuer: string; methodKey: string; opaqueKey: string; }
-export interface IdentitySession { accountId: string; email: string; token: string; expiresAt: string; keyEnvelope: string; rootKey: Uint8Array; }
+export interface IdentitySession { accountId: string; email: string; token: string; expiresAt: string; keyEnvelope: string; rootKey: Uint8Array; refreshToken?: string; refreshExpiresAt?: string; }
 export interface IdentityAccount { accountId: string; revision: number; keyEnvelope: string; }
 const utf8 = new TextEncoder();
 const fail = (): never => { throw new Error('identityVerificationFailed'); };
@@ -110,7 +110,7 @@ export class StellarIdClient {
     const identifiers = this.identifiers(response['identifiers'], normalized);
     const finished = opaque.client.finishLogin({ password, clientLoginState: start.clientLoginState, loginResponse: response['loginResponse'], identifiers });
     if (!finished || finished.serverStaticPublicKey !== this.pins.opaqueKey) return fail();
-    const result = await this.post('finish', { challengeId: response['challengeId'], finishLoginRequest: finished.finishLoginRequest });
+    const result = await this.post('finish-renewable', { challengeId: response['challengeId'], finishLoginRequest: finished.finishLoginRequest });
     const { serverProof, ...claims } = result;
     if (serverProof !== await this.mac(finished.sessionKey, 'stellar-id/opaque-login/v1\n' + response['challengeId'] + '\n' + JSON.stringify(claims))) return fail();
     const id = accountId(result['accountId']);
@@ -119,7 +119,10 @@ export class StellarIdClient {
     if (typeof token !== 'string' || !/^[1-9][0-9]{0,19}\|[A-Za-z0-9]{40}$/.test(token)
       || typeof expiresAt !== 'string' || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= this.now()) return fail();
     const rootKey = await this.unwrap(result['keyEnvelope'], finished.exportKey, identifiers);
-    return { accountId: id, email: normalized, token, expiresAt, keyEnvelope: result['keyEnvelope'], rootKey };
+    if (result['refreshToken'] !== undefined && (typeof result['refreshToken'] !== 'string' || !/^[a-f0-9]{32}\.[A-Za-z0-9_-]{43}$/.test(result['refreshToken'])
+      || !Number.isFinite(Date.parse(result['refreshExpiresAt'])) || Date.parse(result['refreshExpiresAt']) <= this.now())) { rootKey.fill(0); return fail(); }
+    return { accountId: id, email: normalized, token, expiresAt, keyEnvelope: result['keyEnvelope'], rootKey,
+      ...(result['refreshToken'] ? { refreshToken: result['refreshToken'], refreshExpiresAt: result['refreshExpiresAt'] } : {}) };
   }
 
   private async account(flow: string, password: string, input: Json, root: Uint8Array | null, authorizationPassword?: string, owner?: Pick<IdentitySession, 'accountId' | 'email'>, confirmEnrollment?: () => Promise<string>): Promise<IdentityAccount & { root: Uint8Array }> {

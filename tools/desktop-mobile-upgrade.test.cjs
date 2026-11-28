@@ -26,6 +26,8 @@ function load(root, relative) {
 }
 const DesktopClient = load(desktop, 'src/app/utils/stellar-id-client.ts').StellarIdClient;
 const MobileClient = load(mobile, 'src/app/utils/stellar-id-client.ts').StellarIdClient;
+const DesktopRenewal = load(desktop, 'src/app/utils/identity-renewal.ts').IdentityRenewal;
+const MobileRenewal = load(mobile, 'src/app/utils/identity-renewal.ts').IdentityRenewal;
 const DesktopCrypto = load(desktop, 'src/app/services/crypto-key.service.ts').CryptoKeyService;
 const MobileCrypto = load(mobile, 'src/app/services/crypto-key.service.ts').CryptoKeyService;
 const opaque = require('../identity-runtime/node_modules/@serenity-kit/opaque/cjs/index.js');
@@ -54,6 +56,8 @@ async function transport(operation, body) {
   if (operation === 'method') return rpc('loginMethod', { body });
   if (operation === 'start') return rpc('loginStart', { body });
   if (operation === 'finish') return rpc('loginFinish', { body });
+  if (operation === 'finish-renewable') return rpc('loginFinishRenewable', { body });
+  if (operation === 'refresh') return rpc('renew', { body });
   if (operation === 'logout') return rpc('logout', { token: body.token });
   const [, flow, step] = operation.split('/');
   const result = await rpc(step, { flow, body });
@@ -97,6 +101,30 @@ const deadline = setTimeout(() => { child.kill(); process.exitCode = 1; }, 18000
   const desktopChange = await desktopCrypto.encryptText('\nDesktop response\n\n', 'roundtrip-note');
   check(await phoneCrypto.decryptText(desktopChange, 'roundtrip-note'), '\nDesktop response\n\n', 'desktop ciphertext opens on mobile');
   check(JSON.stringify(local), before, 'upgrade and new login leave offline notes untouched');
+  let renewalClock = Date.now();
+  function renewableStore(authenticated) {
+    const {accountId,email,keyEnvelope,expiresAt,refreshToken,refreshExpiresAt,token}=authenticated;
+    const values=new Map([['ssToken',token],['ssAuthVersion','2'],['ssUser',JSON.stringify({id:accountId,email})],
+      ['ssIdentitySession',JSON.stringify({accountId,email,keyEnvelope,expiresAt,refreshToken,refreshExpiresAt,tokenId:token.split('|')[0]})],['notes',before],['outbox','retained synthetic queue']]);
+    return {values,getItem:async key=>values.get(key)||null,setItem:async(key,value)=>{values.set(key,value);}};
+  }
+  const desktopStore=renewableStore(session),mobileStore=renewableStore(migrated);
+  const renew=(refreshToken,requestId)=>transport('refresh',{refreshToken,requestId});
+  await rpc('advance',{seconds:901});renewalClock+=901000;
+  const [desktopAccess,mobileAccess]=await Promise.all([
+    new DesktopRenewal(desktopStore,renew,()=>renewalClock).ensure(),
+    new MobileRenewal(mobileStore,renew,()=>renewalClock).ensure()]);
+  check(typeof desktopAccess,'string','desktop renews after fifteen-minute access expiry without a password');
+  check(typeof mobileAccess,'string','mobile renews after fifteen-minute access expiry without a password');
+  check((await rpc('resolveToken',{body:{token:desktopAccess}})).status,200,'renewed desktop access authorizes Notes');
+  check((await rpc('resolveToken',{body:{token:mobileAccess}})).status,200,'renewed mobile access authorizes Notes');
+  await rpc('advance',{seconds:901});renewalClock+=901000;
+  const restartedDesktop=await new DesktopRenewal(desktopStore,renew,()=>renewalClock).ensure();
+  const restartedMobile=await new MobileRenewal(mobileStore,renew,()=>renewalClock).ensure();
+  check(restartedDesktop!==desktopAccess,true,'desktop restart renews from durable session state');
+  check(restartedMobile!==mobileAccess,true,'mobile restart renews from durable session state');
+  for(const store of [desktopStore,mobileStore]){check(store.values.get('notes'),before,'renewal leaves persisted notes and folders intact');check(store.values.get('outbox'),'retained synthetic queue','renewal leaves offline queue intact');}
+  check(await phoneCrypto.decryptText(await desktopCrypto.encryptText('\nAfter renewal\n\n','renewed-roundtrip'),'renewed-roundtrip'),'\nAfter renewal\n\n','renewed clients preserve cross-device encryption and intentional blank lines');
   const reopened = await computer.login('desktop-migration@example.invalid', password);
   check(reopened.rootKey, root, 'desktop relogin preserves the same key');
   for (const secret of [password, originalRoot, local.notes[0].body, local.folders[0].name]) check(JSON.stringify(wires).includes(secret), false, 'identity transport does not disclose notes/password/root');
